@@ -1,0 +1,69 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-bg-main: var(--bg-main);
+  --color-bg-sub: var(--bg-sub);
+  --color-bg-card: var(--bg-card);
+  --color-text-main: var(--text-main);
+  --color-text-sub: var(--text-sub);
+  --color-text-muted: var(--text-muted);
+  --color-brand-primary: var(--brand-primary);
+  --color-status-urgent: var(--status-urgent);
+  --color-status-active: var(--status-active);
+  --color-border-main: var(--border-main);
+}
+
+:root {
+  --bg-main: #ffffff;
+  --bg-sub: #f2f4f6;
+  --bg-card:#F6F6F6;
+  --text-main: #191f28;
+  --text-sub: #4e5968;
+  --text-muted: #8b95a1;
+  --brand-primary: #3182f6;
+  --status-urgent: #f04452;
+  --status-active: #00d082;
+  --border-main: #e5e8eb;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-main: #111111;
+    --bg-sub: #1c1c1c;
+    --bg-card:#222222;
+    --text-main: #f9fafb;
+    --text-sub: #d1d5db;
+    --text-muted: #9ca3af;
+    --brand-primary: #3182f6;
+    --status-urgent: #ff4d4d;
+    --status-active: #05d686;
+    --border-main: #2d2d2d;
+  }
+}
+
+@layer base {
+  html,
+  body {
+    font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui,
+      sans-serif;
+    background-color: var(--bg-main);
+    color: var(--text-main);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    overscroll-behavior-y: contain;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+
+  button {
+    cursor: pointer;
+    box-sizing: border-box;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    min-height: 48px;
+    min-width: 48px;
+  }
+
+  p {
+    margin: 0;
+    word-break: keep-all;
+  }
+}
