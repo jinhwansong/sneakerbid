@@ -5,7 +5,7 @@ import { motion, HTMLMotionProps } from 'framer-motion';
 import { cn } from '@/lib/cn';
 
 interface ButtonProps extends Omit<HTMLMotionProps<'button'>, 'children'> {
-  variant?: 'primary' | 'secondary' | 'ghost' | 'outline' | 'test';
+  variant?: 'primary' | 'secondary' | 'ghost' | 'outline';
   size?: 'sm' | 'md' | 'lg' | 'xl';
   children: React.ReactNode;
   fullWidth?: boolean;
@@ -21,8 +21,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         'bg-transparent text-text-sub hover:bg-bg-sub hover:text-text-main',
       outline:
         'bg-transparent border border-border-main text-text-main hover:bg-bg-sub',
-      test:
-        'bg-transparent border border-border-main text-text-main hover:bg-bg-sub',
+     
     };
 
     const sizes = {

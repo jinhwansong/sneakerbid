@@ -1,38 +1,9 @@
 {
-  "openai": {
-    "model": "gpt-4",
-    "temperature": 0.1
-  },
   "locale": "ko-KR",
-  "prompt": {
-    "commit": "이 변경사항들을 분석해서 한국어로만 커밋 메시지를 작성해주세요. 반드시 한국어로 작성하고, feat(fe): 또는 feat(be): 접두사를 사용하세요. 모노레포에서 프론트엔드 작업만 분석하고 있습니다. 변경사항을 간결하고 명확하게 요약하세요.",
-    "body": "변경사항을 더 자세히 설명하되, 한국어로만 작성하세요."
-  },
-  "ignore": [
-    "**/node_modules/**",
-    "**/dist/**",
-    "**/build/**",
-    "**/*.lock",
-    "**/*.log",
-    "**/coverage/**",
-    "**/.next/**",
-    "**/backend/**",
-    "**/api/**",
-    "**/server/**",
-    "**/database/**",
-    "**/.git/**",
-    "**/.aicommits/**"
-  ],
-  "include": [
-    "frontend/**/*.js",
-    "frontend/**/*.jsx",
-    "frontend/**/*.ts",
-    "frontend/**/*.tsx",
-    "frontend/**/*.json",
-    "frontend/**/*.css",
-    "frontend/**/*.md",
-    "README.md"
-  ],
+  "prompt": "이 변경사항을 분석하여 'feat(fe): 요약' 형식의 한국어 커밋 메시지를 작성하세요. 반드시 한국어만 사용하세요.",
   "maxTokens": 1000,
-  "disableSubprojects": true
+  "exclude": [
+    "package-lock.json",
+    "**/backend/**"
+  ]
 }
