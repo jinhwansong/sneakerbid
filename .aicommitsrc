@@ -1,9 +1,0 @@
-{
-  "locale": "ko-KR",
-  "prompt": "이 변경사항을 분석하여 'feat(fe): 요약' 형식의 한국어 커밋 메시지를 작성하세요. 반드시 한국어만 사용하세요.",
-  "maxTokens": 1000,
-  "exclude": [
-    "package-lock.json",
-    "**/backend/**"
-  ]
-}
