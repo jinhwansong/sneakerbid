@@ -1,15 +1,26 @@
 {
   "scripts": {
-    "commit": "cz"
+    "commit": "echo 'Usage: git commit -m \"feat(fe): your message\"'",
+    "commit:fe": "echo 'Usage: git commit -m \"feat(fe): your message\"'",
+    "commit:be": "echo 'Usage: git commit -m \"feat(be): your message\"'",
+    "prepare": "husky"
   },
-  "config": {
-    "commitizen": {
-      "path": "@commitlint/cz-commitlint",
-      "czConfig": "frontend/commitlint.config.js"
-    }
+  "lint-staged": {
+    "frontend/**/*.{js,jsx,ts,tsx}": [
+      "cd frontend && eslint --fix",
+      "cd frontend && prettier --write"
+    ],
+    "frontend/**/*.{json,css,md}": [
+      "cd frontend && prettier --write"
+    ]
   },
   "devDependencies": {
+    "@commitlint/cli": "^20.3.1",
+    "@commitlint/config-conventional": "^20.3.1",
     "@commitlint/cz-commitlint": "^20.3.1",
-    "commitizen": "^4.3.1"
+    "commitizen": "^4.3.1",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7",
+    "prettier": "^3.7.4"
   }
 }
