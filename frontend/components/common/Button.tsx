@@ -5,7 +5,7 @@ import { motion, HTMLMotionProps } from 'framer-motion';
 import { cn } from '@/lib/cn';
 
 interface ButtonProps extends Omit<HTMLMotionProps<'button'>, 'children'> {
-  variant?: 'primary' | 'secondary' | 'ghost' | 'outline';
+  variant?: 'primary' | 'secondary' | 'ghost' | 'outline' | 'test';
   size?: 'sm' | 'md' | 'lg' | 'xl';
   children: React.ReactNode;
   fullWidth?: boolean;
@@ -14,10 +14,15 @@ interface ButtonProps extends Omit<HTMLMotionProps<'button'>, 'children'> {
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = 'primary', size = 'md', fullWidth, children, ...props }, ref) => {
     const variants = {
-      primary: 'bg-text-main text-bg-main hover:brightness-110 shadow-lg shadow-black/5',
+      primary:
+        'bg-text-main text-bg-main hover:brightness-110 shadow-lg shadow-black/5',
       secondary: 'bg-brand-primary text-white hover:brightness-110 ',
-      ghost: 'bg-transparent text-text-sub hover:bg-bg-sub hover:text-text-main',
-      outline: 'bg-transparent border border-border-main text-text-main hover:bg-bg-sub',
+      ghost:
+        'bg-transparent text-text-sub hover:bg-bg-sub hover:text-text-main',
+      outline:
+        'bg-transparent border border-border-main text-text-main hover:bg-bg-sub',
+      test:
+        'bg-transparent border border-border-main text-text-main hover:bg-bg-sub',
     };
 
     const sizes = {
