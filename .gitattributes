@@ -1,0 +1,30 @@
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# Frontend files - force export
+frontend/** export-ignore
+frontend/** -text
+
+# Explicitly export frontend files
+frontend/**/*.js text eol=lf
+frontend/**/*.jsx text eol=lf
+frontend/**/*.ts text eol=lf
+frontend/**/*.tsx text eol=lf
+frontend/**/*.json text eol=lf
+frontend/**/*.css text eol=lf
+frontend/**/*.md text eol=lf
+frontend/**/*.html text eol=lf
+
+# Node modules and build artifacts
+node_modules/ export-ignore
+.next/ export-ignore
+build/ export-ignore
+dist/ export-ignore
+
+# Binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.svg binary
