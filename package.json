@@ -1,0 +1,15 @@
+{
+  "scripts": {
+    "commit": "cz"
+  },
+  "config": {
+    "commitizen": {
+      "path": "@commitlint/cz-commitlint",
+      "czConfig": "frontend/commitlint.config.js"
+    }
+  },
+  "devDependencies": {
+    "@commitlint/cz-commitlint": "^20.3.1",
+    "commitizen": "^4.3.1"
+  }
+}

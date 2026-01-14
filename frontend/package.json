@@ -9,7 +9,7 @@
     "lint": "next lint",
     "type-check": "tsc --noEmit",
     "prepare": "husky",
-    "commit": "echo 'Use: git commit -m \"feat(fe): your message\"'"
+    "commit": "cz"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [
