@@ -1,0 +1,28 @@
+{
+  "openai": {
+    "model": "gpt-3.5-turbo"
+  },
+  "ignore": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/build/**",
+    "**/*.lock",
+    "**/*.log",
+    "**/coverage/**",
+    "**/.next/**",
+    "**/backend/**",
+    "**/api/**",
+    "**/server/**",
+    "**/database/**"
+  ],
+  "include": [
+    "frontend/**/*.js",
+    "frontend/**/*.jsx",
+    "frontend/**/*.ts",
+    "frontend/**/*.tsx",
+    "frontend/**/*.json",
+    "frontend/**/*.css",
+    "frontend/**/*.md",
+    "README.md"
+  ]
+}
