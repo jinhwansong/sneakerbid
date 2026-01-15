@@ -1,6 +1,11 @@
 import type { Metadata } from "next";
 import { Toast } from '@/components/common/Toast';
-import "./globals.css";
+import { ThemeToggle } from '@/components/common/ThemeToggle';
+import { ThemeProvider } from 'next-themes';
+import "@/style/globals.css";
+import { Header } from "@/components/layout/Header";
+import { OnboardingModal } from "@/components/features/OnboardingModal";
+import Footer from "@/components/layout/Footer";
 
 export const metadata: Metadata = {
   title: "SNEAKERBID | 실시간 스니커즈 경매",
@@ -13,10 +18,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ko">
+    <html lang="ko" suppressHydrationWarning>
       <body className="antialiased font-pretendard">
-        <Toast />
-        {children}
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <Toast />
+          <OnboardingModal />
+          <div className="bg-bg-main">
+            <Header />
+            {children}
+            <Footer />
+          </div>
+          <ThemeToggle />
+        </ThemeProvider>
       </body>
     </html>
   );

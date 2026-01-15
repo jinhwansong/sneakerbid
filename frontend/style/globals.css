@@ -26,19 +26,17 @@
   --border-main: #e5e8eb;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg-main: #111111;
-    --bg-sub: #1c1c1c;
-    --bg-card:#222222;
-    --text-main: #f9fafb;
-    --text-sub: #d1d5db;
-    --text-muted: #9ca3af;
-    --brand-primary: #3182f6;
-    --status-urgent: #ff4d4d;
-    --status-active: #05d686;
-    --border-main: #2d2d2d;
-  }
+.dark {
+  --bg-main: #111111;
+  --bg-sub: #1c1c1c;
+  --bg-card:#222222;
+  --text-main: #f9fafb;
+  --text-sub: #d1d5db;
+  --text-muted: #9ca3af;
+  --brand-primary: #3182f6;
+  --status-urgent: #ff4d4d;
+  --status-active: #05d686;
+  --border-main: #2d2d2d;
 }
 
 @layer base {
@@ -65,5 +63,38 @@
   p {
     margin: 0;
     word-break: keep-all;
+  }
+}
+
+/* Hide number input spinners */
+.no-spinner::-webkit-outer-spin-button,
+.no-spinner::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.no-spinner[type='number'] {
+  -moz-appearance: textfield;
+}
+
+
+/* Marquee Animation */
+@utility animate-marquee {
+  display: flex;
+  animation: marquee 30s linear infinite;
+}
+
+@utility pause-marquee {
+  &:hover {
+    animation-play-state: paused;
+  }
+}
+
+@keyframes marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
   }
 }

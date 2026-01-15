@@ -1,36 +1,59 @@
 'use client';
 
+import React, { useEffect, useState } from 'react';
 import { useTheme } from 'next-themes';
 import { Sun, Moon } from 'lucide-react';
-import { motion } from 'framer-motion';
-import { useSyncExternalStore } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 
-export default function ThemeToggle() {
-  const { setTheme, resolvedTheme } = useTheme();
+export const ThemeToggle = () => {
+  const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
 
-  // 하이드레이션 오류 방지를 위해 mounted 상태 확인
-  const mounted = useSyncExternalStore(
-    () => () => {},
-    () => true,
-    () => false
-  );
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
-  const isDark = resolvedTheme === 'dark';
+  if (!mounted) return null;
+
+  const isDark = theme === 'dark';
 
   return (
-    <motion.button
-      whileTap={{ scale: 0.9 }}
-      onClick={() => setTheme(isDark ? 'light' : 'dark')}
-      className="flex h-12 w-12 items-center justify-center rounded-xl bg-(--secondary-bg) text-(--text-title) hover:bg-(--primary-soft) transition-colors"
-      aria-label="테마 변경"
-    >
-      {!mounted ? (
-        <div className="h-5 w-5" />
-      ) : isDark ? (
-        <Sun size={20} className="text-amber-500" />
-      ) : (
-        <Moon size={20} className="text-slate-600" />
-      )}
-    </motion.button>
+    <div className="fixed bottom-8 right-8 z-50">
+      <motion.button
+        initial={{ opacity: 0, scale: 0.8, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        whileTap={{ scale: 0.9 }}
+        whileHover={{ scale: 1.1, rotate: isDark ? 15 : -15 }}
+        onClick={() => setTheme(isDark ? 'light' : 'dark')}
+        className="group relative flex h-14 w-14 items-center justify-center rounded-2xl bg-bg-main shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-border-main backdrop-blur-md transition-all hover:shadow-brand-primary/20 dark:shadow-white/5"
+        aria-label="테마 토글"
+      >
+        <div className="absolute inset-0 rounded-2xl bg-brand-primary/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+        
+        <AnimatePresence mode="wait">
+          {isDark ? (
+            <motion.div
+              key="sun"
+              initial={{ rotate: -90, opacity: 0 }}
+              animate={{ rotate: 0, opacity: 1 }}
+              exit={{ rotate: 90, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <Sun size={24} className="text-amber-500 fill-amber-500/20" />
+            </motion.div>
+          ) : (
+            <motion.div
+              key="moon"
+              initial={{ rotate: 90, opacity: 0 }}
+              animate={{ rotate: 0, opacity: 1 }}
+              exit={{ rotate: -90, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <Moon size={24} className="text-slate-700 fill-slate-700/10" />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.button>
+    </div>
   );
-}
+};

@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { AuctionItem } from '@/types/auction';
 import { Badge } from '@/components/common/Badge';
@@ -30,13 +31,14 @@ export const AuctionCard: React.FC<AuctionCardProps> = ({ item }) => {
       transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
       className="group relative flex flex-col overflow-hidden rounded-2xl bg-bg-main border border-border-main hover:shadow-xl hover:shadow-black/5 dark:hover:shadow-white/5 transition-all"
     >
+      <Link href={`/auction/${item.id}`} className="flex flex-col flex-1">
       {/* Status Badge - Top Left */}
       <div className="absolute top-4 left-4 z-10">
         <Badge status={item.status} />
       </div>
 
       {/* Image Container */}
-      <div className="aspect-4/3 relative overflow-hidden bg-bg-card">
+        <div className="aspect-4/3 relative overflow-hidden bg-bg-card">
         <Image
           src={item.imageUrl}
           alt={item.modelName}
@@ -46,7 +48,7 @@ export const AuctionCard: React.FC<AuctionCardProps> = ({ item }) => {
       </div>
 
       {/* Content */}
-      <div className="p-5 flex flex-col gap-3">
+        <div className="p-5 flex flex-col gap-3 flex-1">
         <div>
           <p className="text-[11px] font-bold text-text-muted uppercase tracking-wider mb-0.5">
             {item.brand}
@@ -77,7 +79,10 @@ export const AuctionCard: React.FC<AuctionCardProps> = ({ item }) => {
             )}
           </div>
         </div>
+        </div>
+      </Link>
 
+      <div className="px-5 pb-5 flex flex-col gap-3">
         {/* Action Button - Immediate Feedback */}
         <Button
           onClick={handleBid}

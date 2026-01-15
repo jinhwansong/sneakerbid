@@ -1,57 +1,66 @@
 'use client';
 
 import React from 'react';
-import { motion } from 'framer-motion';
-import { Bell } from 'lucide-react';
+import { Activity, Zap, Gavel } from 'lucide-react';
 
-const activities = [
-  { id: 1, user: 'Agent-Alpha', type: 'AGENT', item: '에어 조던 1 하이 시카고', bid: '620,000원' },
-  { id: 2, user: 'Agent-Beta', type: 'AGENT', item: '이지 부스트 350 V2', bid: '345,000원' },
-  { id: 3, user: 'G-771', type: 'GUEST', item: '뉴발란스 990v3', bid: '290,000원' },
+interface ActivityItem {
+  id: string;
+  type: 'bid' | 'sold';
+  user: string;
+  model: string;
+  amount: string;
+  time: string;
+}
+
+const DUMMY_ACTIVITIES: ActivityItem[] = [
+  { id: '1', type: 'bid', user: 'Guest_241', model: 'Air Jordan 1 Retro High OG', amount: '₩580,000', time: '방금 전' },
+  { id: '2', type: 'sold', user: 'Guest_112', model: 'Dunk Low "Panda"', amount: '₩125,000', time: '1분 전' },
+  { id: '3', type: 'bid', user: 'Guest_889', model: '990v5 MiUSA Gray Classic', amount: '₩325,000', time: '2분 전' },
+  { id: '4', type: 'bid', user: 'Guest_004', model: 'Yeezy Boost 350 V2', amount: '₩290,000', time: '3분 전' },
 ];
 
 export const LiveActivityFeed = () => {
   return (
-    <div className="overflow-hidden bg-bg-sub/50 rounded-lg border border-border-main/30 px-5 py-5">
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2 text-brand-primary shrink-0">
-          <div className="relative">
-            <Bell size={14} fill="currentColor" />
-            <span className="absolute -top-1 -right-1 w-2 h-2 bg-status-urgent rounded-full border-2 border-bg-main" />
+    <div className="w-full bg-bg-main border-y border-border-main/50 overflow-hidden py-3">
+      <div className="max-w-7xl mx-auto px-5">
+        <div className="flex items-center">
+          {/* Label: Fixed area on the left */}
+          <div className="flex items-center gap-3 shrink-0 bg-bg-main pr-6 z-10 relative">
+            <div className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-primary/10 text-brand-primary">
+              <Activity size={14} className="animate-pulse" />
+            </div>
+            <span className="text-xs font-black text-brand-primary tracking-tighter uppercase">Live Activity</span>
+            <div className="h-4 w-px bg-border-main ml-2" />
           </div>
-          <span className="text-[11px] font-black uppercase tracking-widest">LIVE FEED</span>
-        </div>
-        
-        <div className="h-4 w-px bg-border-main/50" />
 
-        <div className="flex-1 relative h-5">
-          <motion.div
-            animate={{
-              y: [0, -20, -40],
-            }}
-            transition={{
-              duration: 8,
-              repeat: Infinity,
-              ease: "linear",
-            }}
-            className="flex flex-col gap-0 text-[12px] font-medium text-text-sub"
-          >
-            {activities.concat(activities[0]).map((activity, i) => (
-              <div key={i} className="h-5 flex items-center gap-1.5 whitespace-nowrap">
-                {activity.type === 'AGENT' && (
-                  <span className="bg-brand-primary/10 text-brand-primary text-[9px] px-1.5 py-0.5 rounded font-bold tracking-tighter leading-none mr-0.5">
-                    AGENT
-                  </span>
-                )}
-                <span className="font-bold text-text-main">{activity.user}</span>
-                <span>님이</span>
-                <span className="font-bold text-text-main">[{activity.item}]</span>
-                <span>에</span>
-                <span className="font-bold text-brand-primary">{activity.bid}</span>
-                <span>입찰했습니다.</span>
-              </div>
-            ))}
-          </motion.div>
+          {/* Marquee Container: Clipping area for scrolling content */}
+          <div className="flex-1 overflow-hidden relative">
+            {/* Gradient Shadows: Fade in/out effect */}
+            <div className="absolute left-0 top-0 bottom-0 w-12 bg-linear-to-r from-bg-main to-transparent z-10 pointer-events-none" />
+            <div className="absolute right-0 top-0 bottom-0 w-12 bg-linear-to-l from-bg-main to-transparent z-10 pointer-events-none" />
+
+            {/* Scrolling Items */}
+            <div className="flex gap-12 animate-marquee hover:pause-marquee whitespace-nowrap">
+              {[...DUMMY_ACTIVITIES, ...DUMMY_ACTIVITIES, ...DUMMY_ACTIVITIES].map((item, index) => (
+                <div key={`${item.id}-${index}`} className="flex items-center gap-3 text-[13px] py-1">
+                  <span className="font-bold text-text-main shrink-0">{item.user}</span>
+                  <span className="text-text-muted shrink-0 text-[11px]">님이</span>
+                  <span className="font-bold text-text-main truncate max-w-[150px]">{item.model}</span>
+                  <span className="text-text-muted shrink-0 text-[11px]">에</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className={item.type === 'bid' ? 'text-status-active font-bold' : 'text-status-urgent font-bold'}>
+                      {item.amount}
+                    </span>
+                    <span className="text-text-sub font-bold">
+                      {item.type === 'bid' ? '입찰' : '낙찰'}
+                    </span>
+                    {item.type === 'bid' ? <Zap size={12} className="text-status-active" /> : <Gavel size={12} className="text-status-urgent" />}
+                  </div>
+                  <span className="text-[11px] text-text-muted ml-1 shrink-0">{item.time}</span>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </div>
