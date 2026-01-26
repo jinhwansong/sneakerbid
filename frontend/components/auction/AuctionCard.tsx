@@ -1,23 +1,21 @@
 'use client';
 
-import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { AuctionItem } from '@/types/auction';
-import { Badge } from '@/components/common/Badge';
-import { PriceChartPlaceholder } from './PriceChartPlaceholder';
 import { Button } from '@/components/common/Button';
 import { Users, Clock } from 'lucide-react';
 import { useToastStore } from '@/store/useToastStore';
 import { formatPrice, formatRemainingTime } from '@/lib/format';
+import Badge from '../common/Badge';
 
 interface AuctionCardProps {
   item: AuctionItem;
 }
 
-export const AuctionCard: React.FC<AuctionCardProps> = ({ item }) => {
-  const showToast = useToastStore((state) => state.showToast);
+export default function AuctionCard({ item }: AuctionCardProps) {
+  const {showToast} = useToastStore((state) => state);
 
   const handleBid = () => {
     showToast(`입찰 시작: ${item.modelName}`);
@@ -32,7 +30,6 @@ export const AuctionCard: React.FC<AuctionCardProps> = ({ item }) => {
       className="group relative flex flex-col overflow-hidden rounded-2xl bg-bg-main border border-border-main hover:shadow-xl hover:shadow-black/5 dark:hover:shadow-white/5 transition-all"
     >
       <Link href={`/auction/${item.id}`} className="flex flex-col flex-1">
-      {/* Status Badge - Top Left */}
       <div className="absolute top-4 left-4 z-10">
         <Badge status={item.status} />
       </div>
@@ -43,7 +40,7 @@ export const AuctionCard: React.FC<AuctionCardProps> = ({ item }) => {
           src={item.imageUrl}
           alt={item.modelName}
           fill
-          className="object-contain p-6 mix-blend-multiply dark:mix-blend-normal group-hover:scale-105 transition-transform duration-500"
+          className="object-contain p-6 group-hover:scale-105 transition-transform duration-500"
         />
       </div>
 
@@ -94,11 +91,6 @@ export const AuctionCard: React.FC<AuctionCardProps> = ({ item }) => {
           {item.status === 'closed' ? '경매 종료' : '지금 바로 입찰하기'}
         </Button>
 
-        {/* Chart Placeholder */}
-        <div className="pt-2">
-          <PriceChartPlaceholder />
-        </div>
-
         {/* Footer Info */}
         <div className="flex items-center justify-between pt-3 border-t border-border-main/50 text-text-muted">
           <div className="flex items-center gap-1.5">
@@ -117,4 +109,4 @@ export const AuctionCard: React.FC<AuctionCardProps> = ({ item }) => {
       </div>
     </motion.div>
   );
-};
+}

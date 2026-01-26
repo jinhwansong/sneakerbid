@@ -1,10 +1,10 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { AuctionItem } from '@/types/auction';
-import { Badge } from '@/components/common/Badge';
+import Badge from '@/components/common/Badge';
 import { Button } from '@/components/common/Button';
 import { Users, Timer, ArrowUpRight } from 'lucide-react';
 import { useToastStore } from '@/store/useToastStore';
@@ -14,11 +14,11 @@ interface FeaturedAuctionProps {
   item: AuctionItem;
 }
 
-export const FeaturedAuction = ({
+export default function FeaturedAuction({
   item,
-}: FeaturedAuctionProps) => {
-  const [isWatched, setIsWatched] = React.useState(false);
-  const showToast = useToastStore((state) => state.showToast);
+}: FeaturedAuctionProps) {
+  const [isWatched, setIsWatched] = useState(false);
+  const {showToast} = useToastStore((state) => state);
 
   const handleBid = () => {
     showToast('입찰 시뮬레이션이 시작되었습니다.');
@@ -38,7 +38,7 @@ export const FeaturedAuction = ({
       <motion.div
         initial={{ opacity: 0, scale: 0.98 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="group relative overflow-hidden rounded-3xl bg-[#111111] dark:bg-bg-sub min-h-[560px] flex items-center shadow-2xl"
+        className="group relative overflow-hidden rounded-3xl bg-(--deep-navy) min-h-[560px] flex items-center shadow-2xl"
       >
         <div className="absolute top-0 right-0 w-2/3 h-full bg-linear-to-l from-brand-primary/20 to-transparent pointer-events-none" />
         <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-brand-primary/10 rounded-full blur-[120px] pointer-events-none" />
@@ -145,4 +145,4 @@ export const FeaturedAuction = ({
       </motion.div>
     </section>
   );
-};
+}

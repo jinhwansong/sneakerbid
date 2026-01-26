@@ -11,12 +11,15 @@
   --color-status-urgent: var(--status-urgent);
   --color-status-active: var(--status-active);
   --color-border-main: var(--border-main);
+  --color-border-sub: var(--border-sub);
+  --color-bg-card-sub: var(--bg-card-sub);
 }
 
 :root {
   --bg-main: #ffffff;
   --bg-sub: #f2f4f6;
   --bg-card:#F6F6F6;
+  --bg-card-sub:#222;
   --text-main: #191f28;
   --text-sub: #4e5968;
   --text-muted: #8b95a1;
@@ -24,6 +27,8 @@
   --status-urgent: #f04452;
   --status-active: #00d082;
   --border-main: #e5e8eb;
+  --border-sub: #333333;
+  --deep-navy:#111111
 }
 
 .dark {
@@ -37,6 +42,7 @@
   --status-urgent: #ff4d4d;
   --status-active: #05d686;
   --border-main: #2d2d2d;
+  --border-sub: #e5e8eb;
 }
 
 @layer base {
@@ -51,7 +57,37 @@
     overscroll-behavior-y: contain;
     transition: background-color 0.3s ease, color 0.3s ease;
   }
-
+  input {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    outline: none;
+    border: none;
+    background: transparent;
+    box-shadow: none;
+  }
+  input:hover,
+  input:focus,
+  input:active {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    outline: none;
+    border: none;
+    background: transparent;
+    box-shadow: none;
+  }
+  input::placeholder {
+    color: var(--text-muted);
+  }
+  input[type='number']::-webkit-inner-spin-button,
+  input[type='number']::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type='number'] {
+    -moz-appearance: textfield;
+  }
   button {
     cursor: pointer;
     box-sizing: border-box;

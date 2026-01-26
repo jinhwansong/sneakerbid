@@ -1,17 +1,13 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
 import { useTheme } from 'next-themes';
 import { Sun, Moon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useIsMounted } from '@/hooks/useIsMounted';
 
-export const ThemeToggle = () => {
+export default function ThemeToggle() {
   const { theme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = useIsMounted();
 
   if (!mounted) return null;
 
@@ -56,4 +52,4 @@ export const ThemeToggle = () => {
       </motion.button>
     </div>
   );
-};
+}

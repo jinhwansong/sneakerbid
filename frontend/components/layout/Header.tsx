@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { Button } from '@/components/common/Button';
 import { cn } from '@/lib/cn';
 
-export const Header = () => {
+export default function Header() {
   const pathname = usePathname();
 
   const navItems = [
@@ -70,4 +70,4 @@ export const Header = () => {
       </div>
     </nav>
   );
-};
+}

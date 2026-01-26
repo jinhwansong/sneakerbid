@@ -17,13 +17,13 @@ interface DropdownProps {
   width?: string;
 }
 
-export const Dropdown: React.FC<DropdownProps> = ({ 
+export default function Dropdown({ 
   options, 
   value, 
   onSelect, 
   className,
   width = 'w-40' 
-}) => {
+}: DropdownProps) {
   const selectedOption = options.find((opt) => opt.value === value);
 
   return (
@@ -57,4 +57,4 @@ export const Dropdown: React.FC<DropdownProps> = ({
       </div>
     </div>
   );
-};
+}

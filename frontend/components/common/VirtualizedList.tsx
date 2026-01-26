@@ -1,6 +1,6 @@
 'use client';
 
-import React, { type ReactNode } from 'react';
+import  { type ReactNode } from 'react';
 import { Virtuoso } from 'react-virtuoso';
 import { cn } from '@/lib/cn';
 

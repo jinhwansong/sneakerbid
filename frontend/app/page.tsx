@@ -1,15 +1,12 @@
-import { AuctionCard } from '@/components/auction/AuctionCard';
-import { FeaturedAuction } from '@/components/auction/FeaturedAuction';
-import { HorizontalAuctionList } from '@/components/auction/HorizontalAuctionList';
-import { LiveActivityFeed } from '@/components/auction/LiveActivityFeed';
-import { LiveStats } from '@/components/auction/LiveStats';
-import { AuctionFilterTabs } from '@/components/auction/AuctionFilterTabs';
+import AuctionCard from '@/components/auction/AuctionCard';
+import FeaturedAuction from '@/components/auction/FeaturedAuction';
+import LiveActivityFeed from '@/components/auction/LiveActivityFeed';
+import LiveStats from '@/components/auction/LiveStats';
+import AuctionFilterTabs from '@/components/auction/AuctionFilterTabs';
 import { DUMMY_AUCTIONS } from '@/lib/dummy';
 
 export default function Home() {
-  const featuredItem = DUMMY_AUCTIONS[0];
-  const endingSoonItems = DUMMY_AUCTIONS.filter(item => item.status === 'ending_soon');
-  
+  const featuredItem = DUMMY_AUCTIONS[0];  
   return (
       <main className="max-w-7xl mx-auto px-5 py-12 ">
         <div className="space-y-4 mb-24">
@@ -20,14 +17,9 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="mb-24">
-          <HorizontalAuctionList
-            title="종료 임박 경매 ⚡"
-            items={endingSoonItems}
-          />
-        </div>
+       
 
-        <section className="pt-16 border-t border-border-main/50">
+        <section >
           <div className="flex items-end justify-between mb-10">
             <h2 className="text-xl md:text-2xl font-bold text-text-main tracking-tight">
               입찰 진행 중인 상품

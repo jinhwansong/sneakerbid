@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Zap, ShieldCheck, UserCircle2 } from 'lucide-react';
 import { Button } from '@/components/common/Button';
 
-export const OnboardingModal: React.FC = () => {
+export default function OnboardingModal() {
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
@@ -100,4 +100,4 @@ export const OnboardingModal: React.FC = () => {
       )}
     </AnimatePresence>
   );
-};
+}

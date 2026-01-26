@@ -12,12 +12,12 @@ interface AuctionFilterTabsProps {
   className?: string;
 }
 
-export const AuctionFilterTabs: React.FC<AuctionFilterTabsProps> = ({
+export default function AuctionFilterTabs({
   tabs = AUCTION_FILTER_TABS,
   activeIndex = 0,
   onChange,
   className,
-}) => {
+}: AuctionFilterTabsProps) {
   return (
     <div className={cn('flex gap-2 overflow-x-auto pb-2 scrollbar-hide', className)}>
       {tabs.map((tab, index) => (
@@ -36,4 +36,4 @@ export const AuctionFilterTabs: React.FC<AuctionFilterTabsProps> = ({
       ))}
     </div>
   );
-};
+}

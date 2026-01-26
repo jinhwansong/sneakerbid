@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import { DUMMY_AUCTIONS } from '@/lib/dummy';
-import { AuctionDetailClient } from '@/components/auction/AuctionDetailClient';
+import AuctionDetailClient from '@/components/auction/AuctionDetailClient';
 
 interface AuctionDetailPageProps {
   params: Promise<{
@@ -18,7 +18,7 @@ export default async function AuctionDetailPage({ params }: AuctionDetailPagePro
 
   return (
     <main className="max-w-7xl mx-auto px-5 py-10 md:py-14">
-      <AuctionDetailClient item={item} />
+      <AuctionDetailClient item={item} />     
     </main>
   );
 }

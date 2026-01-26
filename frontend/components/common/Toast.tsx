@@ -1,49 +1,52 @@
 'use client';
 
-import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useToastStore } from '@/store/useToastStore';
 import { CheckCircle2, AlertCircle } from 'lucide-react';
-import { cn } from '@/lib/cn';
+import { useEffect } from 'react';
 
-export const Toast: React.FC = () => {
-  const { message, type, isVisible, hideToast } = useToastStore();
+interface ToastProps {
+  message: string;
+  type?: 'success' | 'error';
+  isVisible: boolean;
+  onClose: () => void;
+  duration?: number;
+}
 
+export default function Toast({
+  message,
+  type = 'success',
+  isVisible,
+  onClose,
+  duration = 3000,
+}: ToastProps) {
   useEffect(() => {
     if (isVisible) {
       const timer = setTimeout(() => {
-        hideToast();
-      }, 3000);
+        onClose();
+      }, duration);
       return () => clearTimeout(timer);
     }
-  }, [isVisible, hideToast]);
+  }, [isVisible, onClose, duration]);
 
   return (
     <AnimatePresence>
       {isVisible && (
-        <div className="fixed top-8 left-1/2 -translate-x-1/2 z-[200] w-full max-w-fit px-4">
+        <div className="fixed bottom-10 left-1/2 z-100 -translate-x-1/2 px-4 w-full max-w-md">
           <motion.div
-            initial={{ opacity: 0, y: -20, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
-            className={cn(
-              "flex items-center gap-3 px-6 py-4 rounded-[24px] shadow-2xl border backdrop-blur-md",
-              type === 'success' 
-                ? "bg-bg-main/90 border-border-main text-text-main" 
-                : "bg-status-urgent/10 border-status-urgent/20 text-status-urgent"
-            )}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            className="flex items-center gap-3 rounded-2xl bg-(--deep-navy)/90 p-4 text-white shadow-2xl backdrop-blur-md "
           >
             {type === 'success' ? (
-              <CheckCircle2 size={20} className="text-status-active" />
+              <CheckCircle2 className="h-5 w-5 text-emerald-400" />
             ) : (
-              <AlertCircle size={20} className="text-status-urgent" />
+              <AlertCircle className="h-5 w-5 text-rose-400" />
             )}
-            <span className="text-sm font-bold tracking-tight whitespace-nowrap">
-              {message}
-            </span>
+            <span className="text-sm font-bold">{message}</span>
           </motion.div>
         </div>
       )}
     </AnimatePresence>
   );
-};
+}

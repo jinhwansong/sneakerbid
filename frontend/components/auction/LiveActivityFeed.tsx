@@ -19,7 +19,7 @@ const DUMMY_ACTIVITIES: ActivityItem[] = [
   { id: '4', type: 'bid', user: 'Guest_004', model: 'Yeezy Boost 350 V2', amount: '₩290,000', time: '3분 전' },
 ];
 
-export const LiveActivityFeed = () => {
+export default function LiveActivityFeed() {
   return (
     <div className="w-full bg-bg-main border-y border-border-main/50 overflow-hidden py-3">
       <div className="max-w-7xl mx-auto px-5">
@@ -65,4 +65,4 @@ export const LiveActivityFeed = () => {
       </div>
     </div>
   );
-};
+}

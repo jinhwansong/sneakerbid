@@ -1,14 +1,17 @@
-'use client'
+'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import Image from 'next/image';
-import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowUpRight, Clock, Users, X } from 'lucide-react';
+import { Clock } from 'lucide-react';
 import { AuctionItem } from '@/types/auction';
 import { Button } from '@/components/common/Button';
-import { Badge } from '@/components/common/Badge';
-import { PriceChartPlaceholder } from '@/components/auction/PriceChartPlaceholder';
-import { formatCountdown, formatPrice, formatTime } from '@/lib/format';
+import Badge from '@/components/common/Badge';
+import PriceTrendChart, {
+  type PriceHistory,
+} from '@/components/auction/PriceChart';
+import BidCard from '@/components/auction/BidCard';
+import { useCountdown } from '@/hooks/useCountdown';
+import { formatPrice } from '@/lib/format';
 import { cn } from '@/lib/cn';
 
 interface BidLogItem {
@@ -16,8 +19,8 @@ interface BidLogItem {
   user: string;
   amount: number;
   time: string;
+  isBot?: boolean;
 }
-
 
 interface AuctionDetailClientProps {
   item: AuctionItem;
@@ -25,88 +28,123 @@ interface AuctionDetailClientProps {
 
 const BID_STEP = 10000;
 
-
-const maskUser = (user: string) => {
-  if (user.length <= 3) return `${user[0]}**`;
-  return `${user.slice(0, 2)}***`;
+// 시작가 계산 (현재가의 70%로 추정, 실제로는 서버에서 제공해야 함)
+const calculateStartPrice = (currentBid: number) => {
+  return Math.floor(currentBid * 0.7);
 };
 
-const getRemainingSeconds = (endTime: string) =>
-  Math.max(0, Math.floor((new Date(endTime).getTime() - Date.now()) / 1000));
+// 차트용 가격 히스토리 생성 (실제로는 서버에서 받아와야 함)
+const generatePriceHistory = (
+  startPrice: number,
+  currentPrice: number,
+  count: number = 20,
+): PriceHistory[] => {
+  const history: PriceHistory[] = [];
+  const priceDiff = currentPrice - startPrice;
+  const step = priceDiff / count;
 
-export const AuctionDetailClient: React.FC<AuctionDetailClientProps> = ({ item }) => {
+  for (let i = 0; i <= count; i++) {
+    const price = Math.floor(startPrice + step * i);
+    const minutesAgo = count - i;
+    const time = minutesAgo === 0 ? '현재' : `${minutesAgo}분 전`;
+    history.push({ time, price });
+  }
+
+  return history.reverse();
+};
+
+export default function AuctionDetailClient({
+  item,
+}: AuctionDetailClientProps) {
+  const startPrice = useMemo(
+    () => calculateStartPrice(item.currentBid),
+    [item.currentBid],
+  );
   const [currentPrice, setCurrentPrice] = useState(item.currentBid);
   const [participants, setParticipants] = useState(item.participants);
-  const [, setBids] = useState<BidLogItem[]>([
-    { id: 'b1', user: 'Guest_312', amount: item.currentBid, time: '방금 전' },
-    { id: 'b2', user: 'Guest_907', amount: item.currentBid - 5000, time: '1분 전' },
-    { id: 'b3', user: 'Guest_124', amount: item.currentBid - 10000, time: '2분 전' },
-    { id: 'b4', user: 'Guest_552', amount: item.currentBid - 15000, time: '3분 전' },
-    { id: 'b5', user: 'Guest_044', amount: item.currentBid - 20000, time: '4분 전' },
-  ]);
-  const [liveFeed, setLiveFeed] = useState<BidLogItem[]>(() => [
-    { id: 'f1', user: 'Guest_312', amount: item.currentBid, time: formatTime() },
-    { id: 'f2', user: 'Guest_907', amount: item.currentBid - 5000, time: formatTime() },
-    { id: 'f3', user: 'Guest_124', amount: item.currentBid - 10000, time: formatTime() },
+  const [bidHistory, setBidHistory] = useState<BidLogItem[]>([
+    {
+      id: 'b1',
+      user: 'Guest_312',
+      amount: item.currentBid,
+      time: '방금 전',
+      isBot: false,
+    },
+    {
+      id: 'b2',
+      user: 'Guest_907',
+      amount: item.currentBid - 5000,
+      time: '1분 전',
+      isBot: true,
+    },
+    {
+      id: 'b3',
+      user: 'Guest_124',
+      amount: item.currentBid - 10000,
+      time: '2분 전',
+      isBot: false,
+    },
+    {
+      id: 'b4',
+      user: 'Guest_552',
+      amount: item.currentBid - 15000,
+      time: '3분 전',
+      isBot: true,
+    },
+    {
+      id: 'b5',
+      user: 'Guest_044',
+      amount: item.currentBid - 20000,
+      time: '4분 전',
+      isBot: false,
+    },
   ]);
   const [bidAmount, setBidAmount] = useState(item.currentBid + BID_STEP);
   const [bidError, setBidError] = useState('');
-  const [autoBidOpen, setAutoBidOpen] = useState(false);
-  const [autoBidMax, setAutoBidMax] = useState(item.currentBid + BID_STEP * 10);
-  const [autoBidStep, setAutoBidStep] = useState(BID_STEP);
-
-  const [remainingSeconds, setRemainingSeconds] = useState(() =>
-    getRemainingSeconds(item.endTime)
+  const [priceHistory, setPriceHistory] = useState<PriceHistory[]>(() =>
+    generatePriceHistory(startPrice, currentPrice),
   );
-  const countdownLabel = useMemo(
-    () => formatCountdown(remainingSeconds),
-    [remainingSeconds]
-  );
-  const minBid = currentPrice + BID_STEP;
-  useEffect(() => {
-    if (item.status === 'closed') return;
 
-    // Simulated socket.io updates
-    const interval = setInterval(() => {
-      const delta = Math.random() > 0.6 ? BID_STEP : 0;
-      if (delta === 0) return;
+  const { countdownLabel, isExpired } = useCountdown(item.endTime);
 
-      setCurrentPrice((prev) => {
-        const next = prev + delta;
-        setBids((prevBids) => [
-          {
-            id: `bid-${Date.now()}`,
-            user: `Guest_${Math.floor(Math.random() * 900) + 100}`,
-            amount: next,
-            time: '방금 전',
-          },
-          ...prevBids.slice(0, 9),
-        ]);
-        setLiveFeed((prevFeed) => [
-          {
-            id: `feed-${Date.now()}`,
-            user: `Guest_${Math.floor(Math.random() * 900) + 100}`,
-            amount: next,
-            time: formatTime(),
-          },
-          ...prevFeed,
-        ].slice(0, 3));
-        setBidAmount((prevAmount) => Math.max(prevAmount, next + BID_STEP));
-        return next;
-      });
-      setParticipants((prev) => prev + (Math.random() > 0.7 ? 1 : 0));
-    }, 3000);
+  // 입찰 히스토리를 금액 내림차순으로 정렬 (같으면 최신순)
+  const sortedBidHistory = useMemo(() => {
+    return [...bidHistory].sort((a, b) => {
+      // 금액이 다르면 금액 내림차순
+      if (b.amount !== a.amount) {
+        return b.amount - a.amount;
+      }
+      // 금액이 같으면 최신순 (time이 '방금 전'이면 가장 최신)
+      if (a.time === '방금 전' && b.time !== '방금 전') return -1;
+      if (b.time === '방금 전' && a.time !== '방금 전') return 1;
+      // 둘 다 '방금 전'이 아니면 id로 비교 (최신 id가 더 큼)
+      return (
+        parseInt(b.id.replace(/\D/g, '')) - parseInt(a.id.replace(/\D/g, ''))
+      );
+    });
+  }, [bidHistory]);
 
-    return () => clearInterval(interval);
-  }, [item.status]);
+  // 현재가는 정렬된 히스토리의 최고가와 연동
+  const currentPriceFromHistory = useMemo(() => {
+    return sortedBidHistory.length > 0
+      ? sortedBidHistory[0].amount
+      : currentPrice;
+  }, [sortedBidHistory, currentPrice]);
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setRemainingSeconds(getRemainingSeconds(item.endTime));
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [item.endTime]);
+  // 실제 표시할 현재가 (히스토리 최고가와 기존 currentPrice 중 큰 값)
+  const displayCurrentPrice = useMemo(() => {
+    return Math.max(currentPrice, currentPriceFromHistory);
+  }, [currentPrice, currentPriceFromHistory]);
 
+  const priceIncrease = displayCurrentPrice - startPrice;
+  const priceIncreasePercent = useMemo(() => {
+    if (startPrice === 0) return 0;
+    return (((displayCurrentPrice - startPrice) / startPrice) * 100).toFixed(1);
+  }, [displayCurrentPrice, startPrice]);
+
+  const minBid = displayCurrentPrice + BID_STEP;
+
+  // 실시간 업데이트 시뮬레이션 제거 (UI만 표시)
   const handleBid = () => {
     if (bidAmount < minBid) {
       setBidError(`현재가보다 높은 금액(${formatPrice(minBid)})만 가능합니다.`);
@@ -114,292 +152,223 @@ export const AuctionDetailClient: React.FC<AuctionDetailClientProps> = ({ item }
     }
 
     setBidError('');
-    setCurrentPrice(bidAmount);
     setParticipants((prev) => prev + 1);
-    setBids((prev) => [
-      {
-        id: `bid-${Date.now()}`,
-        user: '나 (게스트)',
-        amount: bidAmount,
-        time: '방금 전',
-      },
-      ...prev.slice(0, 9),
+
+    const timestamp = Date.now();
+    const newBid: BidLogItem = {
+      id: `bid-${timestamp}`,
+      user: '나 (게스트)',
+      amount: bidAmount,
+      time: '방금 전',
+      isBot: false,
+    };
+
+    setBidHistory((prev) => {
+      const updated = [newBid, ...prev];
+      // 항상 5개로 고정
+      return updated.slice(0, 5);
+    });
+
+    // 현재가 업데이트
+    setCurrentPrice(bidAmount);
+    setPriceHistory((prev) => [
+      ...prev.slice(1),
+      { time: '현재', price: bidAmount },
     ]);
-    setLiveFeed((prev) => [
-      {
-        id: `feed-${Date.now()}`,
-        user: '나 (게스트)',
-        amount: bidAmount,
-        time: formatTime(),
-      },
-      ...prev,
-    ].slice(0, 3));
     setBidAmount(bidAmount + BID_STEP);
   };
 
+  const isAuctionActive = item.status !== 'closed';
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-10">
-      {/* Left: Gallery & Chart */}
-      <div className="flex flex-col gap-6">
-        <div className="rounded-lg border border-border-main bg-bg-main p-6">
-          <div className="relative aspect-4/3 rounded-md bg-bg-card overflow-hidden">
-            <Image
-              src={item.imageUrl}
-              alt={item.modelName}
-              fill
-              className="object-contain p-8 mix-blend-multiply dark:mix-blend-normal"
-              priority
-            />
-          </div>
-        </div>
+    <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_0.8fr] gap-8 lg:gap-12">
+      <div className="space-y-6">
+        <div className="relative aspect-square bg-bg-sub rounded-2xl overflow-hidden group">
+          <Image
+            src={item.imageUrl || '/placeholder.svg'}
+            alt={item.modelName}
+            fill
+            className="object-cover group-hover:scale-105 transition-transform duration-500"
+            priority
+          />
 
-        <div className="rounded-lg border border-border-main bg-bg-main/70 backdrop-blur-md  p-6">
-          <div className="flex items-center justify-between mb-3 ">
-            <span className="text-sm font-bold text-text-main">
-              실시간 입찰 피드
-            </span>
-            <span className="text-[10px] text-text-muted">LIVE</span>
-          </div>
-          <div className="flex flex-col gap-2 max-h-[160px] overflow-hidden">
-            <AnimatePresence initial={false}>
-              {liveFeed.slice(0, 3).map((feed, index) => (
-                <motion.div
-                  key={index}
-                  initial={{ opacity: 0, y: -8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  className="flex items-center justify-between rounded-xl bg-bg-sub/70 px-3 py-2"
-                >
-                  <div className="flex items-center gap-2">
-                    <div className="h-6 w-6 rounded-full bg-border-main/80" />
-                    <div>
-                      <p className="text-xs font-bold text-text-main">
-                        {maskUser(feed.user)}
-                      </p>
-                      <p className="text-[10px] text-text-muted">{feed.time}</p>
-                    </div>
-                  </div>
-                  <p className="text-xs font-black text-text-main tabular-nums">
-                    {formatPrice(feed.amount)}
-                  </p>
-                </motion.div>
-              ))}
-            </AnimatePresence>
-          </div>
-        </div>
-
-        <div className="rounded-lg border border-border-main bg-bg-main p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-bold text-text-main">
-              실시간 가격 추이
-            </h2>
-            <span className="text-[11px] text-text-muted">24H</span>
-          </div>
-          <PriceChartPlaceholder />
-        </div>
-      </div>
-
-      {/* Right: Price & Actions */}
-      <div className="flex flex-col gap-6">
-        <div className="rounded-lg border border-border-main bg-bg-main p-6 flex flex-col gap-6">
-          <div className="flex items-center gap-3">
+          {/* 경매 상태 배지 */}
+          <div className="absolute top-4 left-4 z-10">
             <Badge status={item.status} />
-            <div className="flex items-center gap-2 text-xs text-text-muted">
-              <Clock size={14} />
-              <span
-                className={cn(
-                  'tabular-nums font-semibold',
-                  remainingSeconds <= 10 && 'text-status-urgent'
-                )}
-              >
-                {countdownLabel} 남음
+          </div>
+
+          {/* 남은 시간 타이머 */}
+          <div className="absolute top-4 right-4 z-10">
+            <div
+              className={cn(
+                'flex items-center gap-2 px-4 py-2 rounded-full backdrop-blur-md',
+                item.status === 'ending_soon'
+                  ? 'bg-status-urgent/90 text-white'
+                  : item.status === 'closed'
+                    ? 'bg-text-muted/90 text-white'
+                    : 'bg-text-main/60 text-white',
+              )}
+            >
+              <Clock size={16} />
+              <span className="text-sm font-bold tabular-nums">
+                {isAuctionActive && !isExpired ? countdownLabel : '종료됨'}
               </span>
             </div>
           </div>
+        </div>
+        <PriceTrendChart data={priceHistory} />
+      </div>
 
-          <div>
-            <p className="text-[11px] font-bold text-text-muted uppercase tracking-wider mb-1">
-              {item.brand}
-            </p>
-            <h1 className="text-2xl md:text-3xl font-black text-text-main tracking-tight">
-              {item.modelName}
-            </h1>
-          </div>
+      <div className="space-y-6">
+        <div className="space-y-4">
+          <div className="p-5 rounded-xl border border-border-main">
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-[13px] font-black text-text-main border-b-2 border-text-main leading-none pb-0.5">
+                    {item.brand}
+                  </span>
+                  <span className="text-[12px] text-text-muted font-medium tracking-tight">
+                    MODEL NO: {item.id}
+                  </span>
+                </div>
+                <h2 className="text-2xl lg:text-3xl font-extrabold text-text-main tracking-tighter leading-tight">
+                  {item.modelName}
+                </h2>
+              </div>
 
-          <div className="rounded-md bg-bg-sub p-4">
-            <p className="text-[11px] font-bold text-text-muted mb-1">
-              현재 최고가
-            </p>
-            <AnimatePresence mode="wait">
-              <motion.p
-                key={currentPrice}
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -6 }}
-                className="text-3xl font-black text-text-main tabular-nums"
-              >
-                {formatPrice(currentPrice)}
-              </motion.p>
-            </AnimatePresence>
-            <div className="flex items-center gap-1 text-[11px] font-bold text-status-active mt-1">
-              <ArrowUpRight size={12} />
-              <span>실시간 업데이트</span>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4 text-[11px] text-text-sub">
-            <div className="rounded-md bg-bg-sub p-4">
-              <p className="text-text-muted font-bold mb-1">입찰 단위</p>
-              <p className="text-sm font-black text-text-main">
-                {formatPrice(BID_STEP)}
-              </p>
-            </div>
-            <div className="rounded-md bg-bg-sub p-4">
-              <p className="text-text-muted font-bold mb-1">현재 경매 참여자</p>
-              <p className="text-sm font-black text-text-main">
-                {participants.toLocaleString()}명
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3 text-[11px] text-text-muted">
-            <Users size={14} />
-            <span className="font-medium">{participants}명 참여 중</span>
-            <span className="w-1 h-1 bg-border-main rounded-full" />
-            <span className="font-medium">게스트 모드 입찰 가능</span>
-          </div>
-
-          <div className="flex flex-col gap-3">
-            <div className="rounded-md border border-border-main bg-bg-main px-4 py-3">
-              <p className="text-[11px] font-bold text-text-muted mb-1">
-                입찰 금액
-              </p>
-              <input
-                type="number"
-                min={minBid}
-                step={BID_STEP}
-                value={bidAmount}
-                onChange={(e) => setBidAmount(Number(e.target.value))}
-                className="w-full bg-transparent text-lg font-black text-text-main outline-none tabular-nums no-spinner"
-              />
-              <p className="text-[10px] text-text-muted mt-1">
-                최소 입찰가: {formatPrice(minBid)} (10,000원 단위)
-              </p>
-              {bidError && (
-                <p className="text-[10px] text-status-urgent font-bold mt-1">
-                  {bidError}
+              {/* 현재 입찰가 영역 */}
+              <div className="pt-6 border-t border-border-main flex flex-col gap-1">
+                <p className="text-[11px] font-bold text-text-muted uppercase tracking-widest">
+                  현재 입찰가
                 </p>
-              )}
+                <div className="flex items-baseline gap-3">
+                  <span className="text-4xl lg:text-5xl font-black tracking-tighter text-text-main tabular-nums">
+                    {formatPrice(displayCurrentPrice)}
+                  </span>
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <span className="text-base font-bold text-brand-primary tabular-nums">
+                      ▲ {formatPrice(priceIncrease)}
+                    </span>
+                    <span className="text-[13px] font-extrabold text-brand-primary bg-brand-primary/10 px-1.5 py-0.5 rounded">
+                      {priceIncreasePercent}%
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>
-            <Button fullWidth variant="secondary" size="lg" onClick={handleBid}>
-              입찰하기
-            </Button>
-            <Button
-              variant="outline"
-              size="lg"
-              onClick={() => setAutoBidOpen(true)}
-            >
-              자동 입찰 설정
-            </Button>
+          </div>
+
+          <div className="p-5 rounded-xl border border-border-main">
+            <div className="space-y-6">
+              <div className="space-y-5">
+                <div className="space-y-3 font-semibold">
+                  <label className="text-xs text-text-muted flex justify-between">
+                    입찰 금액 (KRW)
+                    <span className="text-text-main font-black">
+                      MIN BID: {formatPrice(minBid)}
+                    </span>
+                  </label>
+
+                  {/* 하단 보더형 인풋 */}
+                  <div className="relative group">
+                    <input
+                      type="number"
+                      value={bidAmount}
+                      onChange={(e) => {
+                        const value = parseInt(e.target.value) || minBid;
+                        setBidAmount(value);
+                        setBidError('');
+                      }}
+                      min={minBid}
+                      step={BID_STEP}
+                      className="w-full py-4 text-4xl font-black border-b-[3px] border-border-main text-text-main transition-colors hover:border-border-sub focus:border-border-sub"
+                      placeholder={minBid.toString()}
+                    />
+                    <div className="absolute right-0 top-1/2 -translate-y-1/2 text-xl font-black text-text-main">
+                      원
+                    </div>
+                  </div>
+                </div>
+
+                {/* 빠른 입찰 단위 버튼 (Small & Clean) */}
+                <div className="grid grid-cols-3 gap-2">
+                  {[1000, 10000, 50000].map((amount) => (
+                    <Button
+                      key={amount}
+                      variant="outline"
+                      type="button"
+                      onClick={() => {
+                        setBidAmount((prev) => (prev || minBid) + amount);
+                        setBidError('');
+                      }}
+                    >
+                      +
+                      {amount >= 10000
+                        ? `${amount / 10000}만`
+                        : `${amount / 1000}천`}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 에러 피드백 */}
+              {bidError && (
+                <div className="p-4 bg-status-urgent/10 rounded-2xl border border-status-urgent/30 animate-in fade-in slide-in-from-top-1">
+                  <p className="text-[13px] font-bold text-status-urgent flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 bg-status-urgent rounded-full animate-pulse" />
+                    {bidError}
+                  </p>
+                </div>
+              )}
+
+              {/* 메인 액션 버튼 */}
+              <div className="space-y-4">
+                <Button
+                  onClick={handleBid}
+                  variant="primary"
+                  size="lg"
+                  fullWidth
+                  disabled={!isAuctionActive}
+                  
+                >
+                  {isAuctionActive ? '즉시 입찰하기' : '종료된 경매'}
+                </Button>
+
+                <p className="text-[11px] text-center text-text-muted font-medium leading-relaxed tracking-tight">
+                  입찰은 취소가 불가능하며 낙찰 시{' '}
+                  <span className="text-text-sub font-bold">자동 결제</span>
+                  됩니다.
+                  <br />
+                  신중하게 결정 후 입찰에 참여해 주세요.
+                </p>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div className="rounded-lg border border-border-main bg-bg-main p-6">
-          <h3 className="text-sm font-bold text-text-main mb-4">상품 정보</h3>
-          <div className="grid grid-cols-1 gap-3 text-[12px] text-text-sub">
-            {[
-              { label: '모델명', value: item.modelName },
-              { label: '브랜드', value: item.brand },
-              { label: '사이즈', value: '240 · 250 · 260 · 270 · 280' },
-              { label: '발매가', value: formatPrice(189000) },
-              { label: '거래 방식', value: '경매(실시간)' },
-            ].map((info) => (
-              <div
-                key={info.label}
-                className="flex items-center justify-between border-b border-border-main/50 pb-2"
-              >
-                <span className="text-text-muted font-semibold">
-                  {info.label}
-                </span>
-                <span className="text-text-main font-semibold">
-                  {info.value}
-                </span>
-              </div>
+        <div className="p-5  rounded-xl border border-border-main">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-base font-semibold text-text-main flex items-center gap-2">
+              입찰 히스토리 <span className="text-text-muted text-xs font-medium">{participants}명 참여 중</span>
+            </h3>
+            <div className="flex items-center gap-1.5">
+              <span className="w-2 h-2 bg-status-urgent rounded-full animate-pulse"></span>
+              <span className="text-xs text-text-muted">실시간</span>
+            </div>
+          </div>
+          <div className="space-y-2">
+            {sortedBidHistory.map((bid, index) => (
+              <BidCard
+                key={bid.id}
+                bid={bid}
+                rank={index + 1}
+                isHighest={index === 0}
+              />
             ))}
           </div>
         </div>
       </div>
-
-      <AnimatePresence>
-        {autoBidOpen && (
-          <>
-            <motion.div
-              className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setAutoBidOpen(false)}
-            />
-            <motion.div
-              className="fixed inset-x-6 bottom-10 z-50 mx-auto max-w-md rounded-lg bg-bg-main border border-border-main p-6 shadow-2xl"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 10 }}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-black text-text-main">
-                  자동 입찰 설정
-                </h3>
-                <button
-                  onClick={() => setAutoBidOpen(false)}
-                  className="text-text-muted"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-              <div className="flex flex-col gap-4">
-                <div className="rounded-md border border-border-main bg-bg-sub px-4 py-3">
-                  <p className="text-[11px] font-bold text-text-muted mb-1">
-                    최대 입찰가
-                  </p>
-                  <input
-                    type="number"
-                    min={minBid}
-                    step={BID_STEP}
-                    value={autoBidMax}
-                    onChange={(e) => setAutoBidMax(Number(e.target.value))}
-                    className="w-full bg-transparent text-base font-black text-text-main outline-none tabular-nums"
-                  />
-                </div>
-                <div className="rounded-md border border-border-main bg-bg-sub px-4 py-3">
-                  <p className="text-[11px] font-bold text-text-muted mb-1">
-                    자동 상승 단위
-                  </p>
-                  <input
-                    type="number"
-                    min={BID_STEP}
-                    step={BID_STEP}
-                    value={autoBidStep}
-                    onChange={(e) => setAutoBidStep(Number(e.target.value))}
-                    className="w-full bg-transparent text-base font-black text-text-main outline-none tabular-nums"
-                  />
-                  <p className="text-[10px] text-text-muted mt-1">
-                    현재가 기준으로 자동 입찰을 실행합니다.
-                  </p>
-                </div>
-                <Button
-                  fullWidth
-                  variant="secondary"
-                  size="lg"
-                  onClick={() => setAutoBidOpen(false)}
-                >
-                  자동 입찰 활성화
-                </Button>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
     </div>
   );
-};
+}

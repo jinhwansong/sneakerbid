@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
- import { Dropdown } from '@/components/common/Dropdown';
+ import Dropdown from '@/components/common/Dropdown';
  import { Search, Calendar, ArrowUpRight, CheckCircle2 } from 'lucide-react';
  import { cn } from '@/lib/cn';
  import { formatPrice } from '@/lib/format';

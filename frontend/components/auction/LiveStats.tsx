@@ -1,6 +1,4 @@
 'use client';
-
-import React from 'react';
 import { motion } from 'framer-motion';
 import { Users, Gavel, BarChart3, Zap, Activity } from 'lucide-react';
 
@@ -33,7 +31,7 @@ const stats = [
   },
 ];
 
-export const LiveStats: React.FC = () => {
+export default function LiveStats() {
   return (
     <div className="w-full bg-bg-main border border-border-main rounded-lg overflow-hidden shadow-sm">
       <div className="flex flex-col md:flex-row items-center divide-y md:divide-y-0 md:divide-x divide-border-main/50">
@@ -73,4 +71,4 @@ export const LiveStats: React.FC = () => {
       </div>
     </div>
   );
-};
+}
