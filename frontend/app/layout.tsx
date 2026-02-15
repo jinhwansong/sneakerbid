@@ -3,7 +3,6 @@ import ThemeToggle from '@/components/common/ThemeToggle';
 import { ThemeProvider } from 'next-themes';
 import "@/style/globals.css";
 import Header from "@/components/layout/Header";
-import OnboardingModal from "@/components/features/OnboardingModal";
 import Footer from "@/components/layout/Footer";
 import GlobalToast from "@/components/common/GlobalToast";
 
@@ -22,7 +21,6 @@ export default function RootLayout({
       <body className="antialiased font-pretendard">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <GlobalToast />
-          <OnboardingModal />
           <div className="bg-bg-main">
             <Header />
             {children}

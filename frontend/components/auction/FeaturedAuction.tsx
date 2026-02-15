@@ -6,7 +6,7 @@ import { motion } from 'framer-motion';
 import { AuctionItem } from '@/types/auction';
 import Badge from '@/components/common/Badge';
 import { Button } from '@/components/common/Button';
-import { Users, Timer, ArrowUpRight } from 'lucide-react';
+import { ArrowUpRight, Timer, Users } from 'lucide-react';
 import { useToastStore } from '@/store/useToastStore';
 import { formatPrice, formatRemainingTime } from '@/lib/format';
 
@@ -34,7 +34,7 @@ export default function FeaturedAuction({
   };
 
   return (
-    <section >
+    <section>
       <motion.div
         initial={{ opacity: 0, scale: 0.98 }}
         animate={{ opacity: 1, scale: 1 }}

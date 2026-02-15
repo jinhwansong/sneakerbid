@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import { DUMMY_AUCTIONS } from '@/lib/dummy';
-import AuctionDetailClient from '@/components/auction/AuctionDetailClient';
+import AuctionDetailClient from '@/components/detail/AuctionDetailClient';
 
 interface AuctionDetailPageProps {
   params: Promise<{
