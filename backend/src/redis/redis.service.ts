@@ -1,0 +1,68 @@
+import { Injectable, OnModuleDestroy } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import Redis from 'ioredis';
+
+const REFRESH_TOKEN_PREFIX = 'auth:refresh:';
+
+@Injectable()
+export class RedisService implements OnModuleDestroy {
+  private client: Redis | null = null;
+
+  constructor(private readonly configService: ConfigService) {}
+
+  private getClient(): Redis {
+    if (!this.client) {
+      const host = this.configService.get<string>('REDIS_HOST') ?? 'localhost';
+      const port = this.configService.get<number>('REDIS_PORT') ?? 6379;
+      this.client = new Redis({ host, port });
+    }
+    return this.client;
+  }
+
+  async onModuleDestroy() {
+    if (this.client) {
+      await this.client.quit();
+      this.client = null;
+    }
+  }
+
+  async set(key: string, value: string, ttlSeconds?: number): Promise<void> {
+    const client = this.getClient();
+    if (ttlSeconds) {
+      await client.setex(key, ttlSeconds, value);
+    } else {
+      await client.set(key, value);
+    }
+  }
+
+  async get(key: string): Promise<string | null> {
+    return this.getClient().get(key);
+  }
+
+  async del(key: string): Promise<number> {
+    return this.getClient().del(key);
+  }
+
+  /** 리프레시 토큰 저장 (key: refreshToken, value: userId) */
+  async setRefreshToken(
+    refreshToken: string,
+    userId: string,
+    ttlSeconds: number,
+  ): Promise<void> {
+    await this.set(
+      `${REFRESH_TOKEN_PREFIX}${refreshToken}`,
+      userId,
+      ttlSeconds,
+    );
+  }
+
+  /** 리프레시 토큰으로 userId 조회 */
+  async getUserIdByRefreshToken(refreshToken: string): Promise<string | null> {
+    return this.get(`${REFRESH_TOKEN_PREFIX}${refreshToken}`);
+  }
+
+  /** 리프레시 토큰 삭제 (로그아웃) */
+  async revokeRefreshToken(refreshToken: string): Promise<void> {
+    await this.del(`${REFRESH_TOKEN_PREFIX}${refreshToken}`);
+  }
+}

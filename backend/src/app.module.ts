@@ -16,6 +16,8 @@ import { HttpExceptionFilter } from './common/filters/httpException.filter';
 import { PrismaModule } from './prisma/prisma.module';
 import { PrismaExceptionFilter } from './common/filters/prismaException.filter';
 import { UsersModule } from './users/users.module';
+import { AuthModule } from './auth/auth.module';
+import { RedisModule } from './redis/redis.module';
 
 @Module({
   imports: [
@@ -43,7 +45,9 @@ import { UsersModule } from './users/users.module';
     // Health Check
     TerminusModule,
     PrismaModule,
+    RedisModule,
     UsersModule,
+    AuthModule,
   ],
   controllers: [AppController, HealthController],
   providers: [
