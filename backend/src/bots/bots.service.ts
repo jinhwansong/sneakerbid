@@ -31,8 +31,7 @@ export class BotsService {
     });
 
     for (const bot of bots) {
-      const [min, max] =
-        DAILY_TOPUP_RANGE_BY_TYPE[bot.type] ?? DEFAULT_RANGE;
+      const [min, max] = DAILY_TOPUP_RANGE_BY_TYPE[bot.type] ?? DEFAULT_RANGE;
       const amount = randInt(min, max);
 
       await this.prisma.user.update({

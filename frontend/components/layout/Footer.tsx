@@ -21,7 +21,7 @@ export default function Footer() {
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
             <div>
               <h2 className="text-lg font-black text-text-main tracking-tight">
-                SNEAKER<span className="text-brand-primary">BID</span>
+                Lace<span className="text-brand-primary">Up</span>
               </h2>
               <p className="text-xs text-text-muted mt-2">
                 실시간 스니커즈 경매 플랫폼 · Guest-First UX
@@ -63,7 +63,7 @@ export default function Footer() {
           </div>
 
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pt-4 border-t border-border-main/50 text-[11px] text-text-muted">
-            <span>© 2026 SNEAKERBID. All rights reserved.</span>
+            <span>© 2026 LaceUp. All rights reserved.</span>
             <span>본 프로젝트는 포트폴리오 용도로 제작되었습니다.</span>
           </div>
         </div>
@@ -71,3 +71,5 @@ export default function Footer() {
     </footer>
   );
 }
+
+

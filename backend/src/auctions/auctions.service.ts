@@ -22,11 +22,17 @@ import {
   AuctionWithDetails,
 } from '@/common/type/auction.type';
 import { UpdateAuctionDto } from './dto/update.auction.dto';
+import { PlaceBidDto } from './dto/place.bid.dto';
 import { RequestUser } from '@/common/decorator/user.decorator';
+import { EventsService } from '@/events/events.service';
+import { BidLogItem } from '@/common/type/bot.type';
 
 @Injectable()
 export class AuctionsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly eventsService: EventsService,
+  ) {}
 
   /** 경매 물품 등록(판매자 전용) */
   async createAuction(dto: CreateAuctionDto, userId: string) {
@@ -188,6 +194,94 @@ export class AuctionsService {
     }
 
     return this.toDetail(auction);
+  }
+
+  /** 입찰 목록 (상세 페이지용) */
+  async getBids(auctionId: string, limit = 20): Promise<BidLogItem[]> {
+    const bids = await this.prisma.bid.findMany({
+      where: { auctionId },
+      include: { user: true },
+      orderBy: { bidPrice: 'desc' },
+      take: limit,
+    });
+
+    const formatTime = (d: Date) => {
+      const sec = Math.floor((Date.now() - d.getTime()) / 1000);
+      if (sec < 60) return '방금 전';
+      if (sec < 3600) return `${Math.floor(sec / 60)}분 전`;
+      if (sec < 86400) return `${Math.floor(sec / 3600)}시간 전`;
+      return `${Math.floor(sec / 86400)}일 전`;
+    };
+
+    return bids.map((b) => ({
+      id: b.id,
+      user: b.user.nickname,
+      amount: b.bidPrice,
+      time: formatTime(b.createdAt),
+      isBot: b.sourceType === 'BOT',
+    }));
+  }
+
+  /** 입찰 */
+  async placeBid(
+    auctionId: string,
+    dto: PlaceBidDto,
+    user: RequestUser,
+  ): Promise<{ bidId: string; currentPrice: number }> {
+    const now = new Date();
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      const auction = await tx.auction.findUnique({
+        where: { id: auctionId },
+        include: { sneaker: true },
+      });
+
+      if (!auction) {
+        throw new NotFoundException('경매를 찾을 수 없습니다.');
+      }
+      if (auction.status !== 'OPEN') {
+        throw new BadRequestException('종료된 경매에는 입찰할 수 없습니다.');
+      }
+      if (new Date(auction.endTime) <= now) {
+        throw new BadRequestException('이미 종료된 경매입니다.');
+      }
+
+      const minBid = auction.currentPrice + auction.minimumIncrement;
+      if (dto.bidPrice < minBid) {
+        throw new BadRequestException(
+          `최소 입찰가는 ${minBid.toLocaleString()}원입니다.`,
+        );
+      }
+
+      const bid = await tx.bid.create({
+        data: {
+          auctionId,
+          userId: user.id,
+          bidPrice: dto.bidPrice,
+          sourceType: 'USER',
+        },
+      });
+
+      await tx.auction.update({
+        where: { id: auctionId },
+        data: { currentPrice: dto.bidPrice },
+      });
+
+      return { bid, auction };
+    });
+
+    this.eventsService.emitNewBid(auctionId, {
+      id: result.bid.id,
+      user: user.nickname,
+      amount: dto.bidPrice,
+      time: '방금 전',
+      isBot: false,
+    });
+
+    return {
+      bidId: result.bid.id,
+      currentPrice: dto.bidPrice,
+    };
   }
 
   /** 거래 완료/취소 내역 */

@@ -2,7 +2,6 @@
 
 import { useEffect, useRef } from 'react';
 import type { BidLogItem } from '@/types/auction';
-import { API_BASE_URL } from '@/lib/config';
 
 interface UseAuctionEventsOptions {
   auctionId: string;
@@ -10,21 +9,22 @@ interface UseAuctionEventsOptions {
   onNewBid: (bid: BidLogItem) => void;
 }
 
-/**
- * 경매 상세 페이지 - SSE 실시간 입찰 구독
- */
+/** 경매 상세 페이지 - SSE 실시간 입찰 구독 */
 export function useAuctionEvents({
   auctionId,
   isActive,
   onNewBid,
 }: UseAuctionEventsOptions) {
   const onNewBidRef = useRef(onNewBid);
-  onNewBidRef.current = onNewBid;
+
+  useEffect(() => {
+    onNewBidRef.current = onNewBid;
+  }, [onNewBid]);
 
   useEffect(() => {
     if (!auctionId || !isActive) return;
 
-    const url = `${API_BASE_URL}/events/auction/${auctionId}`;
+    const url = `${process.env.NEXT_PUBLIC_SITE_URL}/events/auction/${auctionId}`;
     const es = new EventSource(url);
 
     es.onmessage = (e) => {

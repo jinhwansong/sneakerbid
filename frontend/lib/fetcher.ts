@@ -9,6 +9,7 @@ export async function Fetcher<T>(
 ): Promise<T> {
   try {
     const res = await fetch(input, {
+      credentials: 'include', // 기본적으로 쿠키 포함
       ...options,
       headers: {
         'Content-Type': 'application/json',
@@ -19,9 +20,6 @@ export async function Fetcher<T>(
     if (!res.ok) {
       const message = await res.text().catch(() => '');
       const error = new Error(message || 'api 요청실패');
-
-     
-
       throw error;
     }
 

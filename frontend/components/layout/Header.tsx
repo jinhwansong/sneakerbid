@@ -40,7 +40,7 @@ export default function Header() {
         <div className="flex items-center gap-6 md:gap-8">
           <Link href="/" className="group shrink-0">
             <h1 className="text-lg md:text-xl font-black tracking-tighter text-text-main group-hover:opacity-80 transition-opacity">
-              SNEAKER<span className="text-brand-primary">BID</span>
+              Lace<span className="text-brand-primary">Up</span>
             </h1>
           </Link>
           <div className="hidden md:flex gap-1">
@@ -124,4 +124,6 @@ export default function Header() {
     </nav>
   );
 }
+
+
 

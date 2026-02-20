@@ -1,41 +1,33 @@
 'use client';
 
-import React, { useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { Chrome, MessageCircle, AlertCircle, Loader2 } from 'lucide-react';
+import React from 'react';
+import { useSearchParams } from 'next/navigation';
+import { Chrome, MessageCircle, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/cn';
+import { useToastStore } from '@/store/useToastStore';
+import { api } from '@/lib/api';
 
 export default function LoginPage() {
-  const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectUrl = searchParams.get('redirect') || '/';
+  const { showToast } = useToastStore();
 
-  const [isLoading, setIsLoading] = useState<{
-    google: boolean;
-    kakao: boolean;
-  }>({
-    google: false,
-    kakao: false,
-  });
+  // URL 쿼리 파라미터에서 에러 확인
+  const errorParam = searchParams.get('error');
+  const error =
+    errorParam === 'auth_failed'
+      ? '로그인에 실패했습니다. 다시 시도해주세요.'
+      : null;
 
-  const [error, setError] = useState<string | null>(null);
-
-  const handleLogin = async (provider: 'google' | 'kakao') => {
-    // UI 레벨 설계이므로 실제 로직은 시뮬레이션만 수행
-    setIsLoading((prev) => ({ ...prev, [provider]: true }));
-    setError(null);
+  const handleLogin = (provider: 'google' | 'kakao') => {
 
     try {
-      // 로그인 시뮬레이션 (1.5초 대기)
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      
-      // 성공 시 리다이렉트 (실제 환경에서는 서버 인증 후 처리)
-      console.log(`${provider} login success, redirecting to ${redirectUrl}`);
-      // router.push(redirectUrl); 
-    } catch (err) {
-      setError('로그인 중 오류가 발생했습니다. 다시 시도해주세요.');
-    } finally {
-      setIsLoading((prev) => ({ ...prev, [provider]: false }));
+      if (provider === 'google') {
+        api.auth.google();
+      } else {
+        api.auth.kakao();
+      }
+    } catch {
+      showToast('로그인 중 오류가 발생했습니다. 다시 시도해주세요.');
     }
   };
 
@@ -47,7 +39,7 @@ export default function LoginPage() {
           {/* 상단 헤더 */}
           <div className="text-center mb-10">
             <h1 className="text-3xl font-black tracking-tightest text-text-main mb-3 uppercase">
-              SNEAKER<span className="text-brand-primary">BID</span>
+              Lace<span className="text-brand-primary">BID</span>
             </h1>
             <p className="text-sm font-medium text-text-sub tracking-tight">
               실시간 경매에 참여하세요
@@ -69,54 +61,37 @@ export default function LoginPage() {
             {/* Google 로그인 */}
             <button
               onClick={() => handleLogin('google')}
-              disabled={isLoading.google || isLoading.kakao}
               className={cn(
                 'group relative w-full h-[56px] flex items-center justify-center rounded-xl border border-border-main bg-white transition-all duration-300',
                 'hover:bg-gray-50 hover:border-text-muted/30 active:scale-[0.98]',
-                (isLoading.google || isLoading.kakao) &&
-                  'opacity-50 cursor-not-allowed',
+               
               )}
             >
-              {isLoading.google ? (
-                <Loader2 size={20} className="animate-spin text-text-muted" />
-              ) : (
-                <>
-                  <div className="absolute left-5">
-                    <Chrome size={20} className="text-[#4285F4]" />
-                  </div>
-                  <span className="text-sm font-black text-text-main">
-                    Google로 시작하기
-                  </span>
-                </>
-              )}
+              <div className="absolute left-5">
+                <Chrome size={20} className="text-[#4285F4]" />
+              </div>
+              <span className="text-sm font-black text-text-main">
+                Google로 시작하기
+              </span>
             </button>
 
             {/* Kakao 로그인 */}
             <button
               onClick={() => handleLogin('kakao')}
-              disabled={isLoading.google || isLoading.kakao}
               className={cn(
                 'group relative w-full h-[56px] flex items-center justify-center rounded-xl bg-[#FEE500] transition-all duration-300',
                 'hover:bg-[#FDD835] active:scale-[0.98]',
-                (isLoading.google || isLoading.kakao) &&
-                  'opacity-50 cursor-not-allowed',
               )}
             >
-              {isLoading.kakao ? (
-                <Loader2 size={20} className="animate-spin text-[#191919]" />
-              ) : (
-                <>
-                  <div className="absolute left-5">
-                    <MessageCircle
-                      size={20}
-                      className="fill-[#191919] text-[#191919]"
-                    />
-                  </div>
-                  <span className="text-sm font-black text-[#191919]">
-                    카카오로 시작하기
-                  </span>
-                </>
-              )}
+              <div className="absolute left-5">
+                <MessageCircle
+                  size={20}
+                  className="fill-deep-navy text-deep-navy"
+                />
+              </div>
+              <span className="text-sm font-black text-deep-navy">
+                카카오로 시작하기
+              </span>
             </button>
           </div>
 

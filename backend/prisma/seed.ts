@@ -1,3 +1,4 @@
+/// <reference types="node" />
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
@@ -10,13 +11,56 @@ const randFloat = (min: number, max: number) =>
   Math.round((Math.random() * (max - min) + min) * 100) / 100;
 
 const NICKNAME_POOL = [
-  'Swift', 'Bold', 'Sharp', 'Steady', 'Silent', 'Quick', 'Wise', 'Calm',
-  'Storm', 'Ghost', 'Raven', 'Phoenix', 'Tiger', 'Wolf', 'Eagle',
-  'Nova', 'Cipher', 'Pulse', 'Blade', 'Frost', 'Ember', 'Apex',
-  'Zen', 'Kai', 'Rex', 'Max', 'Ace', 'Jax', 'Rio', 'Nyx',
-  'Vex', 'Zed', 'Lux', 'Ivy', 'Rue', 'Sky', 'Ray', 'Fox',
-  'Jet', 'Roc', 'Onyx', 'Coral', 'Mint', 'Azure', 'Sage', 'Cole',
-  'Dash', 'Bolt', 'Link', 'Edge',
+  'Swift',
+  'Bold',
+  'Sharp',
+  'Steady',
+  'Silent',
+  'Quick',
+  'Wise',
+  'Calm',
+  'Storm',
+  'Ghost',
+  'Raven',
+  'Phoenix',
+  'Tiger',
+  'Wolf',
+  'Eagle',
+  'Nova',
+  'Cipher',
+  'Pulse',
+  'Blade',
+  'Frost',
+  'Ember',
+  'Apex',
+  'Zen',
+  'Kai',
+  'Rex',
+  'Max',
+  'Ace',
+  'Jax',
+  'Rio',
+  'Nyx',
+  'Vex',
+  'Zed',
+  'Lux',
+  'Ivy',
+  'Rue',
+  'Sky',
+  'Ray',
+  'Fox',
+  'Jet',
+  'Roc',
+  'Onyx',
+  'Coral',
+  'Mint',
+  'Azure',
+  'Sage',
+  'Cole',
+  'Dash',
+  'Bolt',
+  'Link',
+  'Edge',
 ];
 
 function pickUniqueNicks(count: number): string[] {
@@ -24,19 +68,30 @@ function pickUniqueNicks(count: number): string[] {
   return shuffled.slice(0, count);
 }
 
-const AGGRESSIVE_BRANDS = ['Nike', 'Jordan'];
-const CALCULATED_BRANDS = ['Nike', 'Adidas'];
-const TROLL_BRANDS = ['Nike', 'Adidas', 'New Balance', 'Jordan', 'Asics', 'Converse'];
-const EMOTIONAL_BRAND_PAIRS = [
-  ['Nike'],
-  ['Jordan'],
-  ['Adidas'],
-  ['Nike', 'Jordan'],
-  ['New Balance'],
-  ['Asics'],
-  ['Jordan', 'Nike'],
+const ALL_BRANDS = [
+  'Nike',
+  'Adidas',
+  'New Balance',
+  'Jordan',
+  'Converse',
+  'Puma',
+  'ASICS',
+  'Vans',
+  'Reebok',
+  'Yeezy',
 ];
-const FOLLOWER_BRANDS = ['Nike', 'Adidas', 'Jordan', 'New Balance'];
+
+function pickRandomBrands(type: BotType, index: number): string[] {
+  const shuffled = shuffle([...ALL_BRANDS]);
+  const count = randInt(1, 4);
+  const base = shuffled.slice(0, count);
+
+  if (base.length === 0) return [ALL_BRANDS[index % ALL_BRANDS.length]];
+
+  const unique = [...new Set(base)];
+  if (unique.length === 0) return [ALL_BRANDS[0]];
+  return unique;
+}
 
 function getBudgetRange(type: BotType): [number, number] {
   switch (type) {
@@ -73,7 +128,7 @@ function getBotParams(type: BotType, index: number, nickname: string) {
         riskTolerance: randInt(7, 10),
         bidUnit: randInt(5000, 20000),
         maxBidMultiplier: randFloat(2.0, 3.0),
-        favoriteBrands: AGGRESSIVE_BRANDS,
+        favoriteBrands: pickRandomBrands('AGGRESSIVE', index),
         activityStartHour,
         activityEndHour,
       };
@@ -83,7 +138,7 @@ function getBotParams(type: BotType, index: number, nickname: string) {
         riskTolerance: randInt(4, 6),
         bidUnit: randInt(3000, 8000),
         maxBidMultiplier: randFloat(1.5, 2.0),
-        favoriteBrands: CALCULATED_BRANDS,
+        favoriteBrands: pickRandomBrands('CALCULATED', index),
         activityStartHour,
         activityEndHour,
       };
@@ -93,12 +148,7 @@ function getBotParams(type: BotType, index: number, nickname: string) {
         riskTolerance: randInt(5, 7),
         bidUnit: randInt(500, 2000),
         maxBidMultiplier: randFloat(1.3, 1.8),
-        favoriteBrands: [
-          ...new Set([
-            TROLL_BRANDS[randInt(0, TROLL_BRANDS.length - 1)],
-            TROLL_BRANDS[randInt(0, TROLL_BRANDS.length - 1)],
-          ]),
-        ],
+        favoriteBrands: pickRandomBrands('TROLL', index),
         activityStartHour,
         activityEndHour,
       };
@@ -108,8 +158,7 @@ function getBotParams(type: BotType, index: number, nickname: string) {
         riskTolerance: randInt(3, 5),
         bidUnit: randInt(1000, 5000),
         maxBidMultiplier: randFloat(1.4, 2.0),
-        favoriteBrands:
-          EMOTIONAL_BRAND_PAIRS[index % EMOTIONAL_BRAND_PAIRS.length],
+        favoriteBrands: pickRandomBrands('EMOTIONAL', index),
         activityStartHour,
         activityEndHour,
       };
@@ -119,12 +168,12 @@ function getBotParams(type: BotType, index: number, nickname: string) {
         riskTolerance: randInt(4, 6),
         bidUnit: randInt(1000, 4000),
         maxBidMultiplier: randFloat(1.5, 2.2),
-        favoriteBrands: FOLLOWER_BRANDS.slice(0, randInt(2, 4)),
+        favoriteBrands: pickRandomBrands('FOLLOWER', index),
         activityStartHour,
         activityEndHour,
       };
     default:
-      throw new Error(`Unknown bot type: ${type}`);
+      throw new Error(`Unknown bot type: ${String(type)}`);
   }
 }
 
@@ -182,7 +231,6 @@ async function main() {
           activityStartHour: params.activityStartHour,
           activityEndHour: params.activityEndHour,
           favoriteBrands: params.favoriteBrands as object,
-          chatStyle: [],
         },
       });
 

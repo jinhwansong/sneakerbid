@@ -7,7 +7,7 @@ import Footer from "@/components/layout/Footer";
 import GlobalToast from "@/components/common/GlobalToast";
 
 export const metadata: Metadata = {
-  title: "SNEAKERBID | 실시간 스니커즈 경매",
+  title: "LaceUp | 실시간 스니커즈 경매",
   description: "Toss/KREAM 스타일의 실시간 스니커즈 경매 플랫폼",
 };
 

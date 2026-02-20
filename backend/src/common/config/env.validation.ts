@@ -29,9 +29,6 @@ class EnvironmentVariables {
   @IsString()
   APP_VERSION: string = '1.0.0';
 
-  @IsString()
-  GLOBAL_PREFIX: string = 'api';
-
   // CORS
   @IsString()
   CORS_ORIGIN: string = process.env.FRONTEND_URL;

@@ -22,6 +22,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { AuctionsModule } from './auctions/auctions.module';
 import { EventsModule } from './events/events.module';
 import { BotsModule } from './bots/bots.module';
+import { OrdersModule } from './orders/orders.module';
 
 @Module({
   imports: [
@@ -56,6 +57,7 @@ import { BotsModule } from './bots/bots.module';
     EventsModule,
     ScheduleModule.forRoot(),
     BotsModule,
+    OrdersModule,
   ],
   controllers: [AppController, HealthController],
   providers: [

@@ -9,5 +9,12 @@ export type BotProfile = {
   activityStartHour: number;
   activityEndHour: number;
   favoriteBrands: string[];
-  chatStyle: string[];
+};
+
+export type BidLogItem = {
+  id: string;
+  user: string;
+  amount: number;
+  time: string;
+  isBot: boolean;
 };

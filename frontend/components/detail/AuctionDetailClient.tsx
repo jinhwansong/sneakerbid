@@ -5,6 +5,7 @@ import { AuctionItem, BidLogItem } from '@/types/auction';
 import { useCountdown } from '@/hooks/useCountdown';
 import { useAuctionEvents } from '@/hooks/useAuctionEvents';
 import { formatPrice } from '@/lib/format';
+import { useToastStore } from '@/store/useToastStore';
 import {
   DetailProductImage,
   DetailProductInfo,
@@ -13,7 +14,8 @@ import {
 } from '@/components/detail';
 
 interface AuctionDetailClientProps {
-  item: AuctionItem;
+  item: AuctionItem & { initialBids?: BidLogItem[] };
+  auctionId: string;
 }
 
 const BID_STEP = 10000;
@@ -32,7 +34,9 @@ const createInitialBidHistory = (item: AuctionItem): BidLogItem[] => [
 
 export default function AuctionDetailClient({
   item,
+  auctionId,
 }: AuctionDetailClientProps) {
+  const showToast = useToastStore((s) => s.showToast);
   const startPrice = useMemo(
     () => calculateStartPrice(item.currentBid),
     [item.currentBid],
@@ -40,7 +44,9 @@ export default function AuctionDetailClient({
   const [currentPrice, setCurrentPrice] = useState(item.currentBid);
   const [participants, setParticipants] = useState(item.participants);
   const [bidHistory, setBidHistory] = useState<BidLogItem[]>(() =>
-    createInitialBidHistory(item),
+    item.initialBids?.length
+      ? item.initialBids
+      : createInitialBidHistory(item),
   );
   const [bidAmount, setBidAmount] = useState(item.currentBid + BID_STEP);
   const [bidError, setBidError] = useState('');
@@ -85,34 +91,42 @@ export default function AuctionDetailClient({
 
   const minBid = displayCurrentPrice + BID_STEP;
 
-  const handleBid = () => {
+  const handleBid = async () => {
     if (bidAmount < minBid) {
       setBidError(`현재가보다 높은 금액(${formatPrice(minBid)})만 가능합니다.`);
       return;
     }
 
     setBidError('');
-    setParticipants((prev) => prev + 1);
-
-    const newBid: BidLogItem = {
-      id: `bid-${Date.now()}`,
-      user: '나 (게스트)',
-      amount: bidAmount,
-      time: '방금 전',
-      isBot: false,
-    };
-
-    setBidHistory((prev) => [newBid, ...prev].slice(0, 5));
-    setCurrentPrice(bidAmount);
-    setBidAmount(bidAmount + BID_STEP);
+    try {
+      const res = await api.placeBid(auctionId, bidAmount);
+      setParticipants((prev) => prev + 1);
+      setCurrentPrice(res.currentPrice);
+      setBidAmount(res.currentPrice + BID_STEP);
+      showToast('입찰이 완료되었습니다.');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '입찰에 실패했습니다.';
+      setBidError(msg.includes('로그인') || msg.includes('401') ? '로그인이 필요합니다.' : msg);
+      showToast(msg);
+    }
   };
 
-  const handleBuyNow = () => {
+  const handleBuyNow = async () => {
     if (!item.buyNowPrice) return;
     if (!confirm(`${formatPrice(item.buyNowPrice)}원에 즉시 구매하시겠습니까?`)) {
       return;
     }
-    alert('즉시 구매가 완료되었습니다.');
+    try {
+      const res = await api.buyNow(auctionId);
+      showToast('주문이 생성되었습니다. 내 주문에서 결제해주세요.');
+      if (res.orderId) {
+        const payRes = await api.payOrder(res.orderId);
+        showToast(payRes.status === 'PAID' ? '결제가 완료되었습니다.' : '주문이 생성되었습니다.');
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '즉시 구매에 실패했습니다.';
+      showToast(msg.includes('로그인') || msg.includes('401') ? '로그인이 필요합니다.' : msg);
+    }
   };
 
   const handleBidAmountChange = (value: number) => {

@@ -236,7 +236,6 @@ model Bot {
   activityStartHour Int     // 0~23
   activityEndHour   Int     // 0~23
   favoriteBrands    Json    // ["Nike", "Jordan"] 등
-  chatStyle         Json    // ["..."] (선택)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
