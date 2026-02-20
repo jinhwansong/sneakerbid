@@ -37,7 +37,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     },
   ): Promise<NonNullable<UserByIdResult>> {
     const profileData: OAuthProfile = {
-      providerAccountId: profile.id,
+      providerId: profile.id,
       nickname: profile.displayName ?? '',
       email: profile.emails?.[0]?.value ?? null,
       profileImageUrl: profile.photos?.[0]?.value ?? null,

@@ -7,7 +7,7 @@ import { RedisService } from '../redis/redis.service';
 import { JwtService } from '@nestjs/jwt';
 
 export interface OAuthProfile {
-  providerAccountId: string;
+  providerId: string;
   nickname: string;
   email?: string | null;
   profileImageUrl?: string | null;
@@ -22,27 +22,36 @@ export class AuthService {
     private readonly jwtService: JwtService,
   ) {}
 
-  /* OAuth 사용자 조회 또는 생성 */
+  /* OAuth 사용자 조회 또는 생성 (provider + providerId 기준) */
   async findOrCreateUserByOAuth(
     provider: OAuthProvider,
     profile: OAuthProfile,
   ): Promise<UserByIdResult> {
-    const existing = await this.prisma.oAuthAccount.findUnique({
+    const existing = await this.prisma.socialAccount.findUnique({
       where: {
-        provider_providerAccountId: {
+        provider_providerId: {
           provider,
-          providerAccountId: profile.providerAccountId,
+          providerId: profile.providerId,
         },
       },
       include: { user: true },
     });
 
     if (existing) {
+      // 기존 유저: 프로필 이미지 갱신 (provider에서 받은 값으로)
+      if (profile.profileImageUrl) {
+        await this.prisma.user.update({
+          where: { id: existing.user.id },
+          data: { profileImageUrl: profile.profileImageUrl },
+        });
+      }
       return {
         id: existing.user.id,
         nickname: existing.user.nickname,
         role: existing.user.role,
         balance: existing.user.balance,
+        profileImageUrl:
+          profile.profileImageUrl ?? existing.user.profileImageUrl ?? null,
         createdAt: existing.user.createdAt,
         updatedAt: existing.user.updatedAt,
       };
@@ -50,18 +59,17 @@ export class AuthService {
 
     const user = await this.prisma.user.create({
       data: {
-        nickname:
-          profile.nickname || `user_${profile.providerAccountId.slice(0, 8)}`,
+        nickname: profile.nickname || `user_${profile.providerId.slice(0, 8)}`,
+        email: profile.email ?? undefined,
+        profileImageUrl: profile.profileImageUrl ?? undefined,
       },
     });
 
-    await this.prisma.oAuthAccount.create({
+    await this.prisma.socialAccount.create({
       data: {
         userId: user.id,
         provider,
-        providerAccountId: profile.providerAccountId,
-        email: profile.email ?? undefined,
-        profileImageUrl: profile.profileImageUrl ?? undefined,
+        providerId: profile.providerId,
       },
     });
 
@@ -70,6 +78,7 @@ export class AuthService {
       nickname: user.nickname,
       role: user.role,
       balance: user.balance,
+      profileImageUrl: user.profileImageUrl ?? null,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     };

@@ -1,18 +1,18 @@
 'use client';
 
 import { useState } from 'react';
- import Dropdown from '@/components/common/Dropdown';
- import { Search, Calendar, ArrowUpRight, CheckCircle2 } from 'lucide-react';
- import { cn } from '@/lib/cn';
- import { formatPrice } from '@/lib/format';
- import { DUMMY_HISTORY } from '@/lib/dummy';
- import { PERIOD_OPTIONS } from '@/constants';
- import VirtualizedList from '@/components/common/VirtualizedList';
+import Dropdown from '@/components/common/Dropdown';
+import { Search, Calendar, ArrowUpRight, CheckCircle2 } from 'lucide-react';
+import { cn } from '@/lib/cn';
+import { formatPrice } from '@/lib/format';
+import { DUMMY_HISTORY } from '@/lib/dummy';
+import { PERIOD_OPTIONS } from '@/constants';
+import VirtualizedList from '@/components/common/VirtualizedList';
 import { useInfiniteScroll } from '@/hooks/useInfiniteScroll';
- import Image from 'next/image';
+import Image from 'next/image';
 
- export default function HistoryPage() {
-   const [period, setPeriod] = useState('1m');
+export default function HistoryPage() {
+  const [period, setPeriod] = useState('1m');
 
   const {
     items: displayItems,
@@ -153,7 +153,7 @@ import { useInfiniteScroll } from '@/hooks/useInfiniteScroll';
                     'flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold',
                     item.status === 'completed'
                       ? 'bg-status-active/10 text-status-active'
-                      : 'bg-text-muted/10 text-text-muted'
+                      : 'bg-text-muted/10 text-text-muted',
                   )}
                 >
                   {item.status === 'completed' ? (

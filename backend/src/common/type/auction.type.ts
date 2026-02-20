@@ -1,0 +1,63 @@
+import type { Auction, Sneaker } from '@prisma/client';
+
+/** 상세 페이지용 (AuctionItem과 호환) */
+export type AuctionDetail = {
+  id: string;
+  modelName: string;
+  brand: string;
+  colorway?: string;
+  size?: number;
+  styleCode?: string;
+  releaseYear?: number;
+  condition?: string;
+  origin?: string;
+  boxIncluded?: boolean;
+  description?: string;
+  imageUrl: string;
+  currentBid: number;
+  buyNowPrice?: number | null;
+  endTime: string;
+  participants: number;
+  status: 'ongoing' | 'ending_soon' | 'closed' | 'failed' | 'buy_now';
+  isWishlisted?: boolean;
+};
+
+export type AuctionSummary = {
+  auctionId: string;
+  sneakerName: string;
+  brand: string;
+  imageUrl: string;
+  size: string;
+  currentPrice: number;
+  endTime: Date;
+  status: 'OPEN' | 'CLOSED';
+  bidCount?: number;
+  buyNowPrice?: number | null;
+};
+
+export type AuctionWithDetails = Auction & {
+  sneaker: Sneaker;
+  _count?: { bids: number };
+};
+
+export type AuctionHistoryItem = {
+  auctionId: string;
+  imageUrl: string;
+  brand: string;
+  modelName: string;
+  participants: number;
+  finalPrice: number;
+  date: string;
+  status: 'completed' | 'cancelled';
+};
+
+export type AuctionHistoryStats = {
+  tradesToday: number;
+  averagePriceToday: number | null;
+  maxPriceToday: number | null;
+};
+
+export type AuctionHistoryResponse = {
+  stats: AuctionHistoryStats;
+  items: AuctionHistoryItem[];
+};

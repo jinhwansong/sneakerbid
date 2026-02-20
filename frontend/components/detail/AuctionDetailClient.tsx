@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { AuctionItem, BidLogItem } from '@/types/auction';
 import { useCountdown } from '@/hooks/useCountdown';
+import { useAuctionEvents } from '@/hooks/useAuctionEvents';
 import { formatPrice } from '@/lib/format';
 import {
   DetailProductImage,
@@ -45,6 +46,18 @@ export default function AuctionDetailClient({
   const [bidError, setBidError] = useState('');
 
   const { countdownLabel, isExpired } = useCountdown(item.endTime);
+
+  const handleNewBidFromSSE = useCallback((bid: BidLogItem) => {
+    setBidHistory((prev) => [bid, ...prev].slice(0, 5));
+    setCurrentPrice(bid.amount);
+    setParticipants((prev) => prev + 1);
+  }, []);
+
+  useAuctionEvents({
+    auctionId: item.id,
+    isActive: item.status !== 'closed' && !isExpired,
+    onNewBid: handleNewBidFromSSE,
+  });
 
   const sortedBidHistory = useMemo(() => {
     return [...bidHistory].sort((a, b) => {

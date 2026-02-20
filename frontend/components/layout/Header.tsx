@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/cn';
 import { ChevronDown, User, LogOut } from 'lucide-react';
+import { useClickOutside } from '@/hooks/useClickOutside';
 
 export default function Header() {
   const pathname = usePathname();
@@ -20,20 +21,18 @@ export default function Header() {
     { label: '이벤트', href: '/events' },
   ];
 
+  const profileNavItem = [
+    { label: '상품 등록', href: '/auctions/new' },
+    { label: '내 프로필', href: '/me' },
+    { label: '내 경매', href: '/me/auctions' },
+    { label: '찜 목록', href: '/me/wishlist' },
+  ];
+
   const isActive = (href: string) => {
     if (href === '/') return pathname === '/';
     return pathname === href || pathname.startsWith(href + '/');
   };
-
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
-        setProfileOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  useClickOutside(profileRef, () => setProfileOpen(false), 'mousedown');
 
   return (
     <nav className="sticky top-0 z-50 w-full bg-bg-main/95 dark:bg-bg-main/90 backdrop-blur-md border-b border-border-main">
@@ -53,7 +52,7 @@ export default function Header() {
                   'px-3 py-2 rounded-lg text-sm font-semibold transition-colors',
                   isActive(item.href)
                     ? 'text-text-main bg-bg-sub'
-                    : 'text-text-sub hover:text-text-main hover:bg-bg-sub/70'
+                    : 'text-text-sub hover:text-text-main hover:bg-bg-sub/70',
                 )}
               >
                 {item.label}
@@ -70,34 +69,34 @@ export default function Header() {
                 onClick={() => setProfileOpen((v) => !v)}
                 className={cn(
                   'flex items-center gap-2 h-9 md:h-10 pl-3 pr-2.5 rounded-xl border border-border-main bg-bg-sub/50 hover:bg-bg-sub transition-colors',
-                  profileOpen && 'bg-bg-sub ring-1 ring-border-main'
+                  profileOpen && 'bg-bg-sub ring-1 ring-border-main',
                 )}
               >
                 <User size={18} className="text-text-sub shrink-0" />
-                <span className="text-sm font-semibold text-text-main max-w-[100px] truncate hidden sm:block">
+                <span className="text-sm font-semibold text-text-main max-w-25 truncate hidden sm:block">
                   프로필
                 </span>
                 <ChevronDown
                   size={16}
-                  className={cn('text-text-muted shrink-0 transition-transform', profileOpen && 'rotate-180')}
+                  className={cn(
+                    'text-text-muted shrink-0 transition-transform',
+                    profileOpen && 'rotate-180',
+                  )}
                 />
               </button>
               {profileOpen && (
-                <div className="absolute right-0 top-full mt-1.5 py-1 min-w-[160px] bg-bg-main dark:bg-bg-card border border-border-main rounded-xl shadow-lg z-50">
-                  <Link
-                    href="/me/bids"
-                    onClick={() => setProfileOpen(false)}
-                    className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-text-main hover:bg-bg-sub transition-colors"
-                  >
-                    내 입찰
-                  </Link>
-                  <Link
-                    href="/me/purchases"
-                    onClick={() => setProfileOpen(false)}
-                    className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-text-main hover:bg-bg-sub transition-colors"
-                  >
-                    내 구매
-                  </Link>
+                <div className="absolute right-0 top-full mt-1.5 py-1 min-w-40 bg-bg-main dark:bg-bg-card border border-border-main rounded-xl shadow-lg z-50">
+                  {profileNavItem.map((item) => (
+                    <Link
+                      key={item.label}
+                      href={item.href}
+                      onClick={() => setProfileOpen(false)}
+                      className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-text-main hover:bg-bg-sub transition-colors"
+                    >
+                      {item.label}
+                    </Link>
+                  ))}
+
                   <div className="my-1 border-t border-border-main" />
                   <button
                     type="button"
@@ -125,3 +124,4 @@ export default function Header() {
     </nav>
   );
 }
+

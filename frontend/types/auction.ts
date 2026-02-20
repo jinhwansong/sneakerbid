@@ -41,3 +41,25 @@ export interface WishlistEntry {
   auctionId: string;
   createdAt: string; // ISO
 }
+
+export interface AuctionHistoryItem {
+  auctionId: string;
+  imageUrl: string;
+  brand: string;
+  modelName: string;
+  participants: number;
+  finalPrice: number;
+  date: string;
+  status: 'completed' | 'cancelled';
+}
+
+export interface AuctionHistoryStats {
+  tradesToday: number;
+  averagePriceToday: number | null;
+  maxPriceToday: number | null;
+}
+
+export interface AuctionHistoryResponse {
+  stats: AuctionHistoryStats;
+  items: AuctionHistoryItem[];
+}

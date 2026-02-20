@@ -6,6 +6,7 @@ export type UserByIdResult = {
   nickname: string;
   role: string;
   balance: number;
+  profileImageUrl?: string | null;
   createdAt: Date;
   updatedAt: Date;
 } | null;

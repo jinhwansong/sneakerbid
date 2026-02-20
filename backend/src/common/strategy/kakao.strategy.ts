@@ -36,7 +36,7 @@ export class KakaoStrategy extends PassportStrategy(Strategy, 'kakao') {
     )?.kakao_account;
 
     const profileData: OAuthProfile = {
-      providerAccountId: String(profile.id),
+      providerId: String(profile.id),
       nickname: profile.displayName ?? '',
       email: kakaoAccount?.email ?? null,
       profileImageUrl: kakaoAccount?.profile?.profile_image_url ?? null,

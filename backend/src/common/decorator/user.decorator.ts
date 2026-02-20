@@ -1,10 +1,11 @@
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
+import { UserRole } from '@/common/enum/role.enum';
 
 /** JWT 검증 후 request.user에 들어가는 타입 (UsersService.findById 결과) */
 export interface RequestUser {
   id: string;
   nickname: string;
-  role: string;
+  role: UserRole;
   balance: number;
   createdAt: Date;
   updatedAt: Date;

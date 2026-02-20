@@ -18,6 +18,10 @@ import { PrismaExceptionFilter } from './common/filters/prismaException.filter';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { RedisModule } from './redis/redis.module';
+import { ScheduleModule } from '@nestjs/schedule';
+import { AuctionsModule } from './auctions/auctions.module';
+import { EventsModule } from './events/events.module';
+import { BotsModule } from './bots/bots.module';
 
 @Module({
   imports: [
@@ -48,6 +52,10 @@ import { RedisModule } from './redis/redis.module';
     RedisModule,
     UsersModule,
     AuthModule,
+    AuctionsModule,
+    EventsModule,
+    ScheduleModule.forRoot(),
+    BotsModule,
   ],
   controllers: [AppController, HealthController],
   providers: [
