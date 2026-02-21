@@ -1,35 +1,44 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import Dropdown from '@/components/common/Dropdown';
-import { Search, Calendar, ArrowUpRight, CheckCircle2 } from 'lucide-react';
+import { Search, Calendar, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { formatPrice } from '@/lib/format';
-import { DUMMY_HISTORY } from '@/lib/dummy';
 import { PERIOD_OPTIONS } from '@/constants';
 import VirtualizedList from '@/components/common/VirtualizedList';
-import { useInfiniteScroll } from '@/hooks/useInfiniteScroll';
 import Image from 'next/image';
+import { useTradeHistory } from '@/hooks/query/useTradeHistory';
+import { useHistoryEvents } from '@/hooks/useHistoryEvents';
+import { queryKeys } from '@/hooks/query/queryKeys';
 
 export default function HistoryPage() {
-  const [period, setPeriod] = useState('1m');
+  const [period, setPeriod] = useState<'1m' | '3m' | '6m' | 'all'>('all');
+  const [search, setSearch] = useState('');
 
-  const {
-    items: displayItems,
-    isLoading,
-    hasMore,
-    loadMore,
-    reset,
-  } = useInfiniteScroll({
-    data: DUMMY_HISTORY,
-    pageSize: 3,
-    delayMs: 800,
+  const queryClient = useQueryClient();
+  const { data, isLoading, isError } = useTradeHistory({
+    period,
+    search: search.trim() || undefined,
+    limit: 50,
+  });
+
+  useHistoryEvents({
+    isActive: true,
+    onNewDeal: useCallback(() => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.auctions.history({ period, search: search.trim() || undefined }),
+      });
+    }, [queryClient, period, search]),
   });
 
   const handlePeriodChange = (value: string) => {
-    setPeriod(value);
-    reset();
+    setPeriod(value as '1m' | '3m' | '6m' | 'all');
   };
+
+  const stats = data?.stats;
+  const items = data?.items ?? [];
 
   return (
     <main className="max-w-7xl mx-auto px-5 py-8 md:py-12">
@@ -52,7 +61,9 @@ export default function HistoryPage() {
             />
             <input
               type="text"
-              placeholder="모델명 검색"
+              placeholder="모델명·브랜드 검색"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
               className="w-full h-11 bg-bg-sub rounded-2xl pl-12 pr-4 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-primary/20 transition-all"
             />
           </div>
@@ -71,9 +82,8 @@ export default function HistoryPage() {
             오늘 체결 건수
           </p>
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-black text-text-main">124</span>
-            <span className="text-xs font-bold text-status-active flex items-center gap-0.5">
-              <ArrowUpRight size={14} /> +12%
+            <span className="text-2xl font-black text-text-main">
+              {stats?.tradesToday ?? '—'}
             </span>
           </div>
         </div>
@@ -82,7 +92,11 @@ export default function HistoryPage() {
             평균 낙찰가
           </p>
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-black text-text-main">₩342,000</span>
+            <span className="text-2xl font-black text-text-main">
+              {stats?.averagePriceToday != null
+                ? formatPrice(stats.averagePriceToday)
+                : '—'}
+            </span>
           </div>
         </div>
         <div className="bg-bg-sub/50 border border-border-main rounded-[24px] p-6">
@@ -91,7 +105,9 @@ export default function HistoryPage() {
           </p>
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-black text-text-main">
-              ₩1,850,000
+              {stats?.maxPriceToday != null
+                ? formatPrice(stats.maxPriceToday)
+                : '—'}
             </span>
           </div>
         </div>
@@ -103,18 +119,18 @@ export default function HistoryPage() {
             체결 상세 내역
           </span>
           <span className="text-xs font-medium text-text-muted">
-            전체 {DUMMY_HISTORY.length}건
+            전체 {items.length}건
           </span>
         </div>
 
         <VirtualizedList
-          data={displayItems}
+          data={items}
           loading={isLoading}
-          hasMore={hasMore}
-          loadMore={loadMore}
+          hasMore={false}
+          error={isError ? '거래 내역을 불러오지 못했습니다.' : undefined}
           renderItem={(item) => (
             <div
-              key={item.id}
+              key={item.auctionId}
               className="group bg-bg-main border border-border-main rounded-[24px] p-4 md:p-6 flex items-center gap-4 md:gap-8 hover:shadow-xl hover:shadow-black/5 transition-all"
             >
               <div className="w-16 h-16 md:w-20 md:h-20 shrink-0 bg-bg-card rounded-2xl overflow-hidden flex items-center justify-center">
@@ -173,3 +189,4 @@ export default function HistoryPage() {
     </main>
   );
 }
+

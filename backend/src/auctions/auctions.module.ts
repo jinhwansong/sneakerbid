@@ -7,5 +7,6 @@ import { EventsModule } from '@/events/events.module';
   imports: [EventsModule],
   providers: [AuctionsService],
   controllers: [AuctionsController],
+  exports: [AuctionsService],
 })
 export class AuctionsModule {}

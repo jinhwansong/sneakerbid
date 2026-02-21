@@ -1,14 +1,14 @@
 'use client';
-
 import React, { useState } from 'react';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
-import { AuctionItem } from '@/types/auction';
+import { ArrowUpRight, Timer, Users } from 'lucide-react';
 import Badge from '@/components/common/Badge';
 import { Button } from '@/components/common/Button';
-import { ArrowUpRight, Timer, Users } from 'lucide-react';
 import { useToastStore } from '@/store/useToastStore';
-import { formatPrice, formatRemainingTime } from '@/lib/format';
+import { formatPrice } from '@/lib/format';
+import { useRemainingTime } from '@/hooks/useRemainingTime';
+import { AuctionItem } from '@/types/auction';
 
 interface FeaturedAuctionProps {
   item: AuctionItem;
@@ -18,7 +18,8 @@ export default function FeaturedAuction({
   item,
 }: FeaturedAuctionProps) {
   const [isWatched, setIsWatched] = useState(false);
-  const {showToast} = useToastStore((state) => state);
+  const { showToast } = useToastStore((state) => state);
+  const remainingTime = useRemainingTime(item.endTime);
 
   const handleBid = () => {
     showToast('입찰 시뮬레이션이 시작되었습니다.');
@@ -50,8 +51,8 @@ export default function FeaturedAuction({
                 <Badge status="ending_soon" />
                 <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/10 text-white text-[11px] font-bold">
                   <Timer size={14} className="text-status-urgent" />
-                  <span className="tabular-nums">
-                    {formatRemainingTime(item.endTime)}
+                  <span className="tabular-nums" suppressHydrationWarning>
+                    {remainingTime}
                   </span>
                 </div>
               </div>

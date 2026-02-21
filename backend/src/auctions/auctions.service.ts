@@ -99,7 +99,6 @@ export class AuctionsService {
   async getMainAuctions(): Promise<{
     ongoing: AuctionSummary[];
     closed: AuctionSummary[];
-    failed: AuctionSummary[];
   }> {
     const now = new Date();
     const [ongoing, closed] = await Promise.all([
@@ -117,26 +116,26 @@ export class AuctionsService {
       }),
     ]);
 
-    const failed: AuctionSummary[] = []; // TODO: Order 테이블 연동 시 status=FAILED로 필터
-
     return {
       ongoing: ongoing.map((item) => this.toSummary(item)),
       closed: closed.map((item) => this.toSummary(item)),
-      failed,
     };
   }
 
-  /** 경매 리스트 */
+  /** 경매 리스트  */
   async listAuctions(query: AuctionListQueryDto): Promise<{
     items: AuctionSummary[];
     nextCursor: string | null;
     hasMore: boolean;
   }> {
-    const { brand, size, status, sort = 'newest', afterId, limit = 20 } = query;
-    const where: Record<string, any> = {};
-    if (brand) where['sneaker.brand'] = brand;
-    if (size) where.size = size;
-    if (status) where.status = status;
+    const { brand, size, sort = 'newest', afterId, limit = 20 } = query;
+    const now = new Date();
+    const where: Prisma.AuctionWhereInput = {
+      status: 'OPEN',
+      endTime: { gt: now },
+      ...(brand && { sneaker: { brand } }),
+      ...(size && { size }),
+    };
 
     let orderBy: Prisma.AuctionOrderByWithAggregationInput;
     switch (sort) {
@@ -301,7 +300,6 @@ export class AuctionsService {
       },
       select: { currentPrice: true },
     });
-
     const tradesToday = todaysClosings.length;
     const todayPrices = todaysClosings.map((item) => item.currentPrice);
     const sumPrice = todayPrices.reduce((sum, price) => sum + price, 0);
@@ -340,7 +338,6 @@ export class AuctionsService {
       date: formatDate(auction.closedAt ?? auction.updatedAt),
       status: auction.winnerUserId ? 'completed' : 'cancelled',
     }));
-
     return {
       stats: {
         tradesToday,
@@ -348,6 +345,35 @@ export class AuctionsService {
         maxPriceToday,
       },
       items,
+    };
+  }
+
+  /** 단건 거래 내역 (SSE newDeal 발송용) */
+  async getTradeHistoryItem(
+    auctionId: string,
+  ): Promise<AuctionHistoryItem | null> {
+    const auction = await this.prisma.auction.findFirst({
+      where: { id: auctionId, status: 'CLOSED' },
+      include: {
+        sneaker: true,
+        _count: { select: { bids: true } },
+      },
+    });
+    if (!auction) return null;
+    const formatDate = (value?: Date | null) => {
+      if (!value) return '';
+      const date = new Date(value);
+      return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')}`;
+    };
+    return {
+      auctionId: auction.id,
+      imageUrl: auction.sneaker.imageUrl,
+      brand: auction.sneaker.brand,
+      modelName: auction.sneaker.modelName,
+      participants: auction._count?.bids ?? 0,
+      finalPrice: auction.currentPrice,
+      date: formatDate(auction.closedAt ?? auction.updatedAt),
+      status: auction.winnerUserId ? 'completed' : 'cancelled',
     };
   }
 

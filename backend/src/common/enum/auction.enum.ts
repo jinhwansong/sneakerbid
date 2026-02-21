@@ -5,7 +5,7 @@ export const AUCTION_BRANDS = [
   'Jordan',
   'Converse',
   'Puma',
-  'ASICS',
+  'Asics',
   'Vans',
   'Reebok',
   'Yeezy',

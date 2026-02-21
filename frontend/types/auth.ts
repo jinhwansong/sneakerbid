@@ -7,3 +7,14 @@ export interface RefreshTokenResponse {
 export interface LogoutResponse {
   message: string;
 }
+
+/** 내 정보 (GET /users/me) 응답 */
+export interface MeResponse {
+  id: string;
+  nickname: string;
+  role: string;
+  balance: number;
+  profileImageUrl?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}

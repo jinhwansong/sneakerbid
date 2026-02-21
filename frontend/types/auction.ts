@@ -134,7 +134,6 @@ export interface AuctionSummary {
 export interface GetMainAuctionsResponse {
   ongoing: AuctionSummary[];
   closed: AuctionSummary[];
-  failed: AuctionSummary[];
 }
 
 /** 경매 목록 조회 응답 (페이지네이션 포함) */

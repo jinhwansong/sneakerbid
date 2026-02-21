@@ -18,10 +18,10 @@ export const auth = {
   },
 
   /** 리프레시 토큰 발급 */
-  refresh: () =>
-    Fetcher<RefreshTokenResponse>(`${API_BASE_URL}/auth/refresh`),
+  refresh: () => Fetcher<RefreshTokenResponse>(`${API_BASE_URL}/auth/refresh`),
 
   /** 로그아웃 */
-  logout: () =>
-    Fetcher<LogoutResponse>(`${API_BASE_URL}/auth/logout`),
+  logout: () => Fetcher<LogoutResponse>(`${API_BASE_URL}/auth/logout`),
 };
+
+

@@ -2,14 +2,16 @@
 
 import React, { useMemo, useState } from 'react';
 import AuctionCard from '@/components/auction/AuctionCard';
-import { DUMMY_AUCTIONS } from '@/lib/dummy';
 import { Button } from '@/components/common/Button';
 import Dropdown from '@/components/common/Dropdown';
 import { SlidersHorizontal, X } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { BRANDS, SIZES, SORT_OPTIONS } from '@/constants';
-import { useInfiniteScroll } from '@/hooks/useInfiniteScroll';
 import VirtualizedList from '@/components/common/VirtualizedList';
+import {
+  useAuctionList,
+  auctionListPagesToItems,
+} from '@/hooks/query/useAuctionList';
 
 export default function AuctionListPage() {
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
@@ -17,43 +19,19 @@ export default function AuctionListPage() {
   const [sortBy, setSortBy] = useState('ending_soon');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
-  const filteredData = useMemo(() => {
-    let filtered = DUMMY_AUCTIONS;
-
-    // 2. Brand Filter
-    if (selectedBrand) {
-      filtered = filtered.filter((item) => item.brand === selectedBrand);
-    }
-
-    // 3. Size Filter
-    if (selectedSize) {
-      filtered = filtered.filter((item) => item.size === selectedSize);
-    }
-
-    // 4. Sort
-    return [...filtered].sort((a, b) => {
-      if (sortBy === 'ending_soon') {
-        return new Date(a.endTime).getTime() - new Date(b.endTime).getTime();
-      }
-      if (sortBy === 'price_low') {
-        return a.currentBid - b.currentBid;
-      }
-      return 0;
-    });
-  }, [selectedBrand, selectedSize, sortBy]);
-
   const {
-    items: displayItems,
+    data,
     isLoading,
-    hasMore,
-    loadMore,
-    reset,
-  } = useInfiniteScroll({
-    data: filteredData,
-    pageSize: 6,
-    delayMs: 400,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+  } = useAuctionList({
+    brand: selectedBrand,
+    size: selectedSize,
+    sort: sortBy,
   });
 
+  const displayItems = auctionListPagesToItems(data);
   const itemRows = useMemo(() => {
     const rows: (typeof displayItems)[] = [];
     const chunkSize = 3;
@@ -65,23 +43,19 @@ export default function AuctionListPage() {
 
   const handleBrandToggle = (brand: string) => {
     setSelectedBrand((prev) => (prev === brand ? null : brand));
-    reset();
   };
 
   const handleSizeToggle = (size: number) => {
     setSelectedSize((prev) => (prev === size ? null : size));
-    reset();
   };
 
   const handleSortChange = (value: string) => {
     setSortBy(value);
-    reset();
   };
 
   const handleFilterReset = () => {
     setSelectedBrand(null);
     setSelectedSize(null);
-    reset();
   };
   return (
     <>
@@ -158,7 +132,7 @@ export default function AuctionListPage() {
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs sm:text-sm font-bold text-text-sub">
                 전체{' '}
-                <span className="text-text-main">{filteredData.length}</span>
+                <span className="text-text-main">{displayItems.length}</span>
                 개
               </span>
 
@@ -183,9 +157,9 @@ export default function AuctionListPage() {
 
             <VirtualizedList
               data={itemRows}
-              loading={isLoading}
-              hasMore={hasMore}
-              loadMore={loadMore}
+              loading={isLoading || isFetchingNextPage}
+              hasMore={hasNextPage ?? false}
+              loadMore={() => fetchNextPage()}
               renderItem={(row, rowIndex) => (
                 <div
                   key={`row-${rowIndex}`}

@@ -7,10 +7,16 @@ import {
 import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '@/prisma/prisma.service';
 import { RequestUser } from '@/common/decorator/user.decorator';
+import { EventsService } from '@/events/events.service';
+import { AuctionsService } from '@/auctions/auctions.service';
 
 @Injectable()
 export class OrdersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly eventsService: EventsService,
+    private readonly auctionsService: AuctionsService,
+  ) {}
 
   /** 매분 경매 종료 체크 → 낙찰자 확정, Order 생성 */
   @Cron('* * * * *', { timeZone: 'Asia/Seoul' })
@@ -54,6 +60,10 @@ export class OrdersService {
           });
         }
       });
+      const historyItem = await this.auctionsService.getTradeHistoryItem(
+        auction.id,
+      );
+      if (historyItem) this.eventsService.emitNewDeal(historyItem);
     }
   }
 
@@ -99,6 +109,10 @@ export class OrdersService {
         },
       });
     });
+
+    const historyItem =
+      await this.auctionsService.getTradeHistoryItem(auctionId);
+    if (historyItem) this.eventsService.emitNewDeal(historyItem);
 
     return {
       orderId: order.id,

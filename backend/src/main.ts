@@ -16,6 +16,8 @@ async function bootstrap() {
   // 프록시/로드밸런서 뒤에서 동작할 때 클라이언트 IP 등을 올바르게 인식하도록 설정
   app.set('trust proxy', 1);
 
+  app.use((cookieParser as () => ReturnType<typeof cookieParser>)());
+
   // CORS: 프론트 도메인에서 API 호출 허용
   app.enableCors({
     origin: [process.env.FRONTEND_URL],
@@ -45,9 +47,6 @@ async function bootstrap() {
 
   // 전역 예외 필터: HttpException을 일관된 JSON 형식으로 응답
   app.useGlobalFilters(new HttpExceptionFilter());
-
-  // cookie-parser: 요청의 Cookie 헤더를 파싱해 req.cookies로 제공
-  app.use((cookieParser as () => any)());
 
   // compression: 응답 본문을 gzip 등으로 압축해 전송 (대역폭 절감)
   app.use(compression());

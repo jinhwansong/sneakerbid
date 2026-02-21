@@ -1,3 +1,5 @@
+import type { AuctionHistoryItem } from './auction.type';
+
 /** SSE 이벤트 페이로드 - 상세 페이지 입찰 */
 export interface NewBidPayload {
   id: string;
@@ -12,4 +14,12 @@ export type AuctionEventType = 'newBid' | 'auctionClosed' | 'ping';
 export interface AuctionEventPayload {
   type: AuctionEventType;
   payload?: NewBidPayload;
+}
+
+/** 거래내역 SSE - 새 체결 시 */
+export type HistoryEventType = 'newDeal' | 'ping';
+
+export interface HistoryEventPayload {
+  type: HistoryEventType;
+  payload?: AuctionHistoryItem;
 }

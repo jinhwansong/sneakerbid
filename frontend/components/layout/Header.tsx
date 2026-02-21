@@ -6,13 +6,17 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/cn';
 import { ChevronDown, User, LogOut } from 'lucide-react';
 import { useClickOutside } from '@/hooks/useClickOutside';
+import { useMe } from '@/hooks/query/useMe';
+import { useLogout } from '@/hooks/query/useLogout';
 
 export default function Header() {
   const pathname = usePathname();
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
-
-  const isLoggedIn = false;
+  const { data: user, isLoading } = useMe({
+    enabled: pathname !== '/login',
+  });
+  const logout = useLogout();
 
   const navItems = [
     { label: '경매', href: '/auction' },
@@ -62,7 +66,7 @@ export default function Header() {
         </div>
 
         <div className="flex items-center gap-2">
-          {isLoggedIn ? (
+          {user && !isLoading ? (
             <div className="relative" ref={profileRef}>
               <button
                 type="button"
@@ -74,7 +78,7 @@ export default function Header() {
               >
                 <User size={18} className="text-text-sub shrink-0" />
                 <span className="text-sm font-semibold text-text-main max-w-25 truncate hidden sm:block">
-                  프로필
+                  {user.nickname}
                 </span>
                 <ChevronDown
                   size={16}
@@ -100,8 +104,9 @@ export default function Header() {
                   <div className="my-1 border-t border-border-main" />
                   <button
                     type="button"
-                    onClick={() => {
+                    onClick={async () => {
                       setProfileOpen(false);
+                      await logout();
                     }}
                     className="flex w-full items-center gap-2 px-4 py-2.5 text-sm font-medium text-text-sub hover:bg-bg-sub hover:text-status-urgent transition-colors"
                   >
@@ -124,6 +129,8 @@ export default function Header() {
     </nav>
   );
 }
+
+
 
 
 

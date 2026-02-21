@@ -7,6 +7,7 @@ export interface RequestUser {
   nickname: string;
   role: UserRole;
   balance: number;
+  profileImageUrl?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
