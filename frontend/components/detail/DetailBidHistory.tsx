@@ -13,12 +13,6 @@ export default function DetailBidHistory({
   bidHistory,
   participants,
 }: DetailBidHistoryProps) {
-  const sortedBidHistory = [...bidHistory].sort((a, b) => {
-    if (b.amount !== a.amount) return b.amount - a.amount;
-    if (a.time === '방금 전' && b.time !== '방금 전') return -1;
-    if (b.time === '방금 전' && a.time !== '방금 전') return 1;
-    return parseInt(b.id.replace(/\D/g, '')) - parseInt(a.id.replace(/\D/g, ''));
-  });
 
   return (
     <div className="bg-bg-main p-6 rounded-xl border border-border-main space-y-6">
@@ -37,7 +31,7 @@ export default function DetailBidHistory({
         </div>
       </div>
       <div className="space-y-3">
-        {sortedBidHistory.map((bid, index) => (
+        {bidHistory.map((bid, index) => (
           <BidCard
             key={bid.id}
             bid={bid}

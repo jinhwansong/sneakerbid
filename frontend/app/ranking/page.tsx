@@ -1,42 +1,31 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { TrendingUp, Users, Flame, Award } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { formatPrice } from '@/lib/format';
-import { DUMMY_AUCTIONS } from '@/lib/dummy';
 import VirtualizedList from '@/components/common/VirtualizedList';
-import { useInfiniteScroll } from '@/hooks/useInfiniteScroll';
+import { useAuctionList, auctionListPagesToItems } from '@/hooks/query/useAuctionList';
 
 const TABS = [
-  { id: 'popular', label: '인기 급상승', icon: Flame },
-  { id: 'bids', label: '입찰 많은 순', icon: Users },
-  { id: 'trending', label: '시세 급등', icon: TrendingUp },
+  { id: 'popular', label: '인기 급상승', icon: Flame, sort: 'popular' as const },
+  { id: 'bids', label: '입찰 많은 순', icon: Users, sort: 'popular' as const },
+  { id: 'trending', label: '시세 급등', icon: TrendingUp, sort: 'ending_soon' as const },
 ];
 
 export default function RankingPage() {
   const [activeTab, setActiveTab] = useState('popular');
+  const sortBy = TABS.find((t) => t.id === activeTab)?.sort ?? 'popular';
 
-  const allRankingItems = useMemo(() => {
-    return [...DUMMY_AUCTIONS].sort((a, b) => b.participants - a.participants);
-  }, []);
-
-  const {
-    items: displayItems,
-    isLoading,
-    hasMore,
-    loadMore,
-    reset,
-  } = useInfiniteScroll({
-    data: allRankingItems,
-    pageSize: 4,
-    delayMs: 800,
+  const { data, isLoading, isError, fetchNextPage, hasNextPage } = useAuctionList({
+    sort: sortBy,
   });
+  const displayItems = auctionListPagesToItems(data);
 
   const handleTabChange = (tabId: string) => {
     setActiveTab(tabId);
-    reset();
   };
 
   return (
@@ -80,11 +69,13 @@ export default function RankingPage() {
       <VirtualizedList
         data={displayItems}
         loading={isLoading}
-        hasMore={hasMore}
-        loadMore={loadMore}
+        hasMore={hasNextPage ?? false}
+        loadMore={() => fetchNextPage()}
+        error={isError ? '랭킹을 불러오지 못했습니다.' : undefined}
+        emptyText="진행 중인 경매가 없습니다."
         renderItem={(item, index) => (
-          <div
-            key={item.id}
+          <Link
+            href={`/auction/${item.id}`}
             className="group relative flex items-center gap-4 md:gap-8 p-4 md:p-6 rounded-[32px] bg-bg-main border border-border-main hover:shadow-xl hover:shadow-black/5 transition-all"
           >
             {/* Rank Number */}
@@ -123,10 +114,6 @@ export default function RankingPage() {
                 <span className="text-sm font-black text-text-main">
                   {formatPrice(item.currentBid)}
                 </span>
-                <div className="flex items-center gap-1 text-[11px] font-bold text-status-active">
-                  <TrendingUp size={12} />
-                  <span>+{(15.4 - index * 1.2).toFixed(1)}%</span>
-                </div>
               </div>
             </div>
 
@@ -140,7 +127,7 @@ export default function RankingPage() {
               </div>
               <p className="text-[10px] text-text-muted font-medium">참여 중</p>
             </div>
-          </div>
+          </Link>
         )}
       />
     </main>

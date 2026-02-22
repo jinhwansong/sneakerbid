@@ -587,6 +587,13 @@ export class AuctionsService {
     const sizeNum = parseInt(auction.size, 10);
     const size = Number.isNaN(sizeNum) ? undefined : sizeNum;
 
+    const startPrice = auction.startPrice;
+    const currentPrice = auction.currentPrice;
+    const priceIncreasePercent =
+      startPrice === 0
+        ? '0'
+        : (((currentPrice - startPrice) / startPrice) * 100).toFixed(1);
+
     return {
       id: auction.id,
       modelName: auction.sneaker.modelName,
@@ -600,12 +607,14 @@ export class AuctionsService {
       boxIncluded: auction.sneaker.boxIncluded ?? undefined,
       description: auction.sneaker.description ?? undefined,
       imageUrl: auction.sneaker.imageUrl,
-      currentBid: auction.currentPrice,
+      startPrice,
+      currentBid: currentPrice,
       buyNowPrice: auction.buyNowPrice,
       endTime: auction.endTime.toISOString(),
       participants: auction._count?.bids ?? 0,
       status,
       isWishlisted: false,
+      priceIncreasePercent,
     };
   }
 

@@ -14,12 +14,15 @@ export type AuctionDetail = {
   boxIncluded?: boolean;
   description?: string;
   imageUrl: string;
+  startPrice: number;
   currentBid: number;
   buyNowPrice?: number | null;
   endTime: string;
   participants: number;
   status: 'ongoing' | 'ending_soon' | 'closed' | 'failed' | 'buy_now';
   isWishlisted?: boolean;
+  /** 시작가 대비 현재가 상승률 (%) */
+  priceIncreasePercent: string;
 };
 
 export type AuctionSummary = {

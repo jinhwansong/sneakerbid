@@ -14,8 +14,8 @@ export default async function AuctionDetailPage({ params }: AuctionDetailPagePro
   let item: AuctionItem & { initialBids?: { id: string; user: string; amount: number; time: string; isBot: boolean }[] };
   try {
     const [auctionData, bidsData] = await Promise.all([
-      api.getAuction(id),
-      api.getBids(id).catch(() => []),
+      api.auctions.get(id),
+      api.auctions.getBids(id).catch(() => []),
     ]);
     item = auctionData as AuctionItem;
     item.initialBids = bidsData;

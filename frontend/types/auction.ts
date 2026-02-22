@@ -20,6 +20,7 @@ export interface AuctionItem {
   boxIncluded?: boolean;   // 박스 포함 여부
   description?: string;   // 상품 설명
   imageUrl: string;
+  startPrice?: number;     // 상세 API에서 제공 (시작가)
   currentBid: number;
   buyNowPrice?: number;
   endTime: string; // ISO string
@@ -27,6 +28,8 @@ export interface AuctionItem {
   status: AuctionStatus;
   /** 로그인 시 API가 채워줌. 찜 여부 */
   isWishlisted?: boolean;
+  /** 상세 API에서 제공: 시작가 대비 현재가 상승률 (%) */
+  priceIncreasePercent?: string;
 }
 
 /** 입찰 로그 아이템 */
@@ -182,12 +185,14 @@ export interface GetAuctionResponse {
   boxIncluded?: boolean;
   description?: string;
   imageUrl: string;
+  startPrice: number;
   currentBid: number;
   buyNowPrice?: number | null;
   endTime: string;
   participants: number;
   status: 'ongoing' | 'ending_soon' | 'closed' | 'failed' | 'buy_now';
   isWishlisted?: boolean;
+  priceIncreasePercent: string;
 }
 
 /** 입찰 요청 DTO */
