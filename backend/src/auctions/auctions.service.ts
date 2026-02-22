@@ -283,6 +283,67 @@ export class AuctionsService {
     };
   }
 
+  /** 봇 입찰 */
+  async placeBidAsBot(
+    auctionId: string,
+    bidPrice: number,
+    botUser: { id: string; nickname: string },
+    strategyType: string,
+  ): Promise<{ bidId: string; currentPrice: number } | null> {
+    const now = new Date();
+
+    try {
+      const result = await this.prisma.$transaction(async (tx) => {
+        const auction = await tx.auction.findUnique({
+          where: { id: auctionId },
+          include: { sneaker: true },
+        });
+
+        if (
+          !auction ||
+          auction.status !== 'OPEN' ||
+          new Date(auction.endTime) <= now
+        ) {
+          return null;
+        }
+
+        const minBid = auction.currentPrice + auction.minimumIncrement;
+        if (bidPrice < minBid) return null;
+
+        const bid = await tx.bid.create({
+          data: {
+            auctionId,
+            userId: botUser.id,
+            bidPrice,
+            sourceType: 'BOT',
+            strategyType,
+          },
+        });
+
+        await tx.auction.update({
+          where: { id: auctionId },
+          data: { currentPrice: bidPrice },
+        });
+
+        return { bid, auction };
+      });
+
+      if (!result) return null;
+
+      this.eventsService.emitNewBid(auctionId, {
+        id: result.bid.id,
+        user: botUser.nickname,
+        amount: bidPrice,
+        time: '방금 전',
+        isBot: true,
+      });
+
+      return { bidId: result.bid.id, currentPrice: bidPrice };
+    } catch {
+      return null;
+    }
+  }
+
   /** 거래 완료/취소 내역 */
   async getTradeHistory(
     query: AuctionHistoryQueryDto,

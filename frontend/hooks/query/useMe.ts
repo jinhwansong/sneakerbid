@@ -1,10 +1,11 @@
 import { usePathname } from 'next/navigation';
-import { useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import type { MeResponse } from '@/types/auth';
 import { withQueryDefaults } from '@/hooks/withQueryDefaults';
 import { queryKeys } from './queryKeys';
+import { getMeCache, setMeCache, clearMeCache } from '@/lib/meCache';
 
 export const AUTH_LOGGED_OUT_KEY = 'auth_logged_out';
 
@@ -14,17 +15,33 @@ export interface UseMeOptions {
 
 export function useMe(options?: UseMeOptions) {
   const pathname = usePathname();
+  const queryClient = useQueryClient();
   const explicitEnabled = options?.enabled ?? true;
 
-  // 로그인 페이지 방문 시 플래그 초기화 (OAuth 복귀 후 getMe 재시도 가능하도록)
+  // 렌더 중 sessionStorage 읽지 않음 → 하이드레이션 오류 방지
+  // 마운트 후 useEffect에서만 읽음
+  const [clientState, setClientState] = useState<{
+    cached: MeResponse | null;
+    isLoggedOut: boolean;
+  } | null>(null);
+
   useEffect(() => {
-    if (pathname === '/login' && typeof window !== 'undefined') {
+    if (pathname === '/login') {
       sessionStorage.removeItem(AUTH_LOGGED_OUT_KEY);
     }
-  }, [pathname]);
+    const cached = getMeCache();
+    const isLoggedOut = sessionStorage.getItem(AUTH_LOGGED_OUT_KEY) === '1';
+    if (cached) {
+      queryClient.setQueryData(queryKeys.me, cached);
+    }
+    queueMicrotask(() => setClientState({ cached, isLoggedOut }));
+  }, [pathname, queryClient]);
 
-  const isLoggedOut = typeof window !== 'undefined' && sessionStorage.getItem(AUTH_LOGGED_OUT_KEY) === '1';
-  const enabled = explicitEnabled && !isLoggedOut;
+  const cached = clientState?.cached ?? null;
+  const isLoggedOut = clientState?.isLoggedOut ?? false;
+  // clientState 확인 전에는 fetch 안 함 (캐시 있을 수 있음)
+  const enabled =
+    clientState !== null && explicitEnabled && !isLoggedOut && !cached;
 
   return useQuery(
     withQueryDefaults<MeResponse | null>({
@@ -32,10 +49,12 @@ export function useMe(options?: UseMeOptions) {
       queryFn: async () => {
         try {
           const data = await api.users.getMe();
-          if (typeof window !== 'undefined') sessionStorage.removeItem(AUTH_LOGGED_OUT_KEY);
+          sessionStorage.removeItem(AUTH_LOGGED_OUT_KEY);
+          setMeCache(data);
           return data;
         } catch {
-          if (typeof window !== 'undefined') sessionStorage.setItem(AUTH_LOGGED_OUT_KEY, '1');
+          sessionStorage.setItem(AUTH_LOGGED_OUT_KEY, '1');
+          clearMeCache();
           return null;
         }
       },
