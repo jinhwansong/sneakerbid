@@ -2,6 +2,8 @@
 export interface BotCooldownStore {
   get(key: string): Promise<string | null>;
   set(key: string, value: string, ttlSeconds?: number): Promise<void>;
+  /** 쿨다운 즉시 해제 (입찰 실패 시 호출) */
+  delete(key: string): Promise<void>;
 }
 
 const COOLDOWN_KEY_PREFIX = 'bot:cooldown:';

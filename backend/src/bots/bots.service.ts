@@ -122,46 +122,74 @@ export class BotsService {
       attempts.push({ auction, bot });
     }
 
+    const clearCooldown = async (
+      auctionId: string,
+      botId: string,
+    ): Promise<void> => {
+      const key = cooldownKey(auctionId, botId);
+      await this.cooldownStore.delete(key);
+    };
+
     const bidPromises = attempts.map(async ({ auction, bot }) => {
       if (!(await cooldownOk(auction.id, bot.id))) return null;
-      if (
-        !isWithinActivityHours(now, bot.activityStartHour, bot.activityEndHour)
-      )
-        return null;
+      await setCooldown(auction.id, bot.id);
+      try {
+        if (
+          !isWithinActivityHours(
+            now,
+            bot.activityStartHour,
+            bot.activityEndHour,
+          )
+        ) {
+          await clearCooldown(auction.id, bot.id);
+          return null;
+        }
 
-      const brands = (bot.favoriteBrands as string[]) ?? [];
-      if (brands.length > 0 && !brands.includes(auction.sneaker.brand))
-        return null;
+        const brands = Array.isArray(bot.favoriteBrands)
+          ? (bot.favoriteBrands as unknown[]).filter(
+              (x): x is string => typeof x === 'string',
+            )
+          : [];
+        if (brands.length > 0 && !brands.includes(auction.sneaker.brand)) {
+          await clearCooldown(auction.id, bot.id);
+          return null;
+        }
 
-      const minBid = auction.currentPrice + auction.minimumIncrement;
-      const maxByMultiplier = Math.floor(
-        auction.startPrice * bot.maxBidMultiplier,
-      );
-      const maxBid = Math.min(maxByMultiplier, bot.user.balance);
+        const minBid = auction.currentPrice + auction.minimumIncrement;
+        const maxByMultiplier = Math.floor(
+          auction.startPrice * bot.maxBidMultiplier,
+        );
+        const maxBid = Math.min(maxByMultiplier, bot.user.balance);
 
-      if (minBid > maxBid) return null;
+        if (minBid > maxBid) {
+          await clearCooldown(auction.id, bot.id);
+          return null;
+        }
 
-      const bidPrice =
-        minBid + randInt(0, Math.min(bot.bidUnit, maxBid - minBid));
-      if (bidPrice > maxBid) return null;
+        const bidPrice =
+          minBid + randInt(0, Math.min(bot.bidUnit, maxBid - minBid));
 
-      const result = await this.auctionsService.placeBidAsBot(
-        auction.id,
-        bidPrice,
-        { id: bot.userId, nickname: bot.user.nickname },
-        bot.type,
-      );
-
-      if (result) {
-        await setCooldown(auction.id, bot.id);
-        return {
-          bot: bot.user.nickname,
-          item: `${auction.sneaker.brand} ${auction.sneaker.modelName}`,
-          auctionId: auction.id,
+        const result = await this.auctionsService.placeBidAsBot(
+          auction.id,
           bidPrice,
-        };
+          { id: bot.userId, nickname: bot.user.nickname },
+          bot.type,
+        );
+
+        if (result) {
+          return {
+            bot: bot.user.nickname,
+            item: `${auction.sneaker.brand} ${auction.sneaker.modelName}`,
+            auctionId: auction.id,
+            bidPrice,
+          };
+        }
+        await clearCooldown(auction.id, bot.id);
+        return null;
+      } catch {
+        await clearCooldown(auction.id, bot.id);
+        return null;
       }
-      return null;
     });
 
     const results = await Promise.all(bidPromises);

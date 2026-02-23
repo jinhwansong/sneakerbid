@@ -26,4 +26,9 @@ export class MemoryBotCooldownStore implements BotCooldownStore {
     this.store.set(key, { value, expiresAt });
     return Promise.resolve();
   }
+
+  delete(key: string): Promise<void> {
+    this.store.delete(key);
+    return Promise.resolve();
+  }
 }

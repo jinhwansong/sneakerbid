@@ -11,4 +11,8 @@ export class RedisBotCooldownStore implements BotCooldownStore {
   async set(key: string, value: string, ttlSeconds?: number): Promise<void> {
     await this.redis.set(key, value, ttlSeconds);
   }
+
+  async delete(key: string): Promise<void> {
+    await this.redis.del(key);
+  }
 }
