@@ -1,7 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { Cron, Interval } from '@nestjs/schedule';
 import { PrismaService } from '@/prisma/prisma.service';
 import { AuctionsService } from '@/auctions/auctions.service';
+import { cooldownKey } from './cooldown.store';
+import type { BotCooldownStore } from './cooldown.store';
 
 /** 봇별 일일 지급 범위 (타입별) - 단위: 원 */
 const DAILY_TOPUP_RANGE_BY_TYPE: Record<string, [number, number]> = {
@@ -33,12 +35,11 @@ function isWithinActivityHours(now: Date, start: number, end: number): boolean {
 
 @Injectable()
 export class BotsService {
-  /** (auctionId:botId) → 마지막 입찰 시각 */
-  private lastBidAt = new Map<string, number>();
-
   constructor(
     private readonly prisma: PrismaService,
     private readonly auctionsService: AuctionsService,
+    @Inject('BOT_COOLDOWN_STORE')
+    private readonly cooldownStore: BotCooldownStore,
   ) {}
 
   /**
@@ -73,21 +74,24 @@ export class BotsService {
   @Interval(20_000)
   async runBotBidding() {
     const now = new Date();
-    const cooldownOk = (auctionId: string, botId: string) => {
-      const key = `${auctionId}:${botId}`;
-      const last = this.lastBidAt.get(key) ?? 0;
-      if (Date.now() - last < BOT_COOLDOWN_MS) return false;
-      return true;
+    const cooldownOk = async (
+      auctionId: string,
+      botId: string,
+    ): Promise<boolean> => {
+      const key = cooldownKey(auctionId, botId);
+      const val = await this.cooldownStore.get(key);
+      return val === null; // 키 없거나 만료됐으면 입찰 가능
     };
-    const setCooldown = (auctionId: string, botId: string) => {
-      this.lastBidAt.set(`${auctionId}:${botId}`, Date.now());
-      // 오래된 엔트리 정리 (메모리 방지)
-      if (this.lastBidAt.size > 500) {
-        const cutoff = Date.now() - BOT_COOLDOWN_MS * 2;
-        for (const [k, v] of this.lastBidAt) {
-          if (v < cutoff) this.lastBidAt.delete(k);
-        }
-      }
+    const setCooldown = async (
+      auctionId: string,
+      botId: string,
+    ): Promise<void> => {
+      const key = cooldownKey(auctionId, botId);
+      await this.cooldownStore.set(
+        key,
+        String(Date.now()),
+        Math.ceil(BOT_COOLDOWN_MS / 1000),
+      );
     };
 
     const [auctions, bots] = await Promise.all([
@@ -106,14 +110,20 @@ export class BotsService {
 
     const attempts: { auction: (typeof auctions)[0]; bot: (typeof bots)[0] }[] =
       [];
-    for (let i = 0; i < BIDS_PER_TURN; i++) {
+    const picked = new Set<string>();
+    const maxPairs = auctions.length * bots.length;
+
+    while (attempts.length < Math.min(BIDS_PER_TURN, maxPairs)) {
       const auction = auctions[randInt(0, auctions.length - 1)];
       const bot = bots[randInt(0, bots.length - 1)];
+      const key = `${auction.id}:${bot.id}`;
+      if (picked.has(key)) continue;
+      picked.add(key);
       attempts.push({ auction, bot });
     }
 
     const bidPromises = attempts.map(async ({ auction, bot }) => {
-      if (!cooldownOk(auction.id, bot.id)) return null;
+      if (!(await cooldownOk(auction.id, bot.id))) return null;
       if (
         !isWithinActivityHours(now, bot.activityStartHour, bot.activityEndHour)
       )
@@ -143,7 +153,7 @@ export class BotsService {
       );
 
       if (result) {
-        setCooldown(auction.id, bot.id);
+        await setCooldown(auction.id, bot.id);
         return {
           bot: bot.user.nickname,
           item: `${auction.sneaker.brand} ${auction.sneaker.modelName}`,

@@ -4,6 +4,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { CreateAuctionDto } from './dto/create.auction.dto';
@@ -29,6 +30,8 @@ import { BidLogItem } from '@/common/type/bot.type';
 
 @Injectable()
 export class AuctionsService {
+  private readonly logger = new Logger(AuctionsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventsService: EventsService,
@@ -283,7 +286,7 @@ export class AuctionsService {
     };
   }
 
-  /** 봇 입찰 */
+  /** 봇 입찰  */
   async placeBidAsBot(
     auctionId: string,
     bidPrice: number,
@@ -291,57 +294,82 @@ export class AuctionsService {
     strategyType: string,
   ): Promise<{ bidId: string; currentPrice: number } | null> {
     const now = new Date();
+    const MAX_RETRIES = 3;
 
-    try {
-      const result = await this.prisma.$transaction(async (tx) => {
-        const auction = await tx.auction.findUnique({
-          where: { id: auctionId },
-          include: { sneaker: true },
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+      try {
+        const result = await this.prisma.$transaction(async (tx) => {
+          const auction = await tx.auction.findUnique({
+            where: { id: auctionId },
+            include: { sneaker: true },
+          });
+
+          if (
+            !auction ||
+            auction.status !== 'OPEN' ||
+            new Date(auction.endTime) <= now
+          ) {
+            return null;
+          }
+
+          const minBid = auction.currentPrice + auction.minimumIncrement;
+          if (bidPrice < minBid) return null;
+
+          const bid = await tx.bid.create({
+            data: {
+              auctionId,
+              userId: botUser.id,
+              bidPrice,
+              sourceType: 'BOT',
+              strategyType,
+            },
+          });
+
+          // optimistic guarded update: currentPrice가 변경됐으면 0 rows → 재시도
+          const updated = await tx.auction.updateMany({
+            where: {
+              id: auctionId,
+              currentPrice: auction.currentPrice,
+            },
+            data: { currentPrice: bidPrice },
+          });
+
+          if (updated.count === 0) {
+            throw new Error('CONCURRENT_UPDATE');
+          }
+
+          return { bid, auction };
         });
 
-        if (
-          !auction ||
-          auction.status !== 'OPEN' ||
-          new Date(auction.endTime) <= now
-        ) {
-          return null;
+        if (!result) return null;
+
+        this.eventsService.emitNewBid(auctionId, {
+          id: result.bid.id,
+          user: botUser.nickname,
+          amount: bidPrice,
+          time: '방금 전',
+          isBot: true,
+        });
+
+        return { bidId: result.bid.id, currentPrice: bidPrice };
+      } catch (err) {
+        if (err instanceof Error && err.message === 'CONCURRENT_UPDATE') {
+          if (attempt === MAX_RETRIES - 1) {
+            this.logger.warn(
+              `[placeBidAsBot] CONCURRENT_UPDATE exhausted retries | auctionId=${auctionId} botUserId=${botUser.id} bidPrice=${bidPrice}`,
+            );
+            return null;
+          }
+          continue;
         }
-
-        const minBid = auction.currentPrice + auction.minimumIncrement;
-        if (bidPrice < minBid) return null;
-
-        const bid = await tx.bid.create({
-          data: {
-            auctionId,
-            userId: botUser.id,
-            bidPrice,
-            sourceType: 'BOT',
-            strategyType,
-          },
-        });
-
-        await tx.auction.update({
-          where: { id: auctionId },
-          data: { currentPrice: bidPrice },
-        });
-
-        return { bid, auction };
-      });
-
-      if (!result) return null;
-
-      this.eventsService.emitNewBid(auctionId, {
-        id: result.bid.id,
-        user: botUser.nickname,
-        amount: bidPrice,
-        time: '방금 전',
-        isBot: true,
-      });
-
-      return { bidId: result.bid.id, currentPrice: bidPrice };
-    } catch {
-      return null;
+        this.logger.error(
+          `[placeBidAsBot] bid failed | auctionId=${auctionId} botUserId=${botUser.id} bidPrice=${bidPrice}`,
+          err instanceof Error ? err.stack : String(err),
+        );
+        return null;
+      }
     }
+    return null;
   }
 
   /** 거래 완료/취소 내역 */
