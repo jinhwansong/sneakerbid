@@ -4,8 +4,7 @@ import { apiClient } from './client';
 /** 경매 관련 API */
 export const auctions = {
   /** 메인 경매 목록 */
-  getMain: () =>
-    apiClient.get<GetMainAuctionsResponse>('/auctions/main'),
+  getMain: () => apiClient.get<GetMainAuctionsResponse>('/auctions/main'),
 
   /** 거래 내역 */
   getHistory: (query?: AuctionHistoryQuery) => {
@@ -14,8 +13,8 @@ export const auctions = {
     if (query?.search) params.append('search', query.search);
     if (query?.limit) params.append('limit', query.limit.toString());
     const queryString = params.toString();
-    return (
-      apiClient.get<AuctionHistoryResponse>(`/auctions/history${queryString ? `?${queryString}` : ''}`)
+    return apiClient.get<AuctionHistoryResponse>(
+      `/auctions/history${queryString ? `?${queryString}` : ''}`,
     );
   },
 
@@ -38,24 +37,22 @@ export const auctions = {
   get: (id: string) => apiClient.get<GetAuctionResponse>(`/auctions/${id}`),
 
   /** 입찰 목록 조회 */
-  getBids: (auctionId: string) => apiClient.get<BidLogItem[]>(`/auctions/${auctionId}/bids`),
+  getBids: (auctionId: string) =>
+    apiClient.get<BidLogItem[]>(`/auctions/${auctionId}/bids`),
 
   /** 경매 등록 */
-  create: (dto: CreateAuctionDto) => apiClient.post<CreateAuctionResponse>(`/auctions`, 
-    { body: JSON.stringify(dto) }
-  ),
+  create: (dto: CreateAuctionDto) =>
+    apiClient.post<CreateAuctionResponse>(`/auctions`, dto),
 
   /** 경매 수정 */
-  update: (id: string, dto: UpdateAuctionDto) => apiClient.patch<UpdateAuctionResponse>(`/auctions/${id}`, 
-    { body: JSON.stringify(dto) }
-  ),
+  update: (id: string, dto: UpdateAuctionDto) =>
+    apiClient.patch<UpdateAuctionResponse>(`/auctions/${id}`, dto),
 
   /** 경매 삭제 */
-  delete: (id: string) => apiClient.delete<DeleteAuctionResponse>(`/auctions/${id}`),
+  delete: (id: string) =>
+    apiClient.delete<DeleteAuctionResponse>(`/auctions/${id}`),
 
   /** 입찰하기 */
-  placeBid: (auctionId: string, bidPrice: number) => 
-    apiClient.post<PlaceBidResponse>(`/auctions/${auctionId}/bids`, 
-      { body: JSON.stringify({ bidPrice }) }
-    ),
+  placeBid: (auctionId: string, bidPrice: number) =>
+    apiClient.post<PlaceBidResponse>(`/auctions/${auctionId}/bids`, bidPrice),
 };

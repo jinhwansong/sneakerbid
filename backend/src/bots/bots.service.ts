@@ -10,6 +10,9 @@ import {
   BOT_COOLDOWN_MS,
   DAILY_TOPUP_RANGE_BY_TYPE,
   DEFAULT_RANGE,
+  RELIST_AUCTION_DURATION_SEC,
+  RELIST_DELAY_MAX_SEC,
+  RELIST_DELAY_MIN_SEC,
 } from '../common/constant/bot.constants';
 import { Auction, Bot } from '@prisma/client';
 
@@ -22,7 +25,7 @@ function randInt(min: number, max: number) {
 function isWithinActivityHours(now: Date, start: number, end: number): boolean {
   const h = now.getHours();
   if (start <= end) return h >= start && h <= end;
-  return h >= start || h <= end; // 야간 구간 (e.g. 22~06)
+  return h >= start || h <= end;
 }
 
 @Injectable()
@@ -74,7 +77,9 @@ export class BotsService {
       return new Promise<Awaited<ReturnType<typeof this.tryPlaceBid>>>(
         (resolve) =>
           setTimeout(() => {
-            void this.tryPlaceBid(auction, bot, now).then(resolve);
+            void this.tryPlaceBid(auction, bot, now).then(resolve, () =>
+              resolve(null),
+            );
           }, delayMs),
       );
     });
@@ -84,6 +89,64 @@ export class BotsService {
     );
 
     this.logPlacedBids(placed);
+  }
+
+  /** 봇 낙찰 경매 10~20초 후 재등록 (30초마다 체크) */
+  @Interval(30_000)
+  async relistBotWonAuctions() {
+    const now = new Date();
+    const minClosed = new Date(now.getTime() - RELIST_DELAY_MAX_SEC * 1000);
+    const maxClosed = new Date(now.getTime() - RELIST_DELAY_MIN_SEC * 1000);
+
+    const botUserIds = (
+      await this.prisma.bot.findMany({ select: { userId: true } })
+    ).map((b) => b.userId);
+    if (botUserIds.length === 0) return;
+
+    const alreadyRelistedIds = (
+      await this.prisma.auction.findMany({
+        where: { relistedFromAuctionId: { not: null } },
+        select: { relistedFromAuctionId: true },
+      })
+    )
+      .map((a) => a.relistedFromAuctionId)
+      .filter((id): id is string => id != null);
+
+    const toRelist = await this.prisma.auction.findMany({
+      where: {
+        status: 'CLOSED',
+        winnerUserId: { in: botUserIds },
+        closedAt: { gte: minClosed, lte: maxClosed },
+        ...(alreadyRelistedIds.length > 0 && {
+          id: { notIn: alreadyRelistedIds },
+        }),
+      },
+      include: { sneaker: true },
+    });
+
+    for (const auction of toRelist) {
+      if (!auction.winnerUserId) continue;
+      const endTime = new Date(
+        now.getTime() + RELIST_AUCTION_DURATION_SEC * 1000,
+      );
+      await this.prisma.auction.create({
+        data: {
+          sneakerId: auction.sneakerId,
+          size: auction.size,
+          startPrice: auction.currentPrice,
+          currentPrice: auction.currentPrice,
+          buyNowPrice: auction.buyNowPrice,
+          minimumIncrement: auction.minimumIncrement,
+          status: 'OPEN',
+          endTime,
+          sellerUserId: auction.winnerUserId,
+          relistedFromAuctionId: auction.id,
+        },
+      });
+      console.log(
+        `[BotsService] 재등록: ${auction.sneaker.brand} ${auction.sneaker.modelName} (원본 ${auction.id})`,
+      );
+    }
   }
 
   /** 경매·봇 데이터 조회 */
@@ -229,12 +292,13 @@ export class BotsService {
     }
   }
 
-  /** 입찰 검증 (활동 시간, 브랜드) */
+  /** 입찰 검증 (활동 시간, 브랜드, 판매자 제외) */
   private validateBid(
-    auction: Auction & { sneaker: { brand: string } },
-    bot: Bot,
+    auction: Auction & { sneaker: { brand: string }; sellerUserId: string },
+    bot: Bot & { userId: string },
     now: Date,
   ): boolean {
+    if (auction.sellerUserId === bot.userId) return false;
     /** 활동 시간 체크 */
     if (
       !isWithinActivityHours(now, bot.activityStartHour, bot.activityEndHour)

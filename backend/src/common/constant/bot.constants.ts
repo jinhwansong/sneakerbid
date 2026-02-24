@@ -17,3 +17,10 @@ export const BIDS_PER_TURN = 30;
 
 /** 각 입찰 시도 간 랜덤 지연 최대값 (ms) - 봇들이 동시에 움직이지 않도록 분산 */
 export const BID_STAGGER_MS = 18_000;
+
+/** 봇 낙찰 후 재등록 시점: closedAt 이후 N초 ~ N초 (min~max) */
+export const RELIST_DELAY_MIN_SEC = 10;
+export const RELIST_DELAY_MAX_SEC = 20;
+
+/** 재등록 시 새 경매 유지 시간 (초) */
+export const RELIST_AUCTION_DURATION_SEC = 3600; // 1시간
