@@ -4,6 +4,7 @@ import { PrismaService } from '@/prisma/prisma.service';
 import { AuctionsService } from '@/auctions/auctions.service';
 import { cooldownKey } from './cooldown.store';
 import type { BotCooldownStore } from './cooldown.store';
+import { Auction, Bot } from '@prisma/client';
 
 /** 봇별 일일 지급 범위 (타입별) - 단위: 원 */
 const DAILY_TOPUP_RANGE_BY_TYPE: Record<string, [number, number]> = {
@@ -22,11 +23,15 @@ const BOT_COOLDOWN_MS = 25_000;
 /** 입찰 턴당 시도할 (경매, 봇) 쌍 수 - 병렬 처리 */
 const BIDS_PER_TURN = 30;
 
+/** 각 입찰 시도 간 랜덤 지연 최대값 (ms) - 봇들이 동시에 움직이지 않도록 분산 */
+const BID_STAGGER_MS = 18_000;
+
+/** 랜덤 정수 생성 */
 function randInt(min: number, max: number) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-/** 현재 시간이 activityStartHour~activityEndHour 구간인지 (24시간) */
+/** 현재 시간이 구간인지 (24시간) */
 function isWithinActivityHours(now: Date, start: number, end: number): boolean {
   const h = now.getHours();
   if (start <= end) return h >= start && h <= end;
@@ -68,33 +73,36 @@ export class BotsService {
     }
   }
 
-  /**
-   * 20초마다 봇 입찰 시도
-   */
+  /** 봇 입찰 시도 */
   @Interval(20_000)
   async runBotBidding() {
-    const now = new Date();
-    const cooldownOk = async (
-      auctionId: string,
-      botId: string,
-    ): Promise<boolean> => {
-      const key = cooldownKey(auctionId, botId);
-      const val = await this.cooldownStore.get(key);
-      return val === null; // 키 없거나 만료됐으면 입찰 가능
-    };
-    const setCooldown = async (
-      auctionId: string,
-      botId: string,
-    ): Promise<void> => {
-      const key = cooldownKey(auctionId, botId);
-      await this.cooldownStore.set(
-        key,
-        String(Date.now()),
-        Math.ceil(BOT_COOLDOWN_MS / 1000),
-      );
-    };
+    const [auctions, bots] = await this.fetchData();
+    if (auctions.length === 0 || bots.length === 0) return;
 
-    const [auctions, bots] = await Promise.all([
+    const attempts = this.selectBidAttempts(auctions, bots);
+    const now = new Date();
+
+    const bidPromises = attempts.map(({ auction, bot }) => {
+      const delayMs = randInt(0, BID_STAGGER_MS);
+      return new Promise<Awaited<ReturnType<typeof this.tryPlaceBid>>>(
+        (resolve) =>
+          setTimeout(() => {
+            void this.tryPlaceBid(auction, bot, now).then(resolve);
+          }, delayMs),
+      );
+    });
+    const results = await Promise.all(bidPromises);
+    const placed = results.filter(
+      (r): r is NonNullable<typeof r> => r !== null,
+    );
+
+    this.logPlacedBids(placed);
+  }
+
+  /** 경매·봇 데이터 조회 */
+  private async fetchData() {
+    const now = new Date();
+    return Promise.all([
       this.prisma.auction.findMany({
         where: { status: 'OPEN', endTime: { gt: now } },
         include: { sneaker: true },
@@ -105,11 +113,14 @@ export class BotsService {
         include: { user: true },
       }),
     ]);
+  }
 
-    if (auctions.length === 0 || bots.length === 0) return;
-
-    const attempts: { auction: (typeof auctions)[0]; bot: (typeof bots)[0] }[] =
-      [];
+  /** (auction, bot) 쌍 랜덤 추출, 최대 BIDS_PER_TURN개 */
+  private selectBidAttempts<A extends { id: string }, B extends { id: string }>(
+    auctions: A[],
+    bots: B[],
+  ): { auction: A; bot: B }[] {
+    const attempts: { auction: A; bot: B }[] = [];
     const picked = new Set<string>();
     const maxPairs = auctions.length * bots.length;
 
@@ -121,86 +132,132 @@ export class BotsService {
       picked.add(key);
       attempts.push({ auction, bot });
     }
+    return attempts;
+  }
 
-    const clearCooldown = async (
-      auctionId: string,
-      botId: string,
-    ): Promise<void> => {
-      const key = cooldownKey(auctionId, botId);
-      await this.cooldownStore.delete(key);
-    };
+  /** 쿨다운 통과 여부 (키 없거나 만료 시 입찰 가능) */
+  private async isCooldownOk(
+    auctionId: string,
+    botId: string,
+  ): Promise<boolean> {
+    const val = await this.cooldownStore.get(cooldownKey(auctionId, botId));
+    return val === null;
+  }
 
-    const bidPromises = attempts.map(async ({ auction, bot }) => {
-      if (!(await cooldownOk(auction.id, bot.id))) return null;
-      await setCooldown(auction.id, bot.id);
-      try {
-        if (
-          !isWithinActivityHours(
-            now,
-            bot.activityStartHour,
-            bot.activityEndHour,
-          )
-        ) {
-          await clearCooldown(auction.id, bot.id);
-          return null;
-        }
+  /** 쿨다운 설정 */
+  private async setCooldown(auctionId: string, botId: string): Promise<void> {
+    await this.cooldownStore.set(
+      cooldownKey(auctionId, botId),
+      String(Date.now()),
+      Math.ceil(BOT_COOLDOWN_MS / 1000),
+    );
+  }
 
-        const brands = Array.isArray(bot.favoriteBrands)
-          ? (bot.favoriteBrands as unknown[]).filter(
-              (x): x is string => typeof x === 'string',
-            )
-          : [];
-        if (brands.length > 0 && !brands.includes(auction.sneaker.brand)) {
-          await clearCooldown(auction.id, bot.id);
-          return null;
-        }
+  /** 쿨다운 해제 (입찰 실패 시) */
+  private async clearCooldown(auctionId: string, botId: string): Promise<void> {
+    await this.cooldownStore.delete(cooldownKey(auctionId, botId));
+  }
 
-        const minBid = auction.currentPrice + auction.minimumIncrement;
-        const maxByMultiplier = Math.floor(
-          auction.startPrice * bot.maxBidMultiplier,
-        );
-        const maxBid = Math.min(maxByMultiplier, bot.user.balance);
+  /** 입찰가 계산 (minBid~maxBid 범위 내 랜덤), 불가 시 null */
+  private computeBidPrice(
+    auction: {
+      currentPrice: number;
+      minimumIncrement: number;
+      startPrice: number;
+    },
+    bot: {
+      maxBidMultiplier: number;
+      bidUnit: number;
+      user: { balance: number };
+    },
+  ): number | null {
+    const minBid = auction.currentPrice + auction.minimumIncrement;
+    const maxByMultiplier = Math.floor(
+      auction.startPrice * bot.maxBidMultiplier,
+    );
+    const maxBid = Math.min(maxByMultiplier, bot.user.balance);
+    if (minBid > maxBid) return null;
+    return minBid + randInt(0, Math.min(bot.bidUnit, maxBid - minBid));
+  }
 
-        if (minBid > maxBid) {
-          await clearCooldown(auction.id, bot.id);
-          return null;
-        }
+  /** 단일 입찰 시도: 쿨다운 → 검증 → 입찰 → 실패 시 쿨다운 해제 */
+  private async tryPlaceBid(
+    auction: Auction & { sneaker: { brand: string; modelName: string } },
+    bot: Bot & { user: { id: string; nickname: string; balance: number } },
+    now: Date,
+  ): Promise<{
+    bot: string;
+    item: string;
+    auctionId: string;
+    bidPrice: number;
+  } | null> {
+    if (!(await this.isCooldownOk(auction.id, bot.id))) return null;
+    await this.setCooldown(auction.id, bot.id);
+    try {
+      if (!this.validateBid(auction, bot, now)) return null;
 
-        const bidPrice =
-          minBid + randInt(0, Math.min(bot.bidUnit, maxBid - minBid));
-
-        const result = await this.auctionsService.placeBidAsBot(
-          auction.id,
-          bidPrice,
-          { id: bot.userId, nickname: bot.user.nickname },
-          bot.type,
-        );
-
-        if (result) {
-          return {
-            bot: bot.user.nickname,
-            item: `${auction.sneaker.brand} ${auction.sneaker.modelName}`,
-            auctionId: auction.id,
-            bidPrice,
-          };
-        }
-        await clearCooldown(auction.id, bot.id);
-        return null;
-      } catch {
-        await clearCooldown(auction.id, bot.id);
+      const bidPrice = this.computeBidPrice(auction, bot);
+      if (bidPrice === null) {
+        await this.clearCooldown(auction.id, bot.id);
         return null;
       }
-    });
 
-    const results = await Promise.all(bidPromises);
-    const placed = results.filter(
-      (r): r is NonNullable<typeof r> => r !== null,
-    );
+      const result = await this.auctionsService.placeBidAsBot(
+        auction.id,
+        bidPrice,
+        { id: bot.userId, nickname: bot.user.nickname },
+        bot.type,
+      );
 
+      if (result) {
+        return {
+          bot: bot.user.nickname,
+          item: `${auction.sneaker.brand} ${auction.sneaker.modelName}`,
+          auctionId: auction.id,
+          bidPrice,
+        };
+      }
+      await this.clearCooldown(auction.id, bot.id);
+      return null;
+    } catch {
+      await this.clearCooldown(auction.id, bot.id);
+      return null;
+    }
+  }
+
+  /** 입찰 성공 로그 출력 */
+  private logPlacedBids(
+    placed: { bot: string; item: string; bidPrice: number }[],
+  ): void {
     for (const r of placed) {
       console.log(
         `[BotsService] ${r.bot} → ${r.item} | ${r.bidPrice.toLocaleString()}원`,
       );
     }
+  }
+
+  /** 입찰 검증 (활동 시간, 브랜드) */
+  private validateBid(
+    auction: Auction & { sneaker: { brand: string } },
+    bot: Bot,
+    now: Date,
+  ): boolean {
+    /** 활동 시간 체크 */
+    if (
+      !isWithinActivityHours(now, bot.activityStartHour, bot.activityEndHour)
+    ) {
+      return false;
+    }
+    /** 브랜드 체크 */
+    const brands = Array.isArray(bot.favoriteBrands)
+      ? (bot.favoriteBrands as unknown[]).filter(
+          (x): x is string => typeof x === 'string',
+        )
+      : [];
+    if (brands.length > 0 && !brands.includes(auction.sneaker.brand)) {
+      return false;
+    }
+
+    return true;
   }
 }
