@@ -13,7 +13,7 @@ import {
   RELIST_AUCTION_DURATION_SEC,
   RELIST_DELAY_MAX_SEC,
   RELIST_DELAY_MIN_SEC,
-} from '../common/constant/bot.constants';
+} from '@/common/constant/bot.constants';
 import { Auction, Bot } from '@prisma/client';
 
 /** 랜덤 정수 생성 */
@@ -37,9 +37,7 @@ export class BotsService {
     private readonly cooldownStore: BotCooldownStore,
   ) {}
 
-  /**
-   * 매일 00:10 KST에 봇들에게 랜덤 잔액 지급
-   */
+  /** 매일 00:10 KST에 봇들에게 랜덤 잔액 지급 */
   @Cron('10 0 * * *', { timeZone: 'Asia/Seoul' })
   async dailyBotBalanceTopUp() {
     const bots = await this.prisma.bot.findMany({

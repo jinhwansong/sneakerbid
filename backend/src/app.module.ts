@@ -23,6 +23,7 @@ import { AuctionsModule } from './auctions/auctions.module';
 import { EventsModule } from './events/events.module';
 import { BotsModule } from './bots/bots.module';
 import { OrdersModule } from './orders/orders.module';
+import { WalletModule } from './wallet/wallet.module';
 
 @Module({
   imports: [
@@ -58,6 +59,7 @@ import { OrdersModule } from './orders/orders.module';
     ScheduleModule.forRoot(),
     BotsModule,
     OrdersModule,
+    WalletModule,
   ],
   controllers: [AppController, HealthController],
   providers: [

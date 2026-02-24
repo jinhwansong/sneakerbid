@@ -1,7 +1,6 @@
-import { API_BASE_URL } from '@/lib/config';
 import { Fetcher } from '@/lib/fetcher';
 
-const baseUrl = () => API_BASE_URL ?? '';
+const baseUrl = () => process.env.NEXT_PUBLIC_SITE_URL ?? '';
 
 function resolveUrl(path: string, query?: string): string {
   const base = baseUrl().replace(/\/$/, '');

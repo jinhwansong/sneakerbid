@@ -5,8 +5,10 @@ import "@/style/globals.css";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import GlobalToast from "@/components/common/GlobalToast";
+import SSEReconnectBanner from "@/components/common/SSEReconnectBanner";
 import GlobalLoadingIndicator from "@/components/common/GlobalLoadingIndicator";
 import RootErrorBoundary from "@/components/common/RootErrorBoundary";
+
 import QueryProvider from "@/components/providers/QueryProvider";
 
 export const metadata: Metadata = {
@@ -25,6 +27,7 @@ export default function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <QueryProvider>
             <GlobalToast />
+            <SSEReconnectBanner />
             <GlobalLoadingIndicator />
             <RootErrorBoundary>
               <div className="bg-bg-main">

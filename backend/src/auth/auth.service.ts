@@ -3,8 +3,10 @@ import { ConfigService } from '@nestjs/config';
 import type { Request, Response } from 'express';
 import { OAuthProvider } from '@prisma/client';
 import { PrismaService, UserByIdResult } from '../prisma/prisma.service';
+import { INITIAL_USER_BALANCE } from '@/common/constants/auth.constants';
 import { RedisService } from '../redis/redis.service';
 import { JwtService } from '@nestjs/jwt';
+import { REFRESH_TTL } from '@/common/constants';
 
 export interface OAuthProfile {
   providerId: string;
@@ -62,6 +64,7 @@ export class AuthService {
         nickname: profile.nickname || `user_${profile.providerId.slice(0, 8)}`,
         email: profile.email ?? undefined,
         profileImageUrl: profile.profileImageUrl ?? undefined,
+        balance: INITIAL_USER_BALANCE,
       },
     });
 
@@ -176,7 +179,6 @@ export class AuthService {
       expiresIn: '7d',
     });
 
-    const REFRESH_TTL = 7 * 24 * 60 * 60; // 7일(초)
     await this.redis.setRefreshToken(refreshToken, user.id, REFRESH_TTL);
 
     return { accessToken, refreshToken };

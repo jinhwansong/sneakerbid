@@ -1,12 +1,12 @@
 import { Injectable, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
-
-const REFRESH_TOKEN_PREFIX = 'auth:refresh:';
+import { REFRESH_TOKEN_PREFIX } from '@/common/constants/auth.constants';
 
 @Injectable()
 export class RedisService implements OnModuleDestroy {
   private client: Redis | null = null;
+  private subscriberClient: Redis | null = null;
 
   constructor(private readonly configService: ConfigService) {}
 
@@ -19,7 +19,24 @@ export class RedisService implements OnModuleDestroy {
     return this.client;
   }
 
+  /** Pub/Sub 구독 전용 클라이언트 (subscribe 모드에서는 getClient로 다른 명령 불가) */
+  getSubscriber(): Redis {
+    if (!this.subscriberClient) {
+      this.subscriberClient = this.getClient().duplicate();
+    }
+    return this.subscriberClient;
+  }
+
+  /** Pub/Sub 발행 */
+  async publish(channel: string, message: string): Promise<number> {
+    return this.getClient().publish(channel, message);
+  }
+
   async onModuleDestroy() {
+    if (this.subscriberClient) {
+      await this.subscriberClient.quit();
+      this.subscriberClient = null;
+    }
     if (this.client) {
       await this.client.quit();
       this.client = null;

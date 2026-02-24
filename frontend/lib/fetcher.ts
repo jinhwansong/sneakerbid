@@ -1,10 +1,10 @@
-import { API_BASE_URL } from './config';
-
 type FetcherOptions = RequestInit & {
   json?: boolean;
   /** 내부용: 401 시 refresh 재시도 스킵 (무한 루프 방지) */
   _skipRefreshRetry?: boolean;
 };
+
+type HttpError = Error & { status?: number };
 
 async function doFetch<T>(
   input: RequestInfo,
@@ -56,10 +56,13 @@ export async function Fetcher<T>(
   }
 
   if (res.status === 401 && !_skipRefreshRetry) {
-    const refreshRes = await fetch(`${API_BASE_URL}/auth/refresh`, {
-      method: 'GET',
-      credentials: 'include',
-    });
+    const refreshRes = await fetch(
+      `${process.env.NEXT_PUBLIC_SITE_URL}/auth/refresh`,
+      {
+        method: 'GET',
+        credentials: 'include',
+      },
+    );
     if (refreshRes.ok) {
       const retry = await doFetch<T>(input, {
         ...options,
@@ -69,6 +72,31 @@ export async function Fetcher<T>(
     }
   }
 
-  const message = await res.text().catch(() => '');
-  throw new Error(message || 'api 요청 실패');
+  let message = 'api 요청 실패';
+  const text = await res.text().catch(() => '');
+   try {
+     type ErrorBody = {
+       success?: boolean;
+       code?: number;
+       data?: unknown;
+       message?: unknown;
+     };
+
+     const body = (await res.json()) as ErrorBody;
+     const raw = body?.data ?? body?.message;
+
+     if (Array.isArray(raw)) {
+       message = (raw[0] as string | undefined) || message;
+     } else if (typeof raw === 'string') {
+       message = raw || message;
+     } else {
+      message = text;
+     }
+   } catch {
+     message = text;
+   }
+
+  const err: HttpError = new Error(message);
+  err.status = res.status; // Query onError에서 401/403 등 분기용
+  throw err;
 }
