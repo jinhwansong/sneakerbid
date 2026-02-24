@@ -241,6 +241,11 @@ export class AuctionsService {
       if (!auction) {
         throw new NotFoundException('경매를 찾을 수 없습니다.');
       }
+      if (auction.sellerUserId === user.id) {
+        throw new BadRequestException(
+          '본인이 등록한 경매에는 입찰할 수 없습니다.',
+        );
+      }
       if (auction.status !== 'OPEN') {
         throw new BadRequestException('종료된 경매에는 입찰할 수 없습니다.');
       }
@@ -310,6 +315,9 @@ export class AuctionsService {
             new Date(auction.endTime) <= now
           ) {
             return null;
+          }
+          if (auction.sellerUserId === botUser.id) {
+            return null; // 판매자 봇은 본인 경매에 입찰 불가
           }
 
           const minBid = auction.currentPrice + auction.minimumIncrement;

@@ -3,24 +3,18 @@ import type {
   PayOrderResponse,
   GetMyOrdersResponse,
 } from '@/types/orders';
-import { API_BASE_URL } from '../config';
-import { Fetcher } from '../fetcher';
+import { apiClient } from './client';
 
 export const orders = {
   /** 내 주문 목록 조회 */
   getMyOrders: () =>
-    Fetcher<GetMyOrdersResponse>(`${API_BASE_URL}/orders/me`),
+    apiClient.get<GetMyOrdersResponse>('/orders/me'),
 
   /** 즉시 구매 */
   buyNow: (auctionId: string) =>
-    Fetcher<BuyNowResponse>(
-      `${API_BASE_URL}/orders/buy-now/${auctionId}`,
-      { method: 'POST' }
-    ),
+    apiClient.post<BuyNowResponse>(`/orders/buy-now/${auctionId}`),
 
   /** 주문 결제 */
   pay: (orderId: string) =>
-    Fetcher<PayOrderResponse>(`${API_BASE_URL}/orders/${orderId}/pay`, {
-      method: 'POST',
-    }),
+    apiClient.post<PayOrderResponse>(`/orders/${orderId}/pay`),
 };

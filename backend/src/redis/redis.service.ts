@@ -43,6 +43,11 @@ export class RedisService implements OnModuleDestroy {
     return this.getClient().del(key);
   }
 
+  /** Redis 연결 가능 여부 확인 (PING) */
+  async ping(): Promise<void> {
+    await this.getClient().ping();
+  }
+
   /** 리프레시 토큰 저장 (key: refreshToken, value: userId) */
   async setRefreshToken(
     refreshToken: string,
