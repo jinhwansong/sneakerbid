@@ -4,27 +4,14 @@ import { PrismaService } from '@/prisma/prisma.service';
 import { AuctionsService } from '@/auctions/auctions.service';
 import { cooldownKey } from './cooldown.store';
 import type { BotCooldownStore } from './cooldown.store';
+import {
+  BID_STAGGER_MS,
+  BIDS_PER_TURN,
+  BOT_COOLDOWN_MS,
+  DAILY_TOPUP_RANGE_BY_TYPE,
+  DEFAULT_RANGE,
+} from '../common/constant/bot.constants';
 import { Auction, Bot } from '@prisma/client';
-
-/** 봇별 일일 지급 범위 (타입별) - 단위: 원 */
-const DAILY_TOPUP_RANGE_BY_TYPE: Record<string, [number, number]> = {
-  AGGRESSIVE: [80_000, 150_000],
-  CALCULATED: [50_000, 120_000],
-  TROLL: [20_000, 60_000],
-  EMOTIONAL: [40_000, 100_000],
-  FOLLOWER: [50_000, 110_000],
-};
-
-const DEFAULT_RANGE: [number, number] = [30_000, 80_000];
-
-/** 같은 경매에 같은 봇이 연속 입찰 시 최소 간격 (ms) */
-const BOT_COOLDOWN_MS = 25_000;
-
-/** 입찰 턴당 시도할 (경매, 봇) 쌍 수 - 병렬 처리 */
-const BIDS_PER_TURN = 30;
-
-/** 각 입찰 시도 간 랜덤 지연 최대값 (ms) - 봇들이 동시에 움직이지 않도록 분산 */
-const BID_STAGGER_MS = 18_000;
 
 /** 랜덤 정수 생성 */
 function randInt(min: number, max: number) {
@@ -229,9 +216,15 @@ export class BotsService {
   private logPlacedBids(
     placed: { bot: string; item: string; bidPrice: number }[],
   ): void {
+    if (placed.length === 0) {
+      console.log('[BotsService] 이번 턴 입찰 없음');
+      return;
+    }
+
+    console.log(`[BotsService] ${placed.length}건 입찰 완료:`);
     for (const r of placed) {
       console.log(
-        `[BotsService] ${r.bot} → ${r.item} | ${r.bidPrice.toLocaleString()}원`,
+        `  └─ ${r.bot} → ${r.item} | ₩${r.bidPrice.toLocaleString()}`,
       );
     }
   }
