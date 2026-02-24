@@ -18,7 +18,10 @@ export class HealthController {
 
   @Get()
   @HealthCheck()
-  @ApiOperation({ summary: '헬스 체크', description: '메모리/디스크 상태 확인' })
+  @ApiOperation({
+    summary: '헬스 체크',
+    description: '메모리/디스크 상태 확인',
+  })
   @ApiResponse({ status: 200, description: '정상' })
   @ApiResponse({ status: 503, description: '헬스 체크 실패' })
   check() {

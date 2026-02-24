@@ -1,4 +1,4 @@
-import type { Prisma } from '@prisma/client';
+import type { Auction, Prisma } from '@prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
 import {
   BadRequestException,
@@ -20,19 +20,62 @@ import {
   AuctionHistoryResponse,
   AuctionSummary,
   AuctionWithDetails,
+  BidUpdateData,
 } from '@/common/type/auction.type';
 import { UpdateAuctionDto } from './dto/update.auction.dto';
 import { PlaceBidDto } from './dto/place.bid.dto';
 import { RequestUser } from '@/common/decorator/user.decorator';
 import { EventsService } from '@/events/events.service';
 import { BidLogItem } from '@/common/type/bot.type';
+import { WalletService } from '@/wallet/wallet.service';
+import { lockAuctionForUpdate } from './auction-lock.helper';
+import {
+  SOFT_CLOSE_EXTEND_BY_MINUTES,
+  SOFT_CLOSE_EXTEND_THRESHOLD_SEC,
+  SOFT_CLOSE_MAX_EXTEND_COUNT,
+} from '@/common/constants/auction.constants';
 
 @Injectable()
 export class AuctionsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventsService: EventsService,
+    private readonly walletService: WalletService,
   ) {}
+
+  /**
+   * 입찰 시 업데이트 데이터 (soft close: 마감 10초 전 입찰 시 5분 연장, 최대 3회)
+   */
+  private buildBidUpdateData(
+    auction: { endTime: Date; extendCount?: number },
+    now: Date,
+    bidPrice: number,
+  ): BidUpdateData {
+    const data: BidUpdateData = {
+      currentPrice: bidPrice,
+    };
+
+    const msUntilEnd = new Date(auction.endTime).getTime() - now.getTime();
+    const extendCount = auction.extendCount ?? 0;
+
+    if (
+      msUntilEnd <= SOFT_CLOSE_EXTEND_THRESHOLD_SEC * 1000 &&
+      extendCount < SOFT_CLOSE_MAX_EXTEND_COUNT
+    ) {
+      const newEndTime = new Date(auction.endTime);
+      newEndTime.setMinutes(
+        newEndTime.getMinutes() + SOFT_CLOSE_EXTEND_BY_MINUTES,
+      );
+      return {
+        ...data,
+        endTime: newEndTime,
+        lastExtendedAt: now,
+        extendCount: extendCount + 1,
+      };
+    }
+
+    return data;
+  }
 
   /** 경매 물품 등록(판매자 전용) */
   async createAuction(dto: CreateAuctionDto, userId: string) {
@@ -88,8 +131,7 @@ export class AuctionsService {
         },
         include: { sneaker: true },
       });
-      // TODO: When Bid logic is introduced, ensure its SELECT ... FOR UPDATE path
-      // reuses these validations/currentPrice assignments.
+      // 입찰/수정 시 lockAuctionForUpdate + 동일 검증 패턴 사용
 
       return auction;
     });
@@ -221,7 +263,7 @@ export class AuctionsService {
     }));
   }
 
-  /** 입찰 */
+  /** 입찰 (SELECT FOR UPDATE + soft-close 공통 경로) */
   async placeBid(
     auctionId: string,
     dto: PlaceBidDto,
@@ -230,9 +272,16 @@ export class AuctionsService {
     const now = new Date();
 
     const result = await this.prisma.$transaction(async (tx) => {
+      const locked = await lockAuctionForUpdate(tx, auctionId, {
+        status: 'OPEN',
+        endTimeGt: now,
+      });
+
+      if (!locked) {
+        throw new NotFoundException('경매를 찾을 수 없습니다.');
+      }
       const auction = await tx.auction.findUnique({
         where: { id: auctionId },
-        include: { sneaker: true },
       });
 
       if (!auction) {
@@ -243,6 +292,11 @@ export class AuctionsService {
       }
       if (new Date(auction.endTime) <= now) {
         throw new BadRequestException('이미 종료된 경매입니다.');
+      }
+      if (auction.sellerUserId === user.id) {
+        throw new ForbiddenException(
+          '판매자는 본인 경매에 입찰할 수 없습니다.',
+        );
       }
 
       const minBid = auction.currentPrice + auction.minimumIncrement;
@@ -261,12 +315,34 @@ export class AuctionsService {
         },
       });
 
+      const held = await this.walletService.holdForBid(
+        tx,
+        user.id,
+        dto.bidPrice,
+        bid.id,
+      );
+      if (!held) {
+        throw new BadRequestException('잔액이 부족합니다.');
+      }
+
+      const auctionWithExtend = auction as Auction & {
+        extendCount?: number;
+      };
+      const auctionForUpdate: { endTime: Date; extendCount: number } = {
+        endTime: new Date(auctionWithExtend.endTime),
+        extendCount: auctionWithExtend.extendCount ?? 0,
+      };
+      const updateData: BidUpdateData = this.buildBidUpdateData(
+        auctionForUpdate,
+        now,
+        dto.bidPrice,
+      );
       await tx.auction.update({
         where: { id: auctionId },
-        data: { currentPrice: dto.bidPrice },
+        data: updateData as Prisma.AuctionUpdateInput,
       });
 
-      return { bid, auction };
+      return { bid };
     });
 
     this.eventsService.emitNewBid(auctionId, {
@@ -280,6 +356,84 @@ export class AuctionsService {
     return {
       bidId: result.bid.id,
       currentPrice: dto.bidPrice,
+    };
+  }
+
+  /** 봇 입찰 (내부 호출용, SELECT FOR UPDATE 공통 경로) */
+  async placeBidAsBot(
+    auctionId: string,
+    bidPrice: number,
+    botUserId: string,
+    botNickname: string,
+    strategyType?: string,
+  ): Promise<{ bidId: string; currentPrice: number } | null> {
+    const now = new Date();
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      const locked = await lockAuctionForUpdate(tx, auctionId, {
+        status: 'OPEN',
+        endTimeGt: now,
+      });
+      if (!locked) return null;
+
+      const auction = await tx.auction.findUnique({ where: { id: auctionId } });
+      if (!auction || auction.status !== 'OPEN') return null;
+      if (auction.sellerUserId === botUserId) return null;
+
+      const minBid = auction.currentPrice + auction.minimumIncrement;
+      if (bidPrice < minBid) return null;
+
+      const bid = await tx.bid.create({
+        data: {
+          auctionId,
+          userId: botUserId,
+          bidPrice,
+          sourceType: 'BOT',
+          strategyType: strategyType ?? null,
+        },
+      });
+
+      const held = await this.walletService.holdForBid(
+        tx,
+        botUserId,
+        bidPrice,
+        bid.id,
+      );
+      if (!held) return null;
+
+      const auctionWithExtend = auction as Auction & {
+        extendCount?: number;
+      };
+      const auctionForUpdate: { endTime: Date; extendCount: number } = {
+        endTime: new Date(auctionWithExtend.endTime),
+        extendCount: auctionWithExtend.extendCount ?? 0,
+      };
+      const updateData: BidUpdateData = this.buildBidUpdateData(
+        auctionForUpdate,
+        now,
+        bidPrice,
+      );
+      await tx.auction.update({
+        where: { id: auctionId },
+        data: updateData as Prisma.AuctionUpdateInput,
+      });
+
+      return { bid };
+    });
+
+    if (!result) return null;
+
+    this.eventsService.emitNewBid(auctionId, {
+      id: result.bid.id,
+      user: botNickname,
+      amount: bidPrice,
+      time: '방금 전',
+      isBot: true,
+    });
+
+    return {
+      bidId: result.bid.id,
+      currentPrice: bidPrice,
     };
   }
 
@@ -399,8 +553,6 @@ export class AuctionsService {
     if (auction.status !== 'OPEN') {
       throw new BadRequestException('진행 중인 경매만 수정할 수 있습니다.');
     }
-    // TODO: Soft-close/lock logic (SELECT ... FOR UPDATE) should reference this method
-    // so all adjustments to currentPrice/status run through the same guarded path.
 
     const sneakerUpdates: Prisma.SneakerUpdateInput = {};
     const auctionUpdates: Prisma.AuctionUpdateInput = {};
@@ -475,6 +627,15 @@ export class AuctionsService {
     }
 
     return this.prisma.$transaction(async (tx) => {
+      const locked = await lockAuctionForUpdate(tx, auctionId, {
+        status: 'OPEN',
+      });
+      if (!locked) {
+        throw new BadRequestException(
+          '경매가 종료되었거나 수정할 수 없는 상태입니다.',
+        );
+      }
+
       if (Object.keys(sneakerUpdates).length) {
         await tx.sneaker.update({
           where: { id: auction.sneakerId },

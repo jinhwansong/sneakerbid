@@ -1,12 +1,11 @@
 import type { AuctionHistoryQuery, AuctionHistoryResponse, AuctionListQuery, BidLogItem, CreateAuctionDto, CreateAuctionResponse, DeleteAuctionResponse, GetAuctionListResponse, GetAuctionResponse, GetMainAuctionsResponse, PlaceBidResponse, UpdateAuctionDto, UpdateAuctionResponse } from '@/types/auction';
-import { API_BASE_URL } from '../config';
 import { Fetcher } from '../fetcher';
 
 /** 경매 관련 API */
 export const auctions = {
   /** 메인 경매 목록 */
   getMain: () =>
-    Fetcher<GetMainAuctionsResponse>(`${API_BASE_URL}/auctions/main`),
+    Fetcher<GetMainAuctionsResponse>(`${process.env.NEXT_PUBLIC_SITE_URL}/auctions/main`),
 
   /** 거래 내역 */
   getHistory: (query?: AuctionHistoryQuery) => {
@@ -16,7 +15,7 @@ export const auctions = {
     if (query?.limit) params.append('limit', query.limit.toString());
     const queryString = params.toString();
     return Fetcher<AuctionHistoryResponse>(
-      `${API_BASE_URL}/auctions/history${queryString ? `?${queryString}` : ''}`,
+      `${process.env.NEXT_PUBLIC_SITE_URL}/auctions/history${queryString ? `?${queryString}` : ''}`,
     );
   },
 
@@ -31,42 +30,42 @@ export const auctions = {
     if (query?.limit) params.append('limit', query.limit.toString());
     const queryString = params.toString();
     return Fetcher<GetAuctionListResponse>(
-      `${API_BASE_URL}/auctions${queryString ? `?${queryString}` : ''}`,
+      `${process.env.NEXT_PUBLIC_SITE_URL}/auctions${queryString ? `?${queryString}` : ''}`,
     );
   },
 
   /** 경매 상세 조회 */
   get: (id: string) =>
-    Fetcher<GetAuctionResponse>(`${API_BASE_URL}/auctions/${id}`),
+    Fetcher<GetAuctionResponse>(`${process.env.NEXT_PUBLIC_SITE_URL}/auctions/${id}`),
 
   /** 입찰 목록 조회 */
   getBids: (auctionId: string) =>
-    Fetcher<BidLogItem[]>(`${API_BASE_URL}/auctions/${auctionId}/bids`),
+    Fetcher<BidLogItem[]>(`${process.env.NEXT_PUBLIC_SITE_URL}/auctions/${auctionId}/bids`),
 
   /** 경매 등록 */
   create: (dto: CreateAuctionDto) =>
-    Fetcher<CreateAuctionResponse>(`${API_BASE_URL}/auctions`, {
+    Fetcher<CreateAuctionResponse>(`${process.env.NEXT_PUBLIC_SITE_URL}/auctions`, {
       method: 'POST',
       body: JSON.stringify(dto),
     }),
 
   /** 경매 수정 */
   update: (id: string, dto: UpdateAuctionDto) =>
-    Fetcher<UpdateAuctionResponse>(`${API_BASE_URL}/auctions/${id}`, {
+    Fetcher<UpdateAuctionResponse>(`${process.env.NEXT_PUBLIC_SITE_URL}/auctions/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(dto),
     }),
 
   /** 경매 삭제 */
   delete: (id: string) =>
-    Fetcher<DeleteAuctionResponse>(`${API_BASE_URL}/auctions/${id}`, {
+    Fetcher<DeleteAuctionResponse>(`${process.env.NEXT_PUBLIC_SITE_URL}/auctions/${id}`, {
       method: 'DELETE',
     }),
 
   /** 입찰하기 */
   placeBid: (auctionId: string, bidPrice: number) =>
     Fetcher<PlaceBidResponse>(
-      `${API_BASE_URL}/auctions/${auctionId}/bids`,
+      `${process.env.NEXT_PUBLIC_SITE_URL}/auctions/${auctionId}/bids`,
       {
         method: 'POST',
         body: JSON.stringify({ bidPrice }),

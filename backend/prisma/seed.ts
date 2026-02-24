@@ -429,7 +429,7 @@ const ALL_BRANDS = [
   'Jordan',
   'Converse',
   'Puma',
-  'ASICS',
+  'Asics',
   'Vans',
   'Reebok',
   'Yeezy',

@@ -64,3 +64,11 @@ export type AuctionHistoryResponse = {
   stats: AuctionHistoryStats;
   items: AuctionHistoryItem[];
 };
+
+/** 입찰 시 경매 업데이트 데이터 (soft close 포함) */
+export type BidUpdateData = {
+  currentPrice: number;
+  endTime?: Date;
+  lastExtendedAt?: Date;
+  extendCount?: number;
+};

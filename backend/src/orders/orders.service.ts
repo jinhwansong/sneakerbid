@@ -9,6 +9,8 @@ import { PrismaService } from '@/prisma/prisma.service';
 import { RequestUser } from '@/common/decorator/user.decorator';
 import { EventsService } from '@/events/events.service';
 import { AuctionsService } from '@/auctions/auctions.service';
+import { WalletService } from '@/wallet/wallet.service';
+import { lockAuctionForUpdate } from '@/auctions/auction-lock.helper';
 
 @Injectable()
 export class OrdersService {
@@ -16,6 +18,7 @@ export class OrdersService {
     private readonly prisma: PrismaService,
     private readonly eventsService: EventsService,
     private readonly auctionsService: AuctionsService,
+    private readonly walletService: WalletService,
   ) {}
 
   /** 매분 경매 종료 체크 → 낙찰자 확정, Order 생성 */
@@ -27,20 +30,31 @@ export class OrdersService {
         status: 'OPEN',
         endTime: { lte: now },
       },
-      include: {
-        bids: { orderBy: { bidPrice: 'desc' }, take: 1 },
-        sneaker: true,
-      },
+      select: { id: true },
     });
 
-    for (const auction of expired) {
-      await this.prisma.$transaction(async (tx) => {
+    for (const { id: auctionId } of expired) {
+      const closed = await this.prisma.$transaction(async (tx) => {
+        const locked = await lockAuctionForUpdate(tx, auctionId, {
+          status: 'OPEN',
+          endTimeLte: now,
+        });
+        if (!locked) return null;
+
+        const auction = await tx.auction.findUnique({
+          where: { id: auctionId },
+          include: {
+            bids: { orderBy: { bidPrice: 'desc' } },
+          },
+        });
+        if (!auction) return null;
+
         const winnerBid = auction.bids[0];
         const winnerUserId = winnerBid?.userId ?? null;
         const finalPrice = winnerBid?.bidPrice ?? auction.currentPrice;
 
         await tx.auction.update({
-          where: { id: auction.id },
+          where: { id: auctionId },
           data: {
             status: 'CLOSED',
             closedAt: now,
@@ -49,21 +63,36 @@ export class OrdersService {
           },
         });
 
+        for (const bid of auction.bids) {
+          if (bid.userId !== winnerUserId) {
+            await this.walletService.releaseBidHold(
+              tx,
+              bid.userId,
+              bid.bidPrice,
+              bid.id,
+            );
+          }
+        }
+
         if (winnerUserId) {
           await tx.order.create({
             data: {
-              auctionId: auction.id,
+              auctionId,
               buyerUserId: winnerUserId,
               finalPrice,
               status: 'PENDING',
             },
           });
         }
+
+        return { auctionId };
       });
-      const historyItem = await this.auctionsService.getTradeHistoryItem(
-        auction.id,
-      );
-      if (historyItem) this.eventsService.emitNewDeal(historyItem);
+
+      if (closed) {
+        const historyItem =
+          await this.auctionsService.getTradeHistoryItem(auctionId);
+        if (historyItem) this.eventsService.emitNewDeal(historyItem);
+      }
     }
   }
 
@@ -90,6 +119,17 @@ export class OrdersService {
     }
 
     const order = await this.prisma.$transaction(async (tx) => {
+      const locked = await lockAuctionForUpdate(tx, auctionId, {
+        status: 'OPEN',
+        endTimeGt: now,
+      });
+
+      if (!locked) {
+        throw new BadRequestException(
+          '경매가 이미 종료되었거나 다른 사용자가 구매했습니다.',
+        );
+      }
+
       await tx.auction.update({
         where: { id: auctionId },
         data: {
@@ -125,7 +165,16 @@ export class OrdersService {
   async payOrder(orderId: string, user: RequestUser) {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
-      include: { auction: true },
+      include: {
+        auction: {
+          include: {
+            bids: {
+              orderBy: { bidPrice: 'desc' },
+              take: 1,
+            },
+          },
+        },
+      },
     });
 
     if (!order) {
@@ -140,9 +189,42 @@ export class OrdersService {
       );
     }
 
-    const updated = await this.prisma.order.update({
-      where: { id: orderId },
-      data: { status: 'PAID', paidAt: new Date() },
+    const winningBid = order.auction.bids[0];
+    const isAuctionWinner =
+      winningBid?.userId === user.id &&
+      winningBid?.bidPrice === order.finalPrice;
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      if (isAuctionWinner) {
+        await this.walletService.convertHoldToPayment(
+          tx,
+          user.id,
+          order.finalPrice,
+          orderId,
+        );
+      } else {
+        const paid = await this.walletService.pay(
+          tx,
+          user.id,
+          order.finalPrice,
+          orderId,
+        );
+        if (!paid) {
+          throw new BadRequestException('잔액이 부족합니다.');
+        }
+      }
+
+      await this.walletService.settleSeller(
+        tx,
+        order.auction.sellerUserId,
+        order.finalPrice,
+        orderId,
+      );
+
+      return tx.order.update({
+        where: { id: orderId },
+        data: { status: 'PAID', paidAt: new Date() },
+      });
     });
 
     return {

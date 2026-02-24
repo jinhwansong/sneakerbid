@@ -2,7 +2,6 @@
 
 import { useEffect, useRef } from 'react';
 import type { AuctionHistoryItem } from '@/types/auction';
-import { API_BASE_URL } from '@/lib/config';
 
 interface UseHistoryEventsOptions {
   isActive: boolean;
@@ -23,7 +22,7 @@ export function useHistoryEvents({
   useEffect(() => {
     if (!isActive) return;
 
-    const url = `${API_BASE_URL}/events/history`;
+    const url = `${process.env.NEXT_PUBLIC_SITE_URL}/events/history`;
     const es = new EventSource(url);
 
     es.onmessage = (e) => {
@@ -56,3 +55,4 @@ export function useHistoryEvents({
     };
   }, [isActive]);
 }
+

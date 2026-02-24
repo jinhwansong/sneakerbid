@@ -3,8 +3,7 @@ import { Observable, Subject, interval, map, merge } from 'rxjs';
 import type { MessageEvent } from '@nestjs/common';
 import type { NewBidPayload } from '../common/type/events.types';
 import type { AuctionHistoryItem } from '../common/type/auction.type';
-
-const HEARTBEAT_INTERVAL_MS = 15000;
+import { HEARTBEAT_INTERVAL_MS } from '@/common/constants/events.constants';
 
 @Injectable()
 export class EventsService {

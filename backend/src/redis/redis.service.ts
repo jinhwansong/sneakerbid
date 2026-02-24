@@ -1,8 +1,7 @@
 import { Injectable, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
-
-const REFRESH_TOKEN_PREFIX = 'auth:refresh:';
+import { REFRESH_TOKEN_PREFIX } from '@/common/constants/auth.constants';
 
 @Injectable()
 export class RedisService implements OnModuleDestroy {
