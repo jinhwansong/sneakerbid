@@ -16,6 +16,7 @@ import {
   DetailBidControl,
   DetailBidHistory,
 } from '@/components/detail';
+import PaymentFlowModal from '@/components/common/PaymentFlowModal';
 
 interface DetailPageItem extends AuctionItem {
   startPrice?: number;
@@ -50,6 +51,7 @@ export default function AuctionDetailClient({
   );
   const [bidAmount, setBidAmount] = useState(item.currentBid + BID_STEP);
   const [bidError, setBidError] = useState('');
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
 
   /** 카운트다운을 관리하는 훅 */
   const { countdownLabel, isExpired } = useCountdown(item.endTime);
@@ -124,39 +126,28 @@ export default function AuctionDetailClient({
     }
   };
 
-  /** 즉시 구매하기 */
-  const handleBuyNow = async () => {
+  /** 즉시 구매 모달 열기 */
+  const handleBuyNowClick = () => {
     if (!user) {
       requireLogin();
       return;
     }
     if (!item.buyNowPrice) return;
-    if (
-      !confirm(`${formatPrice(item.buyNowPrice)}원에 즉시 구매하시겠습니까?`)
-    ) {
-      return;
-    }
-    try {
-      const res = await api.orders.buyNow(auctionId);
-      showToast('주문이 생성되었습니다. 내 주문에서 결제해주세요.');
-      if (res.orderId) {
-        const payRes = await api.orders.pay(res.orderId);
-        showToast(
-          payRes.status === 'PAID'
-            ? '결제가 완료되었습니다.'
-            : '주문이 생성되었습니다.',
-        );
-      }
-      router.refresh();
-    } catch (err) {
-      const msg =
-        err instanceof Error ? err.message : '즉시 구매에 실패했습니다.';
-      showToast(
-        msg.includes('로그인') || msg.includes('401')
-          ? '로그인이 필요합니다.'
-          : msg,
-      );
-    }
+    setPaymentModalOpen(true);
+  };
+
+  /** 결제 플로우 실행 (모달 내부에서 호출) */
+  const handlePaymentConfirm = async (
+    setStep: (s: 'confirm' | 'creating' | 'paying' | 'complete' | 'error') => void,
+  ) => {
+    if (!item.buyNowPrice) return { success: false };
+    setStep('creating');
+    const res = await api.orders.buyNow(auctionId);
+    if (!res.orderId) return { success: false };
+    setStep('paying');
+    const payRes = await api.orders.pay(res.orderId);
+    router.refresh();
+    return { success: payRes.status === 'PAID' };
   };
 
   /** 입찰 금액 변경 */
@@ -197,13 +188,21 @@ export default function AuctionDetailClient({
           isAuctionActive={isAuctionActive}
           onBidAmountChange={handleBidAmountChange}
           onBid={handleBid}
-          onBuyNow={handleBuyNow}
+          onBuyNow={handleBuyNowClick}
         />
         <DetailBidHistory
           bidHistory={sortedBidHistory}
           participants={participants}
         />
       </div>
+
+      <PaymentFlowModal
+        isOpen={paymentModalOpen}
+        onClose={() => setPaymentModalOpen(false)}
+        price={item.buyNowPrice ?? 0}
+        modelName={item.modelName}
+        onConfirm={handlePaymentConfirm}
+      />
     </div>
   );
 }

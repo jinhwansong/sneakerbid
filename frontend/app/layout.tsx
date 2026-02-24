@@ -5,6 +5,7 @@ import "@/style/globals.css";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import GlobalToast from "@/components/common/GlobalToast";
+import SSEReconnectBanner from "@/components/common/SSEReconnectBanner";
 import QueryProvider from "@/components/providers/QueryProvider";
 
 export const metadata: Metadata = {
@@ -23,6 +24,7 @@ export default function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <QueryProvider>
             <GlobalToast />
+            <SSEReconnectBanner />
           <div className="bg-bg-main">
             <Header />
             {children}
