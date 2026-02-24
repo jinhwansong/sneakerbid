@@ -4,6 +4,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { CreateAuctionDto } from './dto/create.auction.dto';
@@ -37,6 +38,8 @@ import {
 
 @Injectable()
 export class AuctionsService {
+  private readonly logger = new Logger(AuctionsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventsService: EventsService,
@@ -287,6 +290,11 @@ export class AuctionsService {
       if (!auction) {
         throw new NotFoundException('경매를 찾을 수 없습니다.');
       }
+      if (auction.sellerUserId === user.id) {
+        throw new BadRequestException(
+          '본인이 등록한 경매에는 입찰할 수 없습니다.',
+        );
+      }
       if (auction.status !== 'OPEN') {
         throw new BadRequestException('종료된 경매에는 입찰할 수 없습니다.');
       }
@@ -359,13 +367,12 @@ export class AuctionsService {
     };
   }
 
-  /** 봇 입찰 (내부 호출용, SELECT FOR UPDATE 공통 경로) */
+  /** 봇 입찰 (내부 호출용, SELECT FOR UPDATE + wallet + soft-close 공통 경로) */
   async placeBidAsBot(
     auctionId: string,
     bidPrice: number,
-    botUserId: string,
-    botNickname: string,
-    strategyType?: string,
+    botUser: { id: string; nickname: string },
+    strategyType: string,
   ): Promise<{ bidId: string; currentPrice: number } | null> {
     const now = new Date();
 
@@ -378,7 +385,7 @@ export class AuctionsService {
 
       const auction = await tx.auction.findUnique({ where: { id: auctionId } });
       if (!auction || auction.status !== 'OPEN') return null;
-      if (auction.sellerUserId === botUserId) return null;
+      if (auction.sellerUserId === botUser.id) return null;
 
       const minBid = auction.currentPrice + auction.minimumIncrement;
       if (bidPrice < minBid) return null;
@@ -386,16 +393,16 @@ export class AuctionsService {
       const bid = await tx.bid.create({
         data: {
           auctionId,
-          userId: botUserId,
+          userId: botUser.id,
           bidPrice,
           sourceType: 'BOT',
-          strategyType: strategyType ?? null,
+          strategyType,
         },
       });
 
       const held = await this.walletService.holdForBid(
         tx,
-        botUserId,
+        botUser.id,
         bidPrice,
         bid.id,
       );
@@ -425,7 +432,7 @@ export class AuctionsService {
 
     this.eventsService.emitNewBid(auctionId, {
       id: result.bid.id,
-      user: botNickname,
+      user: botUser.nickname,
       amount: bidPrice,
       time: '방금 전',
       isBot: true,

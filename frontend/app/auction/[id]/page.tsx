@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import AuctionDetailClient from '@/components/detail/AuctionDetailClient';
 import { api } from '@/lib/api';
-import type { AuctionItem } from '@/types/auction';
+import type { AuctionItem, BidLogItem } from '@/types/auction';
 
 interface AuctionDetailPageProps {
   params: Promise<{
@@ -11,7 +11,7 @@ interface AuctionDetailPageProps {
 
 export default async function AuctionDetailPage({ params }: AuctionDetailPageProps) {
   const { id } = await params;
-  let item: AuctionItem & { initialBids?: { id: string; user: string; amount: number; time: string; isBot: boolean }[] };
+  let item: AuctionItem & { initialBids?: BidLogItem[] };
   try {
     const [auctionData, bidsData] = await Promise.all([
       api.auctions.get(id),

@@ -2,25 +2,29 @@ import type {
   RefreshTokenResponse,
   LogoutResponse,
 } from '@/types/auth';
-import { Fetcher } from '../fetcher';
+import { apiClient } from './client';
 
 /** 인증 관련 API */
 export const auth = {
   /** 카카오 로그인 (리다이렉트) */
   kakao: () => {
-    window.location.href = `${process.env.NEXT_PUBLIC_SITE_URL}/auth/kakao`;
+    window.location.href = `${apiClient.getBaseUrl()}/auth/kakao`;
   },
 
   /** 구글 로그인 (리다이렉트) */
   google: () => {
-    window.location.href = `${process.env.NEXT_PUBLIC_SITE_URL}/auth/google`;
+    window.location.href = `${apiClient.getBaseUrl()}/auth/google`;
   },
 
   /** 리프레시 토큰 발급 */
-  refresh: () => Fetcher<RefreshTokenResponse>(`${process.env.NEXT_PUBLIC_SITE_URL}/auth/refresh`),
+  refresh: () => apiClient.get<RefreshTokenResponse>('/auth/refresh'),
 
   /** 로그아웃 */
-  logout: () => Fetcher<LogoutResponse>(`${process.env.NEXT_PUBLIC_SITE_URL}/auth/logout`),
+  logout: () => apiClient.get<LogoutResponse>('/auth/logout'),
 };
+
+
+
+
 
 

@@ -137,7 +137,8 @@ model Auction {
   extendCount      Int           @default(0)
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
-  sellerUserId     String
+  sellerUserId         String
+  relistedFromAuctionId String? // 봇 낙찰 후 재등록 시 원본 경매 id
 
   sneaker   Sneaker   @relation(fields: [sneakerId], references: [id], onDelete: Restrict)
   winner    User?     @relation("AuctionWinner", fields: [winnerUserId], references: [id], onDelete: SetNull)
@@ -145,6 +146,8 @@ model Auction {
   bids      Bid[]
   orders    Order[]
   wishlists Wishlist[]
+  relistedFrom Auction?  @relation("AuctionRelist", fields: [relistedFromAuctionId], references: [id])
+  relistedAs   Auction[] @relation("AuctionRelist")
 
   @@index([status, endTime])
   @@index([sneakerId, size, status])

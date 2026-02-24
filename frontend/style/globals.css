@@ -158,3 +158,19 @@
     transform: translateX(-50%);
   }
 }
+
+@keyframes loading-bar {
+  0% {
+    transform: translateX(-100%);
+  }
+  50% {
+    transform: translateX(200%);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+}
+
+.global-loading-bar {
+  animation: loading-bar 1.2s ease-in-out infinite;
+}
