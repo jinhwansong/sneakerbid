@@ -1,7 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import {
+  CancelledError,
+  QueryCache,
+  QueryClient,
+  QueryClientProvider,
+} from '@tanstack/react-query';
 import { queryDefaults } from '@/hooks/withQueryDefaults';
 import { useToastStore } from '@/store/useToastStore';
 import { queryKeys } from '@/hooks/query/queryKeys';
@@ -20,14 +25,7 @@ export default function QueryProvider({
 function getErrorMessage(error: unknown): string | null {
   if (!error) return null;
   // React Query 취소 에러 등은 토스트 안 띄움
-  if (
-    typeof error === 'object' &&
-    error !== null &&
-    'name' in error &&
-    (error as { name: string }).name === 'CanceledError'
-  ) {
-    return null;
-  }
+  if (error instanceof CancelledError) return null;
 
   if (error instanceof Error) {
     return error.message || null;
@@ -53,14 +51,7 @@ function createQueryClient() {
         /* 에러 인증 메시지 변경 */
         let status: number | undefined;
 
-        if (
-          typeof error === 'object' &&
-          error !== null &&
-          'status' in error &&
-          typeof (error as { status: unknown }).status === 'number'
-        ) {
-          status = (error as { status: number }).status;
-        }
+        if (error instanceof CancelledError) return null;
 
         if (status === 401 || status === 403) {
           showToast('로그인이 필요합니다.', 'error');
