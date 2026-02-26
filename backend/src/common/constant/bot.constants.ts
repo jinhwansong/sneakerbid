@@ -12,6 +12,9 @@ export const DEFAULT_RANGE: [number, number] = [30_000, 80_000];
 /** 같은 경매에 같은 봇이 연속 입찰 시 최소 간격 (ms) */
 export const BOT_COOLDOWN_MS = 25_000;
 
+/** 경매 단위 쿨다운: 어떤 봇이든 입찰 후 N초 동안 해당 경매에 입찰 불가 (다중 봇 집중 방지) */
+export const AUCTION_COOLDOWN_SEC = 8;
+
 /** 입찰 턴당 시도할 (경매, 봇) 쌍 수 - 병렬 처리 */
 export const BIDS_PER_TURN = 30;
 

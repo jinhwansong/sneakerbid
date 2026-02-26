@@ -6,9 +6,15 @@ export interface BotCooldownStore {
   delete(key: string): Promise<void>;
 }
 
-/** 연속 입찰 x를 위한 쿨다운 키 */
+/** 연속 입찰 방지를 위한 쿨다운 키 */
 const COOLDOWN_KEY_PREFIX = 'bot:cooldown:';
+const AUCTION_COOLDOWN_PREFIX = 'bot:auction:';
 
 export function cooldownKey(auctionId: string, botId: string): string {
   return `${COOLDOWN_KEY_PREFIX}${auctionId}:${botId}`;
+}
+
+/** 경매 단위 쿨다운 키 (어떤 봇이든 입찰 후 해당 경매 전체 쿨다운) */
+export function auctionCooldownKey(auctionId: string): string {
+  return `${AUCTION_COOLDOWN_PREFIX}${auctionId}`;
 }

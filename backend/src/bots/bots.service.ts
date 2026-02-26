@@ -2,9 +2,10 @@ import { Inject, Injectable } from '@nestjs/common';
 import { Cron, Interval } from '@nestjs/schedule';
 import { PrismaService } from '@/prisma/prisma.service';
 import { AuctionsService } from '@/auctions/auctions.service';
-import { cooldownKey } from './cooldown.store';
+import { auctionCooldownKey, cooldownKey } from './cooldown.store';
 import type { BotCooldownStore } from './cooldown.store';
 import {
+  AUCTION_COOLDOWN_SEC,
   BID_STAGGER_MS,
   BIDS_PER_TURN,
   BOT_COOLDOWN_MS,
@@ -188,22 +189,35 @@ export class BotsService {
     auctionId: string,
     botId: string,
   ): Promise<boolean> {
-    const val = await this.cooldownStore.get(cooldownKey(auctionId, botId));
-    return val === null;
+    const [botVal, auctionVal] = await Promise.all([
+      this.cooldownStore.get(cooldownKey(auctionId, botId)),
+      this.cooldownStore.get(auctionCooldownKey(auctionId)),
+    ]);
+    return botVal === null && auctionVal === null;
   }
 
-  /** 쿨다운 설정 */
+  /** 쿨다운 설정 (봇별 + 경매 전체) */
   private async setCooldown(auctionId: string, botId: string): Promise<void> {
-    await this.cooldownStore.set(
-      cooldownKey(auctionId, botId),
-      String(Date.now()),
-      Math.ceil(BOT_COOLDOWN_MS / 1000),
-    );
+    await Promise.all([
+      this.cooldownStore.set(
+        cooldownKey(auctionId, botId),
+        String(Date.now()),
+        Math.ceil(BOT_COOLDOWN_MS / 1000),
+      ),
+      this.cooldownStore.set(
+        auctionCooldownKey(auctionId),
+        String(Date.now()),
+        AUCTION_COOLDOWN_SEC,
+      ),
+    ]);
   }
 
   /** 쿨다운 해제 (입찰 실패 시) */
   private async clearCooldown(auctionId: string, botId: string): Promise<void> {
-    await this.cooldownStore.delete(cooldownKey(auctionId, botId));
+    await Promise.all([
+      this.cooldownStore.delete(cooldownKey(auctionId, botId)),
+      this.cooldownStore.delete(auctionCooldownKey(auctionId)),
+    ]);
   }
 
   /** 입찰가 계산 (minBid~maxBid 범위 내 랜덤), 불가 시 null */
