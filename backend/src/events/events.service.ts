@@ -37,7 +37,17 @@ export class EventsService implements OnModuleInit {
       try {
         const data = JSON.parse(message) as Record<string, unknown>;
         if (channel === REDIS_CHANNEL_SSE_AUCTION && data.auctionId) {
-          const eventType = (data.type as string) ?? 'newBid';
+          const ALLOWED_AUCTION_EVENT_TYPES = new Set([
+            'newBid',
+            'auctionClosed',
+            'ping',
+          ]);
+          const rawType = data.type as string | undefined;
+          const eventType =
+            typeof rawType === 'string' &&
+            ALLOWED_AUCTION_EVENT_TYPES.has(rawType)
+              ? rawType
+              : 'newBid';
           this.emitToAuctionLocal(data.auctionId as string, {
             type: eventType,
             payload: data.payload,

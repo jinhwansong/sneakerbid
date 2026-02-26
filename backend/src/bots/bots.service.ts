@@ -238,7 +238,10 @@ export class BotsService {
         return null;
       }
       const bidPrice = this.computeBidPrice(auction, bot);
-      if (bidPrice === null) return null;
+      if (bidPrice === null) {
+        await this.clearCooldown(auction.id, bot.id);
+        return null;
+      }
       const result = await this.auctionsService.placeBidAsBot(
         auction.id,
         bidPrice,
