@@ -1,6 +1,4 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment -- Redis/ioredis 타입 해석 이슈 */
-/* eslint-disable @typescript-eslint/no-unsafe-call -- Redis/ioredis 타입 해석 이슈 */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access -- Redis/ioredis 타입 해석 이슈 */
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Observable, Subject, interval, map, merge } from 'rxjs';
 import type { MessageEvent } from '@nestjs/common';
@@ -26,13 +24,14 @@ export class EventsService implements OnModuleInit {
 
   constructor(private readonly redis: RedisService) {}
 
-  onModuleInit(): void {
+  async onModuleInit(): Promise<void> {
     const sub: Redis = this.redis.getSubscriber();
-    void sub
-      .subscribe(REDIS_CHANNEL_SSE_AUCTION, REDIS_CHANNEL_SSE_HISTORY)
-      .catch((err) =>
-        this.logger.warn('Redis subscribe failed', { err }),
-      );
+    try {
+      await sub.subscribe(REDIS_CHANNEL_SSE_AUCTION, REDIS_CHANNEL_SSE_HISTORY);
+    } catch (err) {
+      this.logger.error('Redis subscribe failed', err);
+      throw err;
+    }
     sub.on('message', (channel: string, message: string) => {
       try {
         const data = JSON.parse(message) as Record<string, unknown>;

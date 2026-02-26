@@ -3,6 +3,7 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
@@ -19,6 +20,8 @@ import {
 
 @Injectable()
 export class OrdersService {
+  private readonly logger = new Logger(OrdersService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventsService: EventsService,
@@ -161,6 +164,8 @@ export class OrdersService {
           reopenEndTime.getHours() + REOPEN_AUCTION_DURATION_HOURS,
         );
 
+        const baselinePrice = auction.bids[0]?.bidPrice ?? auction.startPrice;
+
         await tx.auction.update({
           where: { id: order.auctionId },
           data: {
@@ -168,6 +173,7 @@ export class OrdersService {
             winnerUserId: null,
             closedAt: null,
             endTime: reopenEndTime,
+            currentPrice: baselinePrice,
           },
         });
       });
@@ -327,15 +333,24 @@ export class OrdersService {
         status: updated.status,
         paidAt: updated.paidAt,
       };
-    } catch (err) {
+    } catch (err: unknown) {
       if (err instanceof ConflictException) throw err;
-      await this.reopenAuctionForFailedPayment({
-        id: order.id,
-        auctionId: order.auctionId,
-        buyerUserId: order.buyerUserId,
-        finalPrice: order.finalPrice,
-      });
-      throw err;
+      const paymentError = err;
+      try {
+        await this.reopenAuctionForFailedPayment({
+          id: order.id,
+          auctionId: order.auctionId,
+          buyerUserId: order.buyerUserId,
+          finalPrice: order.finalPrice,
+        });
+      } catch (reopenErr: unknown) {
+        this.logger.error('reopenAuctionForFailedPayment failed', {
+          orderId: order.id,
+          auctionId: order.auctionId,
+          err: reopenErr,
+        });
+      }
+      throw paymentError;
     }
   }
 
@@ -385,6 +400,8 @@ export class OrdersService {
         reopenEndTime.getHours() + REOPEN_AUCTION_DURATION_HOURS,
       );
 
+      const baselinePrice = auction.bids[0]?.bidPrice ?? auction.startPrice;
+
       await tx.auction.update({
         where: { id: order.auctionId },
         data: {
@@ -392,6 +409,7 @@ export class OrdersService {
           winnerUserId: null,
           closedAt: null,
           endTime: reopenEndTime,
+          currentPrice: baselinePrice,
         },
       });
     });
