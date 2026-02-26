@@ -52,6 +52,22 @@ export class RedisService implements OnModuleDestroy {
     }
   }
 
+  /** SET if Not eXists with TTL. Returns true if key was set, false if already existed. */
+  async setIfNotExists(
+    key: string,
+    value: string,
+    ttlSeconds: number,
+  ): Promise<boolean> {
+    const result = await this.getClient().set(
+      key,
+      value,
+      'EX',
+      ttlSeconds,
+      'NX',
+    );
+    return result === 'OK';
+  }
+
   async get(key: string): Promise<string | null> {
     return this.getClient().get(key);
   }

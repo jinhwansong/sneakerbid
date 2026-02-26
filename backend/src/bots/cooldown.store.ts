@@ -4,6 +4,16 @@ export interface BotCooldownStore {
   set(key: string, value: string, ttlSeconds?: number): Promise<void>;
   /** 쿨다운 즉시 해제 (입찰 실패 시 호출) */
   delete(key: string): Promise<void>;
+  /**
+   * 원자적 쿨다운 획득. bot+auction 두 키를 SETNX로 설정.
+   * 둘 다 성공 시 true, 하나라도 실패 시 롤백 후 false.
+   */
+  acquireCooldown(
+    auctionId: string,
+    botId: string,
+    botTtlSeconds: number,
+    auctionTtlSeconds: number,
+  ): Promise<boolean>;
 }
 
 /** 연속 입찰 방지를 위한 쿨다운 키 */

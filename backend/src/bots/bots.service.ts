@@ -184,34 +184,6 @@ export class BotsService {
     return attempts;
   }
 
-  /** 쿨다운 통과 여부 (키 없거나 만료 시 입찰 가능) */
-  private async isCooldownOk(
-    auctionId: string,
-    botId: string,
-  ): Promise<boolean> {
-    const [botVal, auctionVal] = await Promise.all([
-      this.cooldownStore.get(cooldownKey(auctionId, botId)),
-      this.cooldownStore.get(auctionCooldownKey(auctionId)),
-    ]);
-    return botVal === null && auctionVal === null;
-  }
-
-  /** 쿨다운 설정 (봇별 + 경매 전체) */
-  private async setCooldown(auctionId: string, botId: string): Promise<void> {
-    await Promise.all([
-      this.cooldownStore.set(
-        cooldownKey(auctionId, botId),
-        String(Date.now()),
-        Math.ceil(BOT_COOLDOWN_MS / 1000),
-      ),
-      this.cooldownStore.set(
-        auctionCooldownKey(auctionId),
-        String(Date.now()),
-        AUCTION_COOLDOWN_SEC,
-      ),
-    ]);
-  }
-
   /** 쿨다운 해제 (입찰 실패 시) */
   private async clearCooldown(auctionId: string, botId: string): Promise<void> {
     await Promise.all([
@@ -253,17 +225,20 @@ export class BotsService {
     auctionId: string;
     bidPrice: number;
   } | null> {
-    if (!(await this.isCooldownOk(auction.id, bot.id))) return null;
-    await this.setCooldown(auction.id, bot.id);
+    const acquired = await this.cooldownStore.acquireCooldown(
+      auction.id,
+      bot.id,
+      Math.ceil(BOT_COOLDOWN_MS / 1000),
+      AUCTION_COOLDOWN_SEC,
+    );
+    if (!acquired) return null;
     try {
-      if (!this.validateBid(auction, bot, now)) return null;
-
-      const bidPrice = this.computeBidPrice(auction, bot);
-      if (bidPrice === null) {
+      if (!this.validateBid(auction, bot, now)) {
         await this.clearCooldown(auction.id, bot.id);
         return null;
       }
-
+      const bidPrice = this.computeBidPrice(auction, bot);
+      if (bidPrice === null) return null;
       const result = await this.auctionsService.placeBidAsBot(
         auction.id,
         bidPrice,

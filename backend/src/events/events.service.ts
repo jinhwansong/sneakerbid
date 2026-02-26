@@ -94,7 +94,7 @@ export class EventsService implements OnModuleInit {
       .catch(() => {});
   }
 
-  /** 새 입찰 이벤트 브로드캐스트 — Redis로 발행, 모든 인스턴스가 구독 */
+  /** 새 입찰 이벤트 브로드캐스트 */
   emitNewBid(auctionId: string, payload: NewBidPayload): void {
     void this.redis
       .publish(
@@ -104,7 +104,7 @@ export class EventsService implements OnModuleInit {
       .catch(() => {});
   }
 
-  /** 경매 종료 이벤트 브로드캐스트 — 해당 경매 구독자에게 전송 */
+  /** 경매 종료 이벤트 브로드캐스트 */
   emitAuctionClosed(auctionId: string, payload: AuctionClosedPayload): void {
     void this.redis
       .publish(
@@ -112,10 +112,6 @@ export class EventsService implements OnModuleInit {
         JSON.stringify({ auctionId, type: 'auctionClosed', payload }),
       )
       .catch(() => {});
-    this.emitToAuctionLocal(auctionId, {
-      type: 'auctionClosed',
-      payload,
-    });
   }
 
   /** Redis 수신 메시지를 로컬 경매 Subject에만 전달 (다중 인스턴스 동기화용) */
