@@ -52,7 +52,10 @@ export class OrdersService {
         const auction = await tx.auction.findUnique({
           where: { id: auctionId },
           include: {
-            bids: { orderBy: { bidPrice: 'desc' } },
+            bids: {
+              where: { disqualifiedAt: null },
+              orderBy: { bidPrice: 'desc' },
+            },
           },
         });
         if (!auction) return null;
@@ -107,8 +110,7 @@ export class OrdersService {
   /** 매시 정각 PENDING 주문 타임아웃 → 유찰 처리 (3일 초과 시) */
   @Cron('0 * * * *', { timeZone: 'Asia/Seoul' })
   async cancelExpiredPendingOrders() {
-    const now = new Date();
-    const deadline = new Date(now);
+    const deadline = new Date();
     deadline.setDate(deadline.getDate() - PENDING_ORDER_TIMEOUT_DAYS);
 
     const expired = await this.prisma.order.findMany({
@@ -126,6 +128,7 @@ export class OrdersService {
     });
 
     for (const order of expired) {
+      const nowPerOrder = new Date();
       await this.prisma.$transaction(async (tx) => {
         const locked = await lockAuctionForUpdate(tx, order.auctionId);
         if (!locked) return;
@@ -151,6 +154,10 @@ export class OrdersService {
           winnerBid?.bidPrice === order.finalPrice;
 
         if (isAuctionWinner && winnerBid) {
+          await tx.bid.update({
+            where: { id: winnerBid.id },
+            data: { disqualifiedAt: nowPerOrder },
+          });
           await this.walletService.releaseBidHold(
             tx,
             winnerBid.userId,
@@ -159,12 +166,15 @@ export class OrdersService {
           );
         }
 
-        const reopenEndTime = new Date(now);
+        const reopenEndTime = new Date(nowPerOrder);
         reopenEndTime.setHours(
           reopenEndTime.getHours() + REOPEN_AUCTION_DURATION_HOURS,
         );
 
-        const baselinePrice = auction.bids[0]?.bidPrice ?? auction.startPrice;
+        const baselinePrice =
+          isAuctionWinner && winnerBid
+            ? (auction.bids[1]?.bidPrice ?? auction.startPrice)
+            : (auction.bids[0]?.bidPrice ?? auction.startPrice);
 
         await tx.auction.update({
           where: { id: order.auctionId },
@@ -361,8 +371,8 @@ export class OrdersService {
     buyerUserId: string;
     finalPrice: number;
   }) {
-    const now = new Date();
     await this.prisma.$transaction(async (tx) => {
+      const nowPerOrder = new Date();
       const locked = await lockAuctionForUpdate(tx, order.auctionId);
       if (!locked) return;
 
@@ -387,6 +397,10 @@ export class OrdersService {
         winnerBid?.bidPrice === order.finalPrice;
 
       if (isAuctionWinner && winnerBid) {
+        await tx.bid.update({
+          where: { id: winnerBid.id },
+          data: { disqualifiedAt: nowPerOrder },
+        });
         await this.walletService.releaseBidHold(
           tx,
           winnerBid.userId,
@@ -395,12 +409,15 @@ export class OrdersService {
         );
       }
 
-      const reopenEndTime = new Date(now);
+      const reopenEndTime = new Date(nowPerOrder);
       reopenEndTime.setHours(
         reopenEndTime.getHours() + REOPEN_AUCTION_DURATION_HOURS,
       );
 
-      const baselinePrice = auction.bids[0]?.bidPrice ?? auction.startPrice;
+      const baselinePrice =
+        isAuctionWinner && winnerBid
+          ? (auction.bids[1]?.bidPrice ?? auction.startPrice)
+          : (auction.bids[0]?.bidPrice ?? auction.startPrice);
 
       await tx.auction.update({
         where: { id: order.auctionId },
