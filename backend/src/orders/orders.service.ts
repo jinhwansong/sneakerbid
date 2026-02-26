@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -11,6 +12,10 @@ import { EventsService } from '@/events/events.service';
 import { AuctionsService } from '@/auctions/auctions.service';
 import { WalletService } from '@/wallet/wallet.service';
 import { lockAuctionForUpdate } from '@/auctions/auction-lock.helper';
+import {
+  PENDING_ORDER_TIMEOUT_DAYS,
+  REOPEN_AUCTION_DURATION_HOURS,
+} from '@/common/constants/order.constants';
 
 @Injectable()
 export class OrdersService {
@@ -96,6 +101,79 @@ export class OrdersService {
     }
   }
 
+  /** 매시 정각 PENDING 주문 타임아웃 → 유찰 처리 (3일 초과 시) */
+  @Cron('0 * * * *', { timeZone: 'Asia/Seoul' })
+  async cancelExpiredPendingOrders() {
+    const now = new Date();
+    const deadline = new Date(now);
+    deadline.setDate(deadline.getDate() - PENDING_ORDER_TIMEOUT_DAYS);
+
+    const expired = await this.prisma.order.findMany({
+      where: {
+        status: 'PENDING',
+        createdAt: { lt: deadline },
+      },
+      include: {
+        auction: {
+          include: {
+            bids: { orderBy: { bidPrice: 'desc' } },
+          },
+        },
+      },
+    });
+
+    for (const order of expired) {
+      await this.prisma.$transaction(async (tx) => {
+        const locked = await lockAuctionForUpdate(tx, order.auctionId);
+        if (!locked) return;
+
+        const auction = await tx.auction.findUnique({
+          where: { id: order.auctionId },
+          include: { bids: { orderBy: { bidPrice: 'desc' } } },
+        });
+        if (!auction || auction.status !== 'CLOSED') return;
+
+        const orderUpdated = await tx.order.updateMany({
+          where: { id: order.id, status: 'PENDING' },
+          data: {
+            status: 'CANCELLED',
+            failureReason: '결제 기한 초과',
+          },
+        });
+        if (orderUpdated.count === 0) return;
+
+        const winnerBid = auction.bids[0];
+        const isAuctionWinner =
+          winnerBid?.userId === order.buyerUserId &&
+          winnerBid?.bidPrice === order.finalPrice;
+
+        if (isAuctionWinner && winnerBid) {
+          await this.walletService.releaseBidHold(
+            tx,
+            winnerBid.userId,
+            winnerBid.bidPrice,
+            winnerBid.id,
+          );
+        }
+
+        const reopenEndTime = new Date(now);
+        reopenEndTime.setHours(
+          reopenEndTime.getHours() + REOPEN_AUCTION_DURATION_HOURS,
+        );
+
+        await tx.auction.update({
+          where: { id: order.auctionId },
+          data: {
+            status: 'OPEN',
+            winnerUserId: null,
+            closedAt: null,
+            endTime: reopenEndTime,
+          },
+        });
+      });
+    }
+  }
+
   /** 즉시 구매 */
   async buyNow(auctionId: string, user: RequestUser) {
     const now = new Date();
@@ -116,6 +194,14 @@ export class OrdersService {
     }
     if (!auction.buyNowPrice) {
       throw new BadRequestException('즉시 구매 가능한 경매가 아닙니다.');
+    }
+
+    const buyer = await this.prisma.user.findUnique({
+      where: { id: user.id },
+      select: { balance: true },
+    });
+    if (!buyer || buyer.balance < auction.buyNowPrice) {
+      throw new BadRequestException('잔액이 부족합니다.');
     }
 
     const order = await this.prisma.$transaction(async (tx) => {
@@ -194,44 +280,121 @@ export class OrdersService {
       winningBid?.userId === user.id &&
       winningBid?.bidPrice === order.finalPrice;
 
-    const updated = await this.prisma.$transaction(async (tx) => {
-      if (isAuctionWinner) {
-        await this.walletService.convertHoldToPayment(
-          tx,
-          user.id,
-          order.finalPrice,
-          orderId,
-        );
-      } else {
-        const paid = await this.walletService.pay(
-          tx,
-          user.id,
-          order.finalPrice,
-          orderId,
-        );
-        if (!paid) {
-          throw new BadRequestException('잔액이 부족합니다.');
+    try {
+      const updated = await this.prisma.$transaction(async (tx) => {
+        // 조건부 업데이트로 동시 결제 방지 (이중 결제 방지)
+        const claimed = await tx.order.updateMany({
+          where: { id: orderId, status: 'PENDING' },
+          data: { status: 'PAID', paidAt: new Date() },
+        });
+        if (claimed.count === 0) {
+          throw new ConflictException(
+            '이미 결제되었거나 결제가 취소되었습니다.',
+          );
         }
+
+        if (isAuctionWinner) {
+          await this.walletService.convertHoldToPayment(
+            tx,
+            user.id,
+            order.finalPrice,
+            orderId,
+          );
+        } else {
+          const paid = await this.walletService.pay(
+            tx,
+            user.id,
+            order.finalPrice,
+            orderId,
+          );
+          if (!paid) {
+            throw new BadRequestException('잔액이 부족합니다.');
+          }
+        }
+
+        await this.walletService.settleSeller(
+          tx,
+          order.auction.sellerUserId,
+          order.finalPrice,
+          orderId,
+        );
+
+        return tx.order.findUniqueOrThrow({ where: { id: orderId } });
+      });
+
+      return {
+        orderId: updated.id,
+        status: updated.status,
+        paidAt: updated.paidAt,
+      };
+    } catch (err) {
+      if (err instanceof ConflictException) throw err;
+      await this.reopenAuctionForFailedPayment({
+        id: order.id,
+        auctionId: order.auctionId,
+        buyerUserId: order.buyerUserId,
+        finalPrice: order.finalPrice,
+      });
+      throw err;
+    }
+  }
+
+  /** 결제 실패 시 경매 재오픈 (주문 취소, BID_HOLD 해제, 경매 재개) */
+  private async reopenAuctionForFailedPayment(order: {
+    id: string;
+    auctionId: string;
+    buyerUserId: string;
+    finalPrice: number;
+  }) {
+    const now = new Date();
+    await this.prisma.$transaction(async (tx) => {
+      const locked = await lockAuctionForUpdate(tx, order.auctionId);
+      if (!locked) return;
+
+      const auction = await tx.auction.findUnique({
+        where: { id: order.auctionId },
+        include: { bids: { orderBy: { bidPrice: 'desc' } } },
+      });
+      if (!auction || auction.status !== 'CLOSED') return;
+
+      const orderUpdated = await tx.order.updateMany({
+        where: { id: order.id, status: 'PENDING' },
+        data: {
+          status: 'CANCELLED',
+          failureReason: '결제 실패',
+        },
+      });
+      if (orderUpdated.count === 0) return;
+
+      const winnerBid = auction.bids[0];
+      const isAuctionWinner =
+        winnerBid?.userId === order.buyerUserId &&
+        winnerBid?.bidPrice === order.finalPrice;
+
+      if (isAuctionWinner && winnerBid) {
+        await this.walletService.releaseBidHold(
+          tx,
+          winnerBid.userId,
+          winnerBid.bidPrice,
+          winnerBid.id,
+        );
       }
 
-      await this.walletService.settleSeller(
-        tx,
-        order.auction.sellerUserId,
-        order.finalPrice,
-        orderId,
+      const reopenEndTime = new Date(now);
+      reopenEndTime.setHours(
+        reopenEndTime.getHours() + REOPEN_AUCTION_DURATION_HOURS,
       );
 
-      return tx.order.update({
-        where: { id: orderId },
-        data: { status: 'PAID', paidAt: new Date() },
+      await tx.auction.update({
+        where: { id: order.auctionId },
+        data: {
+          status: 'OPEN',
+          winnerUserId: null,
+          closedAt: null,
+          endTime: reopenEndTime,
+        },
       });
     });
-
-    return {
-      orderId: updated.id,
-      status: updated.status,
-      paidAt: updated.paidAt,
-    };
   }
 
   /** 내 주문 목록 */

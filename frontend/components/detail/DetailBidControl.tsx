@@ -1,6 +1,6 @@
 'use client';
 
-import { TrendingUp } from 'lucide-react';
+import { AlertCircle, TrendingUp } from 'lucide-react';
 import { AuctionItem } from '@/types/auction';
 import { Button } from '@/components/common/Button';
 import { formatPrice } from '@/lib/format';
@@ -117,8 +117,9 @@ export default function DetailBidControl({
         </div>
 
         {bidError && (
-          <div className="p-3 bg-status-urgent/5 rounded-lg border border-status-urgent/20 animate-in fade-in zoom-in-95">
-            <p className="text-[11px] font-bold text-status-urgent text-center">
+          <div className="flex items-center gap-2 p-3 bg-status-urgent/5 rounded-lg border border-status-urgent/20 animate-in fade-in zoom-in-95 animate-shake">
+            <AlertCircle size={14} className="shrink-0 text-status-urgent" />
+            <p className="text-[11px] font-bold text-status-urgent flex-1">
               {bidError}
             </p>
           </div>

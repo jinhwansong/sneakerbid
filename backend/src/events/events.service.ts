@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment -- Redis/ioredis 타입 해석 이슈 */
 /* eslint-disable @typescript-eslint/no-unsafe-call -- Redis/ioredis 타입 해석 이슈 */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access -- Redis/ioredis 타입 해석 이슈 */
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Observable, Subject, interval, map, merge } from 'rxjs';
 import type { MessageEvent } from '@nestjs/common';
 import type Redis from 'ioredis';
@@ -22,13 +22,17 @@ export class EventsService implements OnModuleInit {
   /** 거래내역 구독자 (새 체결 시 브로드캐스트) */
   private readonly historySubject = new Subject<MessageEvent>();
 
+  private readonly logger = new Logger(EventsService.name);
+
   constructor(private readonly redis: RedisService) {}
 
   onModuleInit(): void {
     const sub: Redis = this.redis.getSubscriber();
     void sub
       .subscribe(REDIS_CHANNEL_SSE_AUCTION, REDIS_CHANNEL_SSE_HISTORY)
-      .catch(() => {});
+      .catch((err) =>
+        this.logger.warn('Redis subscribe failed', { err }),
+      );
     sub.on('message', (channel: string, message: string) => {
       try {
         const data = JSON.parse(message) as Record<string, unknown>;
@@ -79,7 +83,9 @@ export class EventsService implements OnModuleInit {
         REDIS_CHANNEL_SSE_HISTORY,
         JSON.stringify({ type: 'newDeal', payload }),
       )
-      .catch(() => {});
+      .catch((err) =>
+        this.logger.warn('Redis publish newDeal failed', { err }),
+      );
   }
 
   /** 새 입찰 이벤트 브로드캐스트 — Redis로 발행, 모든 인스턴스가 구독 */
@@ -89,7 +95,9 @@ export class EventsService implements OnModuleInit {
         REDIS_CHANNEL_SSE_AUCTION,
         JSON.stringify({ auctionId, type: 'newBid', payload }),
       )
-      .catch(() => {});
+      .catch((err) =>
+        this.logger.warn('Redis publish newBid failed', { auctionId, err }),
+      );
   }
 
   /** Redis 수신 메시지를 로컬 경매 Subject에만 전달 (다중 인스턴스 동기화용) */

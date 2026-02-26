@@ -4,6 +4,8 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, CheckCircle2, X } from 'lucide-react';
 import { formatPrice } from '@/lib/format';
+import { useToastStore } from '@/store/useToastStore';
+import { Button } from '@/components/common/Button';
 
 type Step = 'confirm' | 'creating' | 'paying' | 'complete' | 'error';
 
@@ -24,17 +26,25 @@ export default function PaymentFlowModal({
 }: PaymentFlowModalProps) {
   const [step, setStep] = useState<Step>('confirm');
   const [errorMsg, setErrorMsg] = useState('');
+  const showToast = useToastStore((s) => s.showToast);
 
   const handleConfirm = async () => {
     setErrorMsg('');
     setStep('creating');
     try {
       const result = await onConfirm(setStep);
-      setStep(result.success ? 'complete' : 'error');
-      if (!result.success) setErrorMsg('결제 처리 중 오류가 발생했습니다.');
+      if (result.success) {
+        setStep('complete');
+      } else {
+        setStep('error');
+        setErrorMsg('결제 처리 중 오류가 발생했습니다.');
+        showToast('결제에 실패했습니다.', 'error');
+      }
     } catch (err) {
+      const msg = err instanceof Error ? err.message : '결제에 실패했습니다.';
       setStep('error');
-      setErrorMsg(err instanceof Error ? err.message : '결제에 실패했습니다.');
+      setErrorMsg(msg);
+      showToast(msg, 'error');
     }
   };
 
@@ -75,14 +85,16 @@ export default function PaymentFlowModal({
               {step === 'error' && '오류'}
             </h3>
             {(step === 'confirm' || step === 'complete' || step === 'error') && (
-              <button
+              <Button
                 type="button"
+                variant="ghost"
+                size="sm"
                 onClick={handleClose}
-                className="p-1 rounded-lg hover:bg-bg-sub transition-colors"
+                className="p-1 min-w-0"
                 aria-label="닫기"
               >
                 <X className="h-5 w-5 text-text-muted" />
-              </button>
+              </Button>
             )}
           </div>
 
@@ -95,20 +107,24 @@ export default function PaymentFlowModal({
                   {formatPrice(price)}원에 즉시 구매하시겠습니까?
                 </p>
                 <div className="flex gap-3">
-                  <button
+                  <Button
                     type="button"
+                    variant="outline"
+                    size="lg"
                     onClick={handleClose}
-                    className="flex-1 py-3 rounded-xl border border-border-main font-bold text-text-muted hover:bg-bg-sub transition-colors"
+                    className="flex-1"
                   >
                     취소
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="button"
+                    variant="primary"
+                    size="lg"
                     onClick={handleConfirm}
-                    className="flex-1 py-3 rounded-xl bg-bg-accent text-text-inverse font-bold hover:brightness-110 transition-all"
+                    className="flex-1"
                   >
                     구매하기
-                  </button>
+                  </Button>
                 </div>
               </>
             )}
@@ -130,13 +146,15 @@ export default function PaymentFlowModal({
                     결제가 완료되었습니다.
                   </p>
                 </div>
-                <button
+                <Button
                   type="button"
+                  variant="primary"
+                  size="lg"
+                  fullWidth
                   onClick={handleClose}
-                  className="w-full py-3.5 rounded-xl bg-bg-accent text-text-inverse font-bold hover:brightness-110 transition-all"
                 >
                   확인
-                </button>
+                </Button>
               </>
             )}
 
@@ -145,15 +163,15 @@ export default function PaymentFlowModal({
                 <p className="text-status-urgent font-bold text-center">
                   {errorMsg}
                 </p>
-                <div className="flex gap-3">
-                  <button
-                    type="button"
-                    onClick={handleClose}
-                    className="flex-1 py-3 rounded-xl bg-bg-accent text-text-inverse font-bold hover:brightness-110 transition-all"
-                  >
-                    확인
-                  </button>
-                </div>
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="lg"
+                  fullWidth
+                  onClick={handleClose}
+                >
+                  확인
+                </Button>
               </>
             )}
           </div>
