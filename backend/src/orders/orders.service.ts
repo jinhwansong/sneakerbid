@@ -121,7 +121,10 @@ export class OrdersService {
       include: {
         auction: {
           include: {
-            bids: { orderBy: { bidPrice: 'desc' } },
+            bids: {
+              where: { disqualifiedAt: null },
+              orderBy: { bidPrice: 'desc' },
+            },
           },
         },
       },
@@ -135,7 +138,12 @@ export class OrdersService {
 
         const auction = await tx.auction.findUnique({
           where: { id: order.auctionId },
-          include: { bids: { orderBy: { bidPrice: 'desc' } } },
+          include: {
+            bids: {
+              where: { disqualifiedAt: null },
+              orderBy: { bidPrice: 'desc' },
+            },
+          },
         });
         if (!auction || auction.status !== 'CLOSED') return;
 
@@ -378,7 +386,12 @@ export class OrdersService {
 
       const auction = await tx.auction.findUnique({
         where: { id: order.auctionId },
-        include: { bids: { orderBy: { bidPrice: 'desc' } } },
+        include: {
+          bids: {
+            where: { disqualifiedAt: null },
+            orderBy: { bidPrice: 'desc' },
+          },
+        },
       });
       if (!auction || auction.status !== 'CLOSED') return;
 
