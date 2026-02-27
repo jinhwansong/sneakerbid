@@ -110,10 +110,7 @@ export class AuctionsController {
     @User() user: RequestUser,
     @Query('status') status?: 'all' | 'ongoing' | 'closed',
   ) {
-    return this.auctionsService.getMySellingAuctions(
-      user,
-      status ?? 'all',
-    );
+    return this.auctionsService.getMySellingAuctions(user, status ?? 'all');
   }
 
   @Get(':id')

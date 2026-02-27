@@ -180,10 +180,7 @@ export class AuctionsService {
         endTime: { gt: now },
       }),
       ...(statusFilter === 'closed' && {
-        OR: [
-          { status: 'CLOSED' },
-          { status: 'OPEN', endTime: { lte: now } },
-        ],
+        OR: [{ status: 'CLOSED' }, { status: 'OPEN', endTime: { lte: now } }],
       }),
     };
 
