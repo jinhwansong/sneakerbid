@@ -1,0 +1,250 @@
+// =============================================================================
+// Data model: context/DATA_MODEL.md + OAuth(Google/Kakao) + Wishlist(찜하기)
+// =============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// -----------------------------------------------------------------------------
+// Enums (context + OAuth)
+// -----------------------------------------------------------------------------
+enum Role {
+  USER
+  ADMIN
+  BOT // 경매 봇 (입찰 시뮬레이션)
+}
+
+enum OAuthProvider {
+  GOOGLE
+  KAKAO
+}
+
+enum AuctionStatus {
+  OPEN
+  CLOSED
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  FAILED
+  CANCELLED
+}
+
+enum BidSourceType {
+  USER
+  BOT
+}
+
+enum WalletTxType {
+  BID_HOLD
+  BID_RELEASE
+  PAYMENT
+  REFUND
+  ADJUSTMENT
+}
+
+enum WalletRefType {
+  AUCTION
+  ORDER
+  BID
+  SYSTEM
+}
+
+// -----------------------------------------------------------------------------
+// User & SocialAccount (Kakao, Google 로그인)
+// -----------------------------------------------------------------------------
+model User {
+  id              String   @id @default(uuid())
+  email           String?  // optional metadata, not used for auth
+  profileImageUrl String?  // OAuth provider 프로필 이미지
+  nickname        String
+  role            Role     @default(USER)
+  balance         Int      @default(0) // 시뮬레이션 지갑
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  botProfile Bot?
+  socialAccounts SocialAccount[]
+  bids           Bid[]
+  orders         Order[]          @relation("OrderBuyer")
+  walletTx       WalletTransaction[]
+  wishlists      Wishlist[]
+  wonAuctions    Auction[]        @relation("AuctionWinner")
+  sellingAuctions Auction[]       @relation("AuctionSeller")
+}
+
+model SocialAccount {
+  id        String         @id @default(uuid())
+  provider  OAuthProvider
+  providerId String        // unique per provider (Kakao/Google 고유 id)
+  userId    String
+  createdAt DateTime      @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerId])
+  @@index([userId])
+}
+
+// -----------------------------------------------------------------------------
+// Sneaker (상품 메타 + 프론트 상세 필드)
+// AuctionDetailClient / AuctionItem과 동일한 필드명 사용
+// -----------------------------------------------------------------------------
+model Sneaker {
+  id              String   @id @default(uuid())
+  modelName       String   // 모델명 (예: Air Jordan 1 Retro High OG "Chicago")
+  brand           String
+  colorway        String?  // 컬러웨이 (예: Black / Red)
+  description     String?
+  imageUrl        String
+  popularityScore Int      @default(0)
+  // 프론트 상세용 (DetailProductInfo)
+  styleCode       String?  // 스타일코드 (예: DZ5485-612)
+  releaseYear     Int?     // 출시연도
+  condition       String?  // 상품상태 (Deadstock, New with box 등)
+  origin          String?  // 제조국 (예: Vietnam, China)
+  boxIncluded     Boolean? // 박스 포함 여부
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  auctions Auction[]
+}
+
+// -----------------------------------------------------------------------------
+// Auction (경매 세션)
+// -----------------------------------------------------------------------------
+model Auction {
+  id               String        @id @default(uuid())
+  sneakerId        String
+  size             String        // "270" 등 (단일 사이즈)
+  startPrice       Int
+  currentPrice     Int
+  buyNowPrice      Int?
+  minimumIncrement Int
+  status           AuctionStatus @default(OPEN)
+  endTime          DateTime
+  winnerUserId     String?
+  closedAt         DateTime?
+  version          Int           @default(0)
+  lastExtendedAt   DateTime?
+  extendCount      Int           @default(0)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  sellerUserId         String
+  relistedFromAuctionId String? // 봇 낙찰 후 재등록 시 원본 경매 id
+
+  sneaker   Sneaker   @relation(fields: [sneakerId], references: [id], onDelete: Restrict)
+  winner    User?     @relation("AuctionWinner", fields: [winnerUserId], references: [id], onDelete: SetNull)
+  seller    User      @relation("AuctionSeller", fields: [sellerUserId], references: [id], onDelete: Restrict)
+  bids      Bid[]
+  orders    Order[]
+  wishlists Wishlist[]
+  relistedFrom Auction?  @relation("AuctionRelist", fields: [relistedFromAuctionId], references: [id])
+  relistedAs   Auction[] @relation("AuctionRelist")
+
+  @@index([status, endTime])
+  @@index([sneakerId, size, status])
+}
+
+// -----------------------------------------------------------------------------
+// Bid (입찰 기록, immutable)
+// -----------------------------------------------------------------------------
+model Bid {
+  id            String    @id @default(uuid())
+  auctionId     String
+  userId        String
+  bidPrice      Int
+  sourceType    BidSourceType @default(USER)
+  strategyType  String?   // BOT일 때 AGGRESSIVE | CONSERVATIVE | SNIPER
+  createdAt     DateTime  @default(now())
+  disqualifiedAt DateTime? // 유찰/결제실패 재오픈 시 해당 입찰 제외용
+
+  auction Auction @relation(fields: [auctionId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([auctionId, createdAt(sort: Desc)])
+  @@index([auctionId, bidPrice(sort: Desc)])
+}
+
+// -----------------------------------------------------------------------------
+// Order (정산 시도)
+// -----------------------------------------------------------------------------
+model Order {
+  id            String      @id @default(uuid())
+  auctionId     String
+  buyerUserId   String
+  finalPrice    Int
+  status        OrderStatus @default(PENDING)
+  failureReason String?
+  createdAt     DateTime    @default(now())
+  paidAt        DateTime?
+
+  auction Auction @relation(fields: [auctionId], references: [id], onDelete: Restrict)
+  buyer   User    @relation("OrderBuyer", fields: [buyerUserId], references: [id], onDelete: Restrict)
+
+  @@index([auctionId])
+  @@index([buyerUserId])
+}
+
+// -----------------------------------------------------------------------------
+// WalletTransaction (감사/정산 추적)
+// -----------------------------------------------------------------------------
+model WalletTransaction {
+  id        String         @id @default(uuid())
+  userId    String
+  amount    Int            // 음수=차감, 양수=입금
+  type      WalletTxType
+  refType   WalletRefType
+  refId     String
+  createdAt DateTime       @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId])
+  @@index([refType, refId])
+}
+
+// -----------------------------------------------------------------------------
+// Wishlist (찜하기: 유저별 경매 단위)
+// -----------------------------------------------------------------------------
+model Wishlist {
+  id        String   @id @default(uuid())
+  userId    String
+  auctionId String
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  auction Auction @relation(fields: [auctionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, auctionId])
+  @@index([userId])
+  @@index([auctionId])
+}
+
+// -----------------------------------------------------------------------------
+// Bot (경매 봇 프로필 - User.role=BOT 시 1:1)
+// -----------------------------------------------------------------------------
+model Bot {
+  id                String   @id @default(uuid())
+  userId            String   @unique
+  type              String   // AGGRESSIVE | CALCULATED | TROLL | EMOTIONAL | FOLLOWER
+  riskTolerance     Int     // 1~10
+  bidUnit           Int     // 기본 입찰 단위
+  maxBidMultiplier  Float   // 시작가 대비 최대 배수
+  activityStartHour Int     // 0~23
+  activityEndHour   Int     // 0~23
+  favoriteBrands    Json    // ["Nike", "Jordan"] 등
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([type])
+}

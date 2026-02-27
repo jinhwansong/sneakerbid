@@ -1,0 +1,193 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-bg-main: var(--bg-main);
+  --color-bg-sub: var(--bg-sub);
+  --color-bg-card: var(--bg-card);
+  --color-bg-card-sub: var(--bg-card-sub);
+  --color-bg-placeholder: var(--bg-placeholder);
+  --color-bg-input: var(--bg-input);
+  --color-bg-accent: var(--bg-accent);
+  --color-bg-overlay: var(--bg-overlay);
+  --color-bg-overlay-muted: var(--bg-overlay-muted);
+  --color-text-main: var(--text-main);
+  --color-text-sub: var(--text-sub);
+  --color-text-muted: var(--text-muted);
+  --color-text-inverse: var(--text-inverse);
+  --color-brand-primary: var(--brand-primary);
+  --color-status-urgent: var(--status-urgent);
+  --color-status-active: var(--status-active);
+  --color-border-main: var(--border-main);
+  --color-border-sub: var(--border-sub);
+  --color-border-subtle: var(--border-subtle);
+  --color-border-accent: var(--border-accent);
+}
+
+:root {
+  --bg-main: #ffffff;
+  --bg-sub: #f2f4f6;
+  --bg-card: #F6F6F6;
+  --bg-card-sub: #222;
+  --bg-placeholder: #f4f4f4;
+  --bg-input: #f8f8f8;
+  --bg-accent: #191f28;
+  --bg-overlay: rgba(17, 17, 17, 0.7);
+  --bg-overlay-muted: rgba(139, 149, 161, 0.9);
+  --text-main: #191f28;
+  --text-sub: #4e5968;
+  --text-muted: #8b95a1;
+  --text-inverse: #ffffff;
+  --brand-primary: #3182f6;
+  --status-urgent: #f04452;
+  --status-active: #00d082;
+  --border-main: #e5e8eb;
+  --border-sub: #333333;
+  --border-subtle: #ebecef;
+  --border-accent: #191f28;
+  --deep-navy: #111111;
+}
+
+.dark {
+  --bg-main: #111111;
+  --bg-sub: #1c1c1c;
+  --bg-card: #222222;
+  --bg-placeholder: #1c1c1c;
+  --bg-input: #1c1c1c;
+  --bg-accent: #f9fafb;
+  --bg-overlay: rgba(0, 0, 0, 0.8);
+  --bg-overlay-muted: rgba(156, 163, 175, 0.9);
+  --text-main: #f9fafb;
+  --text-sub: #d1d5db;
+  --text-muted: #9ca3af;
+  --text-inverse: #191f28;
+  --brand-primary: #3182f6;
+  --status-urgent: #ff4d4d;
+  --status-active: #05d686;
+  --border-main: #2d2d2d;
+  --border-sub: #e5e8eb;
+  --border-subtle: #2d2d2d;
+  --border-accent: #f9fafb;
+}
+
+@layer base {
+  html,
+  body {
+    font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui,
+      sans-serif;
+    background-color: var(--bg-main);
+    color: var(--text-main);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    overscroll-behavior-y: contain;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+  input {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    outline: none;
+    border: none;
+    background: transparent;
+    box-shadow: none;
+  }
+  input:hover,
+  input:focus,
+  input:active {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    outline: none;
+    border: none;
+    background: transparent;
+    box-shadow: none;
+  }
+  input::placeholder {
+    color: var(--text-muted);
+  }
+  input[type='number']::-webkit-inner-spin-button,
+  input[type='number']::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type='number'] {
+    -moz-appearance: textfield;
+  }
+  button {
+    cursor: pointer;
+    box-sizing: border-box;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    min-height: 48px;
+    min-width: 48px;
+  }
+
+  p {
+    margin: 0;
+    word-break: keep-all;
+  }
+}
+
+/* Hide number input spinners */
+.no-spinner::-webkit-outer-spin-button,
+.no-spinner::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.no-spinner[type='number'] {
+  -moz-appearance: textfield;
+}
+
+
+/* Marquee Animation */
+@utility animate-marquee {
+  display: flex;
+  animation: marquee 30s linear infinite;
+}
+
+@utility pause-marquee {
+  &:hover {
+    animation-play-state: paused;
+  }
+}
+
+@keyframes marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes loading-bar {
+  0% {
+    transform: translateX(-100%);
+  }
+  50% {
+    transform: translateX(200%);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+}
+
+.global-loading-bar {
+  animation: loading-bar 1.2s ease-in-out infinite;
+}
+
+/* 입찰 실패 시 흔들림 */
+@keyframes shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  20%, 60% {
+    transform: translateX(-4px);
+  }
+  40%, 80% {
+    transform: translateX(4px);
+  }
+}
+
+@utility animate-shake {
+  animation: shake 0.4s ease-in-out;
+}

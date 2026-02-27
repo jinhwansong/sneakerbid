@@ -1,0 +1,107 @@
+'use client';
+
+import { useState } from 'react';
+
+import { useMe } from '@/hooks/query/useMe';
+
+import { cn } from '@/lib/cn';
+import LoginRequiredPrompt from '@/components/me/LoginRequiredPrompt';
+import { useMyOrders } from '@/hooks/query/useMyOrders';
+import { useMyBiddingAuctions } from '@/hooks/query/useMyBiddingAuctions';
+import AuctionCard from '@/components/auction/AuctionCard';
+import EmptyOngoing from '@/components/me/EmptyOngoing';
+import EmptyLost from '@/components/me/EmptyLost';
+import EmptyWon from '@/components/me/EmptyWon';
+import WonCard from '@/components/me/WonCard';
+
+const TABS = [
+  { id: 'ongoing', label: '입찰중' },
+  { id: 'won', label: '낙찰됨' },
+  { id: 'lost', label: '유찰됨' },
+] as const;
+
+export default function MyBidsPage() {
+  const { data: profile } = useMe();
+  const { data: ongoingItems = [], isLoading: isLoadingOngoing } = useMyBiddingAuctions({
+    enabled: !!profile,
+  });
+  const { data: orders = [], isLoading: isLoadingWon } = useMyOrders({
+    enabled: !!profile,
+  });
+  const [activeTab, setActiveTab] = useState<(typeof TABS)[number]['id']>('ongoing');
+
+  if (!profile) return <LoginRequiredPrompt />;
+
+  const wonItems = orders;
+
+  return (
+    <main className="min-h-[calc(100vh-64px)] bg-bg-main">
+      <div className="max-w-4xl mx-auto px-5 py-8 md:py-12">
+        {/* 헤더 */}
+        <div className="mb-8 md:mb-12">
+          <h1 className="text-2xl md:text-3xl font-black text-text-main tracking-tight">
+            내 입찰
+          </h1>
+          <p className="mt-1 text-text-sub font-medium">
+            입찰 중인 경매와 낙찰 내역을 확인하세요.
+          </p>
+        </div>
+
+        {/* 탭 */}
+        <div className="flex bg-bg-sub p-1.5 rounded-2xl mb-10">
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={cn(
+                'flex-1 py-3 text-sm font-bold rounded-xl transition-all',
+                activeTab === tab.id
+                  ? 'bg-bg-main text-text-main shadow-sm shadow-black/5'
+                  : 'text-text-muted hover:text-text-sub',
+              )}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* 컨텐츠 */}
+        {activeTab === 'ongoing' && (
+          <>
+            {isLoadingOngoing ? (
+              <div className="flex justify-center py-16">
+                <div className="h-8 w-8 animate-spin rounded-full border-2 border-brand-primary border-t-transparent" />
+              </div>
+            ) : ongoingItems.length === 0 ? (
+              <EmptyOngoing />
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 md:gap-6">
+                {ongoingItems.map((item) => (
+                  <AuctionCard key={item.id} item={item} />
+                ))}
+              </div>
+            )}
+          </>
+        )}
+        {activeTab === 'lost' && <EmptyLost />}
+        {activeTab === 'won' && (
+          <>
+            {isLoadingWon ? (
+              <div className="flex justify-center py-16">
+                <div className="h-8 w-8 animate-spin rounded-full border-2 border-brand-primary border-t-transparent" />
+              </div>
+            ) : wonItems.length === 0 ? (
+              <EmptyWon />
+            ) : (
+              <div className="flex flex-col gap-4">
+                {wonItems.map((item) => (
+                  <WonCard key={item.id} item={item} />
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </main>
+  );
+}

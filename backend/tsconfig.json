@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "declaration": true,
+    "removeComments": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "allowSyntheticDefaultImports": true,
+    "target": "ES2023",
+    "sourceMap": true,
+    "outDir": "./dist",
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "baseUrl": "./src",
+    "paths": {
+      "@/*": ["*"]
+    },
+    "incremental": true,
+    "skipLibCheck": true,
+    "types": ["node", "webpack-env"],
+    "strictNullChecks": false,
+    "noImplicitAny": false,
+    "strictBindCallApply": false,
+    "forceConsistentCasingInFileNames": false,
+    "noFallthroughCasesInSwitch": false
+  },
+  "include": ["src/**/*.ts", "prisma/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}
