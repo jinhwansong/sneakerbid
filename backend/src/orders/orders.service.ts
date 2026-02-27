@@ -11,6 +11,10 @@ import { EventsService } from '@/events/events.service';
 import { AuctionsService } from '@/auctions/auctions.service';
 import { WalletService } from '@/wallet/wallet.service';
 import { lockAuctionForUpdate } from '@/auctions/auction-lock.helper';
+import {
+  CLOSE_EXPIRED_BATCH_SIZE,
+  CLOSE_EXPIRED_TIMEOUT_MS,
+} from '@/common/constants/auction.constants';
 
 @Injectable()
 export class OrdersService {
@@ -21,19 +25,23 @@ export class OrdersService {
     private readonly walletService: WalletService,
   ) {}
 
-  /** 매분 경매 종료 체크 → 낙찰자 확정, Order 생성 */
+  /** 매분 경매 종료 체크 → 낙찰자 확정, Order 생성 (배치 크기·타임아웃 제한) */
   @Cron('* * * * *', { timeZone: 'Asia/Seoul' })
   async closeExpiredAuctions() {
     const now = new Date();
+    const start = Date.now();
     const expired = await this.prisma.auction.findMany({
       where: {
         status: 'OPEN',
         endTime: { lte: now },
       },
       select: { id: true },
+      take: CLOSE_EXPIRED_BATCH_SIZE,
+      orderBy: { endTime: 'asc' },
     });
 
     for (const { id: auctionId } of expired) {
+      if (Date.now() - start >= CLOSE_EXPIRED_TIMEOUT_MS) break;
       const closed = await this.prisma.$transaction(async (tx) => {
         const locked = await lockAuctionForUpdate(tx, auctionId, {
           status: 'OPEN',
@@ -85,10 +93,15 @@ export class OrdersService {
           });
         }
 
-        return { auctionId };
+        return { auctionId, winnerUserId, finalPrice };
       });
 
       if (closed) {
+        this.eventsService.emitAuctionClosed(auctionId, {
+          status: 'CLOSED',
+          winnerUserId: closed.winnerUserId ?? null,
+          finalPrice: closed.finalPrice,
+        });
         const historyItem =
           await this.auctionsService.getTradeHistoryItem(auctionId);
         if (historyItem) this.eventsService.emitNewDeal(historyItem);
@@ -150,6 +163,11 @@ export class OrdersService {
       });
     });
 
+    this.eventsService.emitAuctionClosed(auctionId, {
+      status: 'buy_now',
+      winnerUserId: user.id,
+      finalPrice: auction.buyNowPrice,
+    });
     const historyItem =
       await this.auctionsService.getTradeHistoryItem(auctionId);
     if (historyItem) this.eventsService.emitNewDeal(historyItem);
