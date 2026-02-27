@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment -- Redis/ioredis 타입 해석 이슈 */
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { Observable, Subject, interval, map, merge } from 'rxjs';
 import type { MessageEvent } from '@nestjs/common';
@@ -9,6 +8,7 @@ import type {
 } from '../common/type/events.types';
 import type { AuctionHistoryItem } from '../common/type/auction.type';
 import {
+  ALLOWED_AUCTION_EVENT_TYPES,
   HEARTBEAT_INTERVAL_MS,
   REDIS_CHANNEL_SSE_AUCTION,
   REDIS_CHANNEL_SSE_HISTORY,
@@ -37,11 +37,6 @@ export class EventsService implements OnModuleInit {
       try {
         const data = JSON.parse(message) as Record<string, unknown>;
         if (channel === REDIS_CHANNEL_SSE_AUCTION && data.auctionId) {
-          const ALLOWED_AUCTION_EVENT_TYPES = new Set([
-            'newBid',
-            'auctionClosed',
-            'ping',
-          ]);
           const rawType = data.type as string | undefined;
           const eventType =
             typeof rawType === 'string' &&

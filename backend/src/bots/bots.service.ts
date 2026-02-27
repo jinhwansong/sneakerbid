@@ -14,7 +14,7 @@ import {
   RELIST_AUCTION_DURATION_SEC,
   RELIST_DELAY_MAX_SEC,
   RELIST_DELAY_MIN_SEC,
-} from '@/common/constant/bot.constants';
+} from '@/common/constants/bot.constants';
 import { Auction, Bot } from '@prisma/client';
 
 /** 랜덤 정수 생성 */
