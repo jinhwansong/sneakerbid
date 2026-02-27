@@ -8,13 +8,13 @@
 
 ### Backend
 - [x] SSE Redis Pub/Sub *(완료)*
-- [ ] payOrder 조건부 상태 전환 보장 (이중 결제 방지)
-- [ ] PENDING 주문 타임아웃 Cron
-- [ ] 결제 실패 시 Auction REOPEN
+- [x] payOrder 조건부 상태 전환 보장 (이중 결제 방지) *(완료)*
+- [x] PENDING 주문 타임아웃 Cron *(3일 초과 시 유찰 처리)* *(완료)*
+- [x] 결제 실패 시 Auction REOPEN *(완료)*
 
 ### Frontend
 - [x] SSE 재연결(backoff) *(완료)*
-- [ ] 입찰 실패 UX 개선
+- [x] 입찰 실패 UX 개선 *(완료: error 토스트, 흔들림 애니메이션, 아이콘)*
 
 ---
 
@@ -60,9 +60,9 @@ interface AuctionClosedPayload {
 ## 🔒 보안 (Security)
 
 ### Backend
-- [ ] payOrder: `UPDATE ... WHERE status='PENDING'` 조건부 전환 (동시 결제 방지)
-- [ ] Redis publish 실패 시 로깅 (현재 `.catch(() => {})` 무시)
-- [ ] buyNow 전 잔액 사전 검증 (선택)
+- [x] payOrder: `UPDATE ... WHERE status='PENDING'` 조건부 전환 (동시 결제 방지) *(완료)*
+- [x] Redis publish 실패 시 로깅 (현재 `.catch(() => {})` 무시) *(완료)*
+- [x] buyNow 전 잔액 사전 검증 (선택) *(완료)*
 
 ### Frontend
 - *(SSE 인증은 Guest-First 설계로 의도적 미적용)*
@@ -106,5 +106,5 @@ interface AuctionClosedPayload {
 ## 🎨 Polish
 
 ### Frontend
-- [ ] 종료 임박 강조 UI
-- [ ] 최고 입찰자 표시
+- [x] 종료 임박 강조 UI *(완료: DetailProductImage urgent 타이머, Badge ending_soon)*
+- [x] 최고 입찰자 표시 *(완료: BidCard TOP 뱃지, Live Bids)*

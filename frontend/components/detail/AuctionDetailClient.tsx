@@ -104,7 +104,9 @@ export default function AuctionDetailClient({
       return;
     }
     if (bidAmount < minBid) {
-      setBidError(`현재가보다 높은 금액(${formatPrice(minBid)})만 가능합니다.`);
+      const msg = `현재가보다 높은 금액(${formatPrice(minBid)})만 가능합니다.`;
+      setBidError(msg);
+      showToast(msg, 'error');
       return;
     }
 
@@ -117,12 +119,12 @@ export default function AuctionDetailClient({
       showToast('입찰이 완료되었습니다.');
     } catch (err) {
       const msg = err instanceof Error ? err.message : '입찰에 실패했습니다.';
-      setBidError(
+      const displayMsg =
         msg.includes('로그인') || msg.includes('401')
           ? '로그인이 필요합니다.'
-          : msg,
-      );
-      showToast(msg);
+          : msg;
+      setBidError(displayMsg);
+      showToast(displayMsg, 'error');
     }
   };
 

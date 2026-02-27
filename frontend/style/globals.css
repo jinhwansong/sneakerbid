@@ -174,3 +174,20 @@
 .global-loading-bar {
   animation: loading-bar 1.2s ease-in-out infinite;
 }
+
+/* 입찰 실패 시 흔들림 */
+@keyframes shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  20%, 60% {
+    transform: translateX(-4px);
+  }
+  40%, 80% {
+    transform: translateX(4px);
+  }
+}
+
+@utility animate-shake {
+  animation: shake 0.4s ease-in-out;
+}

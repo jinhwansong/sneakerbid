@@ -3,6 +3,7 @@
 import React from 'react';
 import { ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/cn';
+import { Button } from '@/components/common/Button';
 
 export interface DropdownOption {
   label: string;
@@ -28,10 +29,14 @@ export default function Dropdown({
 
   return (
     <div className={cn('relative group', className)}>
-      <button className="flex items-center gap-1.5 text-sm font-bold text-text-main cursor-pointer h-10">
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-10 gap-1.5 text-sm font-bold text-text-main"
+      >
         {selectedOption?.label || '선택'}
         <ChevronDown size={16} className="text-text-muted transition-transform group-hover:rotate-180" />
-      </button>
+      </Button>
       
       {/* Dropdown Menu Container with Bridge for Hover */}
       <div className={cn(
@@ -40,18 +45,21 @@ export default function Dropdown({
       )}>
         <div className="bg-bg-main border border-border-main rounded-2xl shadow-xl overflow-hidden">
           {options.map((opt) => (
-            <button
+            <Button
               key={opt.value}
+              variant="ghost"
+              size="md"
+              fullWidth
               onClick={() => onSelect(opt.value)}
               className={cn(
-                'w-full px-5 py-3 text-left text-xs font-bold transition-colors cursor-pointer',
+                'justify-start px-5 py-3 text-xs rounded-none',
                 value === opt.value
                   ? 'bg-bg-sub text-brand-primary'
                   : 'text-text-sub hover:bg-bg-sub hover:text-text-main'
               )}
             >
               {opt.label}
-            </button>
+            </Button>
           ))}
         </div>
       </div>

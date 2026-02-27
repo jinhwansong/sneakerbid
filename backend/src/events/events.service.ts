@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Observable, Subject, interval, map, merge } from 'rxjs';
 import type { MessageEvent } from '@nestjs/common';
 import type Redis from 'ioredis';
@@ -26,13 +26,18 @@ export class EventsService implements OnModuleInit {
   /** 거래내역 구독자 (새 체결 시 브로드캐스트) */
   private readonly historySubject = new Subject<MessageEvent>();
 
+  private readonly logger = new Logger(EventsService.name);
+
   constructor(private readonly redis: RedisService) {}
 
-  onModuleInit(): void {
+  async onModuleInit(): Promise<void> {
     const sub: Redis = this.redis.getSubscriber();
-    void sub
-      .subscribe(REDIS_CHANNEL_SSE_AUCTION, REDIS_CHANNEL_SSE_HISTORY)
-      .catch(() => {});
+    try {
+      await sub.subscribe(REDIS_CHANNEL_SSE_AUCTION, REDIS_CHANNEL_SSE_HISTORY);
+    } catch (err) {
+      this.logger.error('Redis subscribe failed', err);
+      throw err;
+    }
     sub.on('message', (channel: string, message: string) => {
       try {
         const data = JSON.parse(message) as Record<string, unknown>;
@@ -96,7 +101,9 @@ export class EventsService implements OnModuleInit {
         REDIS_CHANNEL_SSE_HISTORY,
         JSON.stringify({ type: 'newDeal', payload }),
       )
-      .catch(() => {});
+      .catch((err) =>
+        this.logger.warn('Redis publish newDeal failed', { err: err as Error }),
+      );
   }
 
   /** 새 입찰 이벤트 브로드캐스트 */
@@ -106,7 +113,12 @@ export class EventsService implements OnModuleInit {
         REDIS_CHANNEL_SSE_AUCTION,
         JSON.stringify({ auctionId, type: 'newBid', payload }),
       )
-      .catch(() => {});
+      .catch((err) =>
+        this.logger.warn('Redis publish newBid failed', {
+          auctionId,
+          err: err as Error,
+        }),
+      );
   }
 
   /** 경매 종료 이벤트 브로드캐스트 */

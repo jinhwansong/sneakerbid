@@ -157,13 +157,14 @@ model Auction {
 // Bid (입찰 기록, immutable)
 // -----------------------------------------------------------------------------
 model Bid {
-  id         String        @id @default(uuid())
-  auctionId  String
-  userId     String
-  bidPrice   Int
-  sourceType BidSourceType @default(USER)
-  strategyType String?     // BOT일 때 AGGRESSIVE | CONSERVATIVE | SNIPER
-  createdAt  DateTime     @default(now())
+  id            String    @id @default(uuid())
+  auctionId     String
+  userId        String
+  bidPrice      Int
+  sourceType    BidSourceType @default(USER)
+  strategyType  String?   // BOT일 때 AGGRESSIVE | CONSERVATIVE | SNIPER
+  createdAt     DateTime  @default(now())
+  disqualifiedAt DateTime? // 유찰/결제실패 재오픈 시 해당 입찰 제외용
 
   auction Auction @relation(fields: [auctionId], references: [id], onDelete: Cascade)
   user    User    @relation(fields: [userId], references: [id], onDelete: Restrict)
