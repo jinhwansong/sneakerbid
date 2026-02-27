@@ -11,9 +11,16 @@ export interface NewBidPayload {
 
 export type AuctionEventType = 'newBid' | 'auctionClosed' | 'ping';
 
+/** auctionClosed 이벤트 페이로드 */
+export interface AuctionClosedPayload {
+  status: 'CLOSED' | 'buy_now';
+  winnerUserId: string | null;
+  finalPrice: number;
+}
+
 export interface AuctionEventPayload {
   type: AuctionEventType;
-  payload?: NewBidPayload;
+  payload?: NewBidPayload | AuctionClosedPayload;
 }
 
 /** 거래내역 SSE - 새 체결 시 */

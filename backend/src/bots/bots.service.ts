@@ -2,9 +2,10 @@ import { Inject, Injectable } from '@nestjs/common';
 import { Cron, Interval } from '@nestjs/schedule';
 import { PrismaService } from '@/prisma/prisma.service';
 import { AuctionsService } from '@/auctions/auctions.service';
-import { cooldownKey } from './cooldown.store';
+import { auctionCooldownKey, cooldownKey } from './cooldown.store';
 import type { BotCooldownStore } from './cooldown.store';
 import {
+  AUCTION_COOLDOWN_SEC,
   BID_STAGGER_MS,
   BIDS_PER_TURN,
   BOT_COOLDOWN_MS,
@@ -13,7 +14,7 @@ import {
   RELIST_AUCTION_DURATION_SEC,
   RELIST_DELAY_MAX_SEC,
   RELIST_DELAY_MIN_SEC,
-} from '@/common/constant/bot.constants';
+} from '@/common/constants/bot.constants';
 import { Auction, Bot } from '@prisma/client';
 
 /** 랜덤 정수 생성 */
@@ -183,27 +184,12 @@ export class BotsService {
     return attempts;
   }
 
-  /** 쿨다운 통과 여부 (키 없거나 만료 시 입찰 가능) */
-  private async isCooldownOk(
-    auctionId: string,
-    botId: string,
-  ): Promise<boolean> {
-    const val = await this.cooldownStore.get(cooldownKey(auctionId, botId));
-    return val === null;
-  }
-
-  /** 쿨다운 설정 */
-  private async setCooldown(auctionId: string, botId: string): Promise<void> {
-    await this.cooldownStore.set(
-      cooldownKey(auctionId, botId),
-      String(Date.now()),
-      Math.ceil(BOT_COOLDOWN_MS / 1000),
-    );
-  }
-
   /** 쿨다운 해제 (입찰 실패 시) */
   private async clearCooldown(auctionId: string, botId: string): Promise<void> {
-    await this.cooldownStore.delete(cooldownKey(auctionId, botId));
+    await Promise.all([
+      this.cooldownStore.delete(cooldownKey(auctionId, botId)),
+      this.cooldownStore.delete(auctionCooldownKey(auctionId)),
+    ]);
   }
 
   /** 입찰가 계산 (minBid~maxBid 범위 내 랜덤), 불가 시 null */
@@ -239,17 +225,23 @@ export class BotsService {
     auctionId: string;
     bidPrice: number;
   } | null> {
-    if (!(await this.isCooldownOk(auction.id, bot.id))) return null;
-    await this.setCooldown(auction.id, bot.id);
+    const acquired = await this.cooldownStore.acquireCooldown(
+      auction.id,
+      bot.id,
+      Math.ceil(BOT_COOLDOWN_MS / 1000),
+      AUCTION_COOLDOWN_SEC,
+    );
+    if (!acquired) return null;
     try {
-      if (!this.validateBid(auction, bot, now)) return null;
-
+      if (!this.validateBid(auction, bot, now)) {
+        await this.clearCooldown(auction.id, bot.id);
+        return null;
+      }
       const bidPrice = this.computeBidPrice(auction, bot);
       if (bidPrice === null) {
         await this.clearCooldown(auction.id, bot.id);
         return null;
       }
-
       const result = await this.auctionsService.placeBidAsBot(
         auction.id,
         bidPrice,

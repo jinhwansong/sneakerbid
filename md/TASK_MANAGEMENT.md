@@ -21,15 +21,39 @@
 ## ⚙️ Important (완성도 상승)
 
 ### Backend
-- [ ] 경매 종료 전용 이벤트 (auctionClosed)
-- [ ] 봇 시뮬레이션 개선 (per-auction cooldown 등)
-- [ ] EventsService 구독 0일 때 Subject 정리
-- [ ] closeExpiredAuctions 배치 크기/타임아웃
+- [x] 경매 종료 전용 이벤트 (auctionClosed)
+- [x] 봇 시뮬레이션 개선 (per-auction cooldown 등)
+- [x] EventsService 구독 0일 때 Subject 정리
+- [x] closeExpiredAuctions 배치 크기/타임아웃
 - [ ] 찜하기 API (POST/DELETE wishlist, isWishlisted 반영)
 
 ### Frontend
+- [ ] auctionClosed 이벤트 수신 및 UI 반영 *(아래 상세)*
 - [ ] 낙관적 입찰
 - [ ] 상태 기반 UI 정리
+
+---
+
+#### auctionClosed 이벤트 — 프론트 작업 상세
+
+백엔드에서 경매 종료 시 SSE로 `auctionClosed` 이벤트를 전송합니다. 프론트는 이를 수신해 즉시 UI를 갱신해야 합니다.
+
+| 작업 | 위치 | 내용 |
+|------|------|------|
+| 이벤트 파싱 | `useAuctionEvents` | `parsed?.type === 'auctionClosed'` 분기 추가, `onAuctionClosed` 콜백 호출 |
+| 상태 반영 | `AuctionDetailClient` | `onAuctionClosed`에서 `item.status = 'closed'`, `isExpired = true` 등으로 UI 전환 |
+| 낙찰자/즉구 표시 | 상세 페이지 | `payload.status === 'buy_now'` → 즉시구매 완료, `winnerUserId` → 낙찰자 표시 |
+| 입찰 비활성화 | `DetailBidControl` | auctionClosed 수신 시 즉시 PLACE BID / BUY NOW 버튼 비활성화 |
+| 카운트다운 정지 | `useCountdown` | `isExpired` 강제 설정 또는 `endTime` 과거로 갱신 |
+
+**페이로드 타입** (참고):
+```ts
+interface AuctionClosedPayload {
+  status: 'CLOSED' | 'buy_now';
+  winnerUserId: string | null;
+  finalPrice: number;
+}
+```
 
 ---
 
