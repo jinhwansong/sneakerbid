@@ -12,6 +12,7 @@ import Image from 'next/image';
 import { useTradeHistory } from '@/hooks/query/useTradeHistory';
 import { useHistoryEvents } from '@/hooks/useHistoryEvents';
 import { queryKeys } from '@/hooks/query/queryKeys';
+import HistorySkeleton from '@/components/skeleton/HistorySkeleton';
 
 export default function HistoryPage() {
   const [period, setPeriod] = useState<'1m' | '3m' | '6m' | 'all'>('all');
@@ -23,7 +24,6 @@ export default function HistoryPage() {
     search: search.trim() || undefined,
     limit: 50,
   });
-
   useHistoryEvents({
     isActive: true,
     onNewDeal: useCallback(() => {
@@ -37,6 +37,8 @@ export default function HistoryPage() {
     setPeriod(value as '1m' | '3m' | '6m' | 'all');
   };
 
+  
+  if (isLoading) return <HistorySkeleton />;
   const stats = data?.stats;
   const items = data?.items ?? [];
 
@@ -189,4 +191,12 @@ export default function HistoryPage() {
     </main>
   );
 }
+
+
+
+
+
+
+
+
 

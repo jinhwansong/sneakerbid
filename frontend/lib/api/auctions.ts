@@ -1,4 +1,4 @@
-import type { AuctionHistoryQuery, AuctionHistoryResponse, AuctionListQuery, BidLogItem, CreateAuctionDto, CreateAuctionResponse, DeleteAuctionResponse, GetAuctionListResponse, GetAuctionResponse, GetMainAuctionsResponse, PlaceBidResponse, UpdateAuctionDto, UpdateAuctionResponse } from '@/types/auction';
+import type { AuctionHistoryQuery, AuctionHistoryResponse, AuctionListQuery, AuctionSummary, BidLogItem, CreateAuctionDto, CreateAuctionResponse, DeleteAuctionResponse, GetAuctionListResponse, GetAuctionResponse, GetMainAuctionsResponse, PlaceBidResponse, UpdateAuctionDto, UpdateAuctionResponse } from '@/types/auction';
 import { apiClient } from './client';
 
 /** 경매 관련 API */
@@ -33,6 +33,26 @@ export const auctions = {
     );
   },
 
+  /** 내 입찰 경매 목록 (status: ongoing | closed | all) */
+  getMyBidding: (status?: 'ongoing' | 'closed' | 'all') => {
+    const params = new URLSearchParams();
+    if (status && status !== 'ongoing') params.append('status', status);
+    const queryString = params.toString();
+    return apiClient.get<AuctionSummary[]>(
+      `/auctions/me/bidding${queryString ? `?${queryString}` : ''}`,
+    );
+  },
+
+  /** 내 경매 등록 목록 */
+  getMySelling: (status?: 'all' | 'ongoing' | 'closed') => {
+    const params = new URLSearchParams();
+    if (status && status !== 'all') params.append('status', status);
+    const queryString = params.toString();
+    return apiClient.get<AuctionSummary[]>(
+      `/auctions/me/selling${queryString ? `?${queryString}` : ''}`,
+    );
+  },
+
   /** 경매 상세 조회 */
   get: (id: string) => apiClient.get<GetAuctionResponse>(`/auctions/${id}`),
 
@@ -54,5 +74,7 @@ export const auctions = {
 
   /** 입찰하기 */
   placeBid: (auctionId: string, bidPrice: number) =>
-    apiClient.post<PlaceBidResponse>(`/auctions/${auctionId}/bids`, bidPrice),
+    apiClient.post<PlaceBidResponse>(`/auctions/${auctionId}/bids`, {
+      bidPrice,
+    }),
 };

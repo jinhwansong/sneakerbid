@@ -167,6 +167,75 @@ export class AuctionsService {
     };
   }
 
+  /** 내가 등록한 경매 목록 (판매자) */
+  async getMySellingAuctions(
+    user: RequestUser,
+    statusFilter: 'all' | 'ongoing' | 'closed' = 'all',
+  ): Promise<AuctionSummary[]> {
+    const now = new Date();
+    const where: Prisma.AuctionWhereInput = {
+      sellerUserId: user.id,
+      ...(statusFilter === 'ongoing' && {
+        status: 'OPEN',
+        endTime: { gt: now },
+      }),
+      ...(statusFilter === 'closed' && {
+        OR: [{ status: 'CLOSED' }, { status: 'OPEN', endTime: { lte: now } }],
+      }),
+    };
+
+    const auctions = await this.prisma.auction.findMany({
+      where,
+      include: {
+        sneaker: true,
+        _count: { select: { bids: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    return auctions.map((a) => this.toSummary(a));
+  }
+
+  /** 내가 입찰한 경매 목록 (status: ongoing | closed | all) */
+  async getMyBiddingAuctions(
+    user: RequestUser,
+    status: 'ongoing' | 'closed' | 'all' = 'ongoing',
+  ): Promise<AuctionSummary[]> {
+    const now = new Date();
+    const baseWhere: Prisma.AuctionWhereInput = {
+      bids: {
+        some: {
+          userId: user.id,
+          disqualifiedAt: null,
+        },
+      },
+    };
+
+    const statusWhere: Prisma.AuctionWhereInput =
+      status === 'ongoing'
+        ? { status: 'OPEN', endTime: { gt: now } }
+        : status === 'closed'
+          ? {
+              OR: [
+                { status: 'CLOSED' },
+                { status: 'OPEN', endTime: { lte: now } },
+              ],
+            }
+          : {};
+
+    const auctions = await this.prisma.auction.findMany({
+      where: { ...baseWhere, ...statusWhere },
+      include: {
+        sneaker: true,
+        _count: { select: { bids: true } },
+      },
+      orderBy:
+        status === 'ongoing'
+          ? { endTime: 'asc' }
+          : [{ closedAt: 'desc' }, { updatedAt: 'desc' }],
+    });
+    return auctions.map((a) => this.toSummary(a));
+  }
+
   /** 경매 리스트  */
   async listAuctions(query: AuctionListQueryDto): Promise<{
     items: AuctionSummary[];
@@ -182,7 +251,10 @@ export class AuctionsService {
       ...(size && { size }),
     };
 
-    let orderBy: Prisma.AuctionOrderByWithAggregationInput;
+    let orderBy:
+      | Prisma.AuctionOrderByWithAggregationInput
+      | Prisma.AuctionOrderByWithRelationInput
+      | Prisma.AuctionOrderByWithRelationInput[];
     switch (sort) {
       case 'ending_soon':
         orderBy = { endTime: 'asc' };
@@ -192,6 +264,9 @@ export class AuctionsService {
         break;
       case 'price_low':
         orderBy = { currentPrice: 'asc' };
+        break;
+      case 'bid_count':
+        orderBy = [{ bids: { _count: 'desc' } }, { id: 'asc' }];
         break;
       case 'newest':
       default:
@@ -273,7 +348,6 @@ export class AuctionsService {
     user: RequestUser,
   ): Promise<{ bidId: string; currentPrice: number }> {
     const now = new Date();
-
     const result = await this.prisma.$transaction(async (tx) => {
       const locked = await lockAuctionForUpdate(tx, auctionId, {
         status: 'OPEN',
@@ -799,6 +873,8 @@ export class AuctionsService {
       status: auction.status,
       bidCount: auction._count?.bids ?? undefined,
       buyNowPrice: auction.buyNowPrice,
+      winnerUserId: auction.winnerUserId ?? undefined,
+      closedAt: auction.closedAt ?? undefined,
     };
   }
 }

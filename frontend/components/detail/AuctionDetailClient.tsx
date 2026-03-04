@@ -4,11 +4,16 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AuctionItem, BidLogItem } from '@/types/auction';
 import { useCountdown } from '@/hooks/useCountdown';
-import { useAuctionEvents } from '@/hooks/useAuctionEvents';
+import {
+  useAuctionEvents,
+  type AuctionClosedPayload,
+} from '@/hooks/useAuctionEvents';
 import { useMe } from '@/hooks/query/useMe';
+import { useQueryClient } from '@tanstack/react-query';
 import { formatPrice } from '@/lib/format';
 import { useToastStore } from '@/store/useToastStore';
 import { api } from '@/lib/api';
+import { queryKeys } from '@/hooks/query/queryKeys';
 import { sortBidHistory } from '@/lib/bidHistory';
 import {
   DetailProductImage,
@@ -31,16 +36,20 @@ interface AuctionDetailClientProps {
 
 const BID_STEP = 10000;
 
+/** 경매 상태: active(진행중) | closed(종료) */
+type AuctionStatus = 'active' | 'closed';
+
 export default function AuctionDetailClient({
   item,
   auctionId,
 }: AuctionDetailClientProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { data: user } = useMe();
   const showToast = useToastStore((s) => s.showToast);
 
   const requireLogin = useCallback(() => {
-    showToast('로그인이 필요합니다.');
+    showToast('로그인이 필요합니다.', 'error');
     router.push('/login');
   }, [router, showToast]);
 
@@ -52,9 +61,23 @@ export default function AuctionDetailClient({
   const [bidAmount, setBidAmount] = useState(item.currentBid + BID_STEP);
   const [bidError, setBidError] = useState('');
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [closedPayload, setClosedPayload] = useState<AuctionClosedPayload | null>(
+    null,
+  );
 
   /** 카운트다운을 관리하는 훅 */
   const { countdownLabel, isExpired } = useCountdown(item.endTime);
+
+  /** 상태 기반: 경매 종료 여부 (단일 소스) */
+  const auctionStatus: AuctionStatus = useMemo(() => {
+    if (item.status === 'closed' || item.status === 'failed' || item.status === 'buy_now')
+      return 'closed';
+    if (isExpired) return 'closed';
+    if (closedPayload) return 'closed';
+    return 'active';
+  }, [item.status, isExpired, closedPayload]);
+
+  const isAuctionActive = auctionStatus === 'active';
 
   /** 실시간 입찰 이벤트 처리 */
   const handleNewBidFromSSE = useCallback((bid: BidLogItem) => {
@@ -63,11 +86,22 @@ export default function AuctionDetailClient({
     setParticipants((prev) => prev + 1);
   }, []);
 
-  /** 실시간 입찰 이벤트 구독 */
+  /** auctionClosed 이벤트 처리 */
+  const handleAuctionClosed = useCallback((payload: AuctionClosedPayload) => {
+    setClosedPayload(payload);
+    setCurrentPrice(payload.finalPrice);
+    showToast('경매가 종료되었습니다.', 'success');
+    queryClient.invalidateQueries({ queryKey: queryKeys.me });
+    queryClient.invalidateQueries({ queryKey: queryKeys.orders.my });
+    queryClient.invalidateQueries({ queryKey: queryKeys.auctions.myBidding });
+  }, [showToast, queryClient]);
+
+  /** 실시간 입찰/종료 이벤트 구독 */
   useAuctionEvents({
     auctionId: item.id,
-    isActive: item.status !== 'closed' && !isExpired,
+    isActive: isAuctionActive,
     onNewBid: handleNewBidFromSSE,
+    onAuctionClosed: handleAuctionClosed,
   });
 
   /** 입찰 내역 정렬 */
@@ -97,7 +131,7 @@ export default function AuctionDetailClient({
 
   const minBid = displayCurrentPrice + BID_STEP;
 
-  /** 입찰하기 */
+  /** 입찰하기 (낙관적 업데이트) */
   const handleBid = async () => {
     if (!user) {
       requireLogin();
@@ -109,15 +143,36 @@ export default function AuctionDetailClient({
       showToast(msg, 'error');
       return;
     }
+    if (user.balance < bidAmount) {
+      const msg = '잔액이 부족합니다.';
+      setBidError(msg);
+      showToast(msg, 'error');
+      return;
+    }
 
     setBidError('');
+
+    /** 낙관적 업데이트: 즉시 가격/참여자 반영 (bidHistory는 SSE newBid로 갱신) */
+    const prevPrice = currentPrice;
+    const prevParticipants = participants;
+    const prevBidAmount = bidAmount;
+
+    setCurrentPrice(bidAmount);
+    setParticipants((prev) => prev + 1);
+    setBidAmount(bidAmount + BID_STEP);
+
     try {
       const res = await api.auctions.placeBid(auctionId, bidAmount);
-      setParticipants((prev) => prev + 1);
       setCurrentPrice(res.currentPrice);
       setBidAmount(res.currentPrice + BID_STEP);
       showToast('입찰이 완료되었습니다.');
+      queryClient.invalidateQueries({ queryKey: queryKeys.me });
+      queryClient.invalidateQueries({ queryKey: queryKeys.auctions.myBidding });
     } catch (err) {
+      /** 실패 시 조건부 롤백: SSE로 갱신된 상태는 유지, 낙관적 업데이트만 되돌림 */
+      setCurrentPrice((prev) => (prev === bidAmount ? prevPrice : prev));
+      setParticipants((prev) => (prev === prevParticipants + 1 ? prevParticipants : prev));
+      setBidAmount((prev) => (prev === prevBidAmount + BID_STEP ? prevBidAmount : prev));
       const msg = err instanceof Error ? err.message : '입찰에 실패했습니다.';
       const displayMsg =
         msg.includes('로그인') || msg.includes('401')
@@ -158,23 +213,29 @@ export default function AuctionDetailClient({
     setBidError('');
   };
 
-  const isAuctionActive = item.status !== 'closed';
+  /** 표시용 상태 (auctionClosed 반영) */
+  const displayStatus = useMemo(() => {
+    if (closedPayload) {
+      return closedPayload.status === 'buy_now' ? 'buy_now' : 'closed';
+    }
+    return item.status;
+  }, [closedPayload, item.status]);
 
   const timerStatus = useMemo(() => {
-    if (item.status === 'closed' || isExpired) return 'closed';
+    if (!isAuctionActive) return 'closed';
     if (item.status === 'ending_soon') return 'urgent';
     return 'normal';
-  }, [item.status, isExpired]);
+  }, [isAuctionActive, item.status]);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_0.8fr] gap-8 lg:gap-16">
       <div className="space-y-6">
         <DetailProductImage
-          item={item}
+          item={{ ...item, status: displayStatus }}
           countdownLabel={countdownLabel}
           timerStatus={timerStatus}
           isAuctionActive={isAuctionActive}
-          isExpired={isExpired}
+          isExpired={!isAuctionActive}
         />
         <DetailProductInfo item={item} />
       </div>

@@ -77,6 +77,53 @@ export class AuctionsController {
     return this.auctionsService.listAuctions(query);
   }
 
+  @Get('me/bidding')
+  @Roles(UserRole.USER)
+  @UseGuards(RolesGuard)
+  @ApiBearerAuth('access-token')
+  @ApiOperation({
+    summary: '내 입찰 경매 목록',
+    description: '로그인 사용자가 입찰한 경매 목록 (ongoing: 진행중, closed: 종료됨, all: 전체)',
+  })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    description: 'ongoing | closed | all (기본: ongoing)',
+  })
+  @ApiResponse({ status: 200, description: 'OK' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  getMyBidding(
+    @User() user: RequestUser,
+    @Query('status') status?: 'ongoing' | 'closed' | 'all',
+  ) {
+    return this.auctionsService.getMyBiddingAuctions(
+      user,
+      status ?? 'ongoing',
+    );
+  }
+
+  @Get('me/selling')
+  @Roles(UserRole.USER)
+  @UseGuards(RolesGuard)
+  @ApiBearerAuth('access-token')
+  @ApiOperation({
+    summary: '내 경매 등록 목록',
+    description: '로그인 사용자가 등록한 경매 목록',
+  })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    description: 'all | ongoing | closed',
+  })
+  @ApiResponse({ status: 200, description: 'OK' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  getMySelling(
+    @User() user: RequestUser,
+    @Query('status') status?: 'all' | 'ongoing' | 'closed',
+  ) {
+    return this.auctionsService.getMySellingAuctions(user, status ?? 'all');
+  }
+
   @Get(':id')
   @Public()
   @ApiOperation({ summary: '경매 상세', description: '경매 단건 상세 조회' })

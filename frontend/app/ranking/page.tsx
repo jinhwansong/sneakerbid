@@ -8,6 +8,7 @@ import { cn } from '@/lib/cn';
 import { formatPrice } from '@/lib/format';
 import VirtualizedList from '@/components/common/VirtualizedList';
 import { useAuctionList, auctionListPagesToItems } from '@/hooks/query/useAuctionList';
+import RankingSkeleton from '@/components/skeleton/RankingSkeleton';
 
 const TABS = [
   { id: 'popular', label: '인기 급상승', icon: Flame, sort: 'popular' as const },
@@ -27,7 +28,7 @@ export default function RankingPage() {
   const handleTabChange = (tabId: string) => {
     setActiveTab(tabId);
   };
-
+  if (isLoading) return <RankingSkeleton />;
   return (
     <main className="max-w-4xl mx-auto px-5 py-8 md:py-12">
       {/* Page Header */}
@@ -133,3 +134,5 @@ export default function RankingPage() {
     </main>
   );
 }
+
+

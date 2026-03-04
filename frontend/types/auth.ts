@@ -17,4 +17,9 @@ export interface MeResponse {
   profileImageUrl?: string | null;
   createdAt: string;
   updatedAt: string;
+  stats?: {
+    bidCount: number;
+    wonCount: number;
+    soldCount: number;
+  };
 }

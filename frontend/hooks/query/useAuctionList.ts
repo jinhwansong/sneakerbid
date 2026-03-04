@@ -32,7 +32,7 @@ export interface UseAuctionListParams {
 export function useAuctionList(params: UseAuctionListParams = {}) {
   const { brand = null, size = null, sort = 'ending_soon' } = params;
   const query: AuctionListQuery = {
-    limit: 20,
+    limit: 10,
     ...(brand != null && brand !== '' && { brand }),
     ...(size != null && { size: String(size) }),
     ...(sort && { sort }),

@@ -26,9 +26,9 @@ export default function Header() {
   ];
 
   const profileNavItem = [
-    { label: '상품 등록', href: '/auctions/new' },
     { label: '내 프로필', href: '/me' },
     { label: '내 경매', href: '/me/auctions' },
+    { label: '내 입찰', href: '/me/bids' },
     { label: '찜 목록', href: '/me/wishlist' },
   ];
 

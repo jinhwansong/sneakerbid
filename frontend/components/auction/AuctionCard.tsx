@@ -1,7 +1,9 @@
 'use client';
 
+import { useState, type MouseEvent } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Users, Clock } from 'lucide-react';
 import { Button } from '@/components/common/Button';
@@ -9,17 +11,61 @@ import Badge from '../common/Badge';
 import { formatPrice } from '@/lib/format';
 import { useRemainingTime } from '@/hooks/useRemainingTime';
 import { useToastStore } from '@/store/useToastStore';
+import { useMe } from '@/hooks/query/useMe';
+import { useQueryClient } from '@tanstack/react-query';
+import { api } from '@/lib/api';
+import { queryKeys } from '@/hooks/query/queryKeys';
 import { AuctionItem } from '@/types/auction';
+
+const BID_STEP = 10000;
 
 interface AuctionCardProps {
   item: AuctionItem;
 }
 
 export default function AuctionCard({ item }: AuctionCardProps) {
+  const router = useRouter();
   const { showToast } = useToastStore((state) => state);
+  const { data: user } = useMe();
+  const queryClient = useQueryClient();
   const remainingTime = useRemainingTime(item.endTime);
-  const handleBid = () => {
-    showToast(`입찰 시작: ${item.modelName}`);
+  const [isBidding, setIsBidding] = useState(false);
+
+  const minBid = item.currentBid + BID_STEP;
+
+  const handleBid = async (e: MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (item.status === 'closed') return;
+
+    if (!user) {
+      showToast('로그인이 필요합니다.', 'error');
+      router.push('/login');
+      return;
+    }
+
+    if (user.balance < minBid) {
+      showToast('잔액이 부족합니다.', 'error');
+      return;
+    }
+
+    setIsBidding(true);
+    try {
+      await api.auctions.placeBid(item.id, minBid);
+      showToast('입찰이 완료되었습니다.');
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.me }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.auctions.myBidding }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.auctions.main }),
+        queryClient.invalidateQueries({ queryKey: ['auctions', 'list'] }),
+      ]);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '입찰에 실패했습니다.';
+      showToast(msg, 'error');
+    } finally {
+      setIsBidding(false);
+    }
   };
 
   return (
@@ -89,9 +135,13 @@ export default function AuctionCard({ item }: AuctionCardProps) {
           variant="primary"
           size="md"
           fullWidth
-          disabled={item.status === 'closed'}
+          disabled={item.status === 'closed' || isBidding}
         >
-          {item.status === 'closed' ? '경매 종료' : '지금 바로 입찰하기'}
+          {item.status === 'closed'
+            ? '경매 종료'
+            : isBidding
+              ? '입찰 중...'
+              : '지금 바로 입찰하기'}
         </Button>
 
         {/* Footer Info */}

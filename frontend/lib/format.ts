@@ -35,6 +35,22 @@ export const formatTime = () => {
   return `${hh}:${mm}:${ss}`;
 };
 
+/**
+ * ISO 날짜 문자열 또는 Date를 한국어 형식으로 포맷팅합니다.
+ * @param isoString - ISO 8601 날짜 문자열 또는 Date
+ * @returns 포맷팅된 문자열 (예: 2024년 1월 15일), 유효하지 않으면 '-'
+ */
+export const formatJoinDate = (isoString: string | Date | undefined): string => {
+  if (isoString == null || isoString === '') return '-';
+  const date = isoString instanceof Date ? isoString : new Date(isoString);
+  if (Number.isNaN(date.getTime())) return '-';
+  return date.toLocaleDateString('ko-KR', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+};
+
 export const formatCountdown = (totalSeconds: number) => {
   const hours = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
   const minutes = String(Math.floor((totalSeconds % 3600) / 60)).padStart(

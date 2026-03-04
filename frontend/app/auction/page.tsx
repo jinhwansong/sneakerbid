@@ -16,7 +16,7 @@ import {
 export default function AuctionListPage() {
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
   const [selectedSize, setSelectedSize] = useState<number | null>(null);
-  const [sortBy, setSortBy] = useState('ending_soon');
+  const [sortBy, setSortBy] = useState('popular');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   const {

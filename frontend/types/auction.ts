@@ -30,6 +30,8 @@ export interface AuctionItem {
   isWishlisted?: boolean;
   /** 상세 API에서 제공: 시작가 대비 현재가 상승률 (%) */
   priceIncreasePercent?: string;
+  /** 낙찰자 ID (closed 시 won/lost 판별용) */
+  winnerUserId?: string | null;
 }
 
 /** 입찰 로그 아이템 */
@@ -131,6 +133,9 @@ export interface AuctionSummary {
   status: 'OPEN' | 'CLOSED';
   bidCount?: number;
   buyNowPrice?: number | null;
+  /** 낙찰자 ID (closed 시 won/lost 판별용) */
+  winnerUserId?: string | null;
+  closedAt?: string | null; // ISO string
 }
 
 /** 메인 경매 목록 응답 */

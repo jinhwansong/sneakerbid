@@ -1,14 +1,23 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { ArrowUpRight, Timer, Users } from 'lucide-react';
 import Badge from '@/components/common/Badge';
 import { Button } from '@/components/common/Button';
 import { useToastStore } from '@/store/useToastStore';
+import { useMe } from '@/hooks/query/useMe';
+import { useQueryClient } from '@tanstack/react-query';
+import { api } from '@/lib/api';
+import { queryKeys } from '@/hooks/query/queryKeys';
 import { formatPrice } from '@/lib/format';
 import { useRemainingTime } from '@/hooks/useRemainingTime';
+import { useAuctionEvents } from '@/hooks/useAuctionEvents';
+import { updateMainCacheAuctionBid } from '@/lib/mainCacheUpdater';
 import { AuctionItem } from '@/types/auction';
+
+const BID_STEP = 10000;
 
 interface FeaturedAuctionProps {
   item: AuctionItem;
@@ -17,12 +26,64 @@ interface FeaturedAuctionProps {
 export default function FeaturedAuction({
   item,
 }: FeaturedAuctionProps) {
+  const router = useRouter();
   const [isWatched, setIsWatched] = useState(false);
+  const [isBidding, setIsBidding] = useState(false);
   const { showToast } = useToastStore((state) => state);
+  const { data: user } = useMe();
+  const queryClient = useQueryClient();
   const remainingTime = useRemainingTime(item.endTime);
 
-  const handleBid = () => {
-    showToast('입찰 시뮬레이션이 시작되었습니다.');
+  /** SSE 실시간 입찰 구독 - 캐시 갱신 */
+  const handleNewBid = useCallback(
+    (bid: { amount: number }) => {
+      updateMainCacheAuctionBid(queryClient, item.id, bid.amount, 1);
+    },
+    [queryClient, item.id],
+  );
+  const handleAuctionClosed = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: queryKeys.auctions.main });
+  }, [queryClient]);
+
+  useAuctionEvents({
+    auctionId: item.id,
+    isActive: item.status !== 'closed' && item.status !== 'failed' && item.status !== 'buy_now',
+    onNewBid: handleNewBid,
+    onAuctionClosed: handleAuctionClosed,
+  });
+
+  const minBid = item.currentBid + BID_STEP;
+
+  const handleBid = async () => {
+    if (item.status === 'closed') return;
+
+    if (!user) {
+      showToast('로그인이 필요합니다.', 'error');
+      router.push('/login');
+      return;
+    }
+
+    if (user.balance < minBid) {
+      showToast('잔액이 부족합니다.', 'error');
+      return;
+    }
+
+    setIsBidding(true);
+    try {
+      await api.auctions.placeBid(item.id, minBid);
+      showToast('입찰이 완료되었습니다.');
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.me }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.auctions.myBidding }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.auctions.main }),
+        queryClient.invalidateQueries({ queryKey: ['auctions', 'list'] }),
+      ]);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '입찰에 실패했습니다.';
+      showToast(msg, 'error');
+    } finally {
+      setIsBidding(false);
+    }
   };
 
   const handleWatch = () => {
@@ -104,9 +165,14 @@ export default function FeaturedAuction({
                 onClick={handleBid}
                 variant="secondary"
                 size="xl"
+                disabled={item.status === 'closed' || isBidding}
                 className="px-10 h-16 text-lg rounded-2xl shadow-xl shadow-brand-primary/30"
               >
-                지금 바로 입찰하기
+                {item.status === 'closed'
+                  ? '경매 종료'
+                  : isBidding
+                    ? '입찰 중...'
+                    : '지금 바로 입찰하기'}
               </Button>
               <Button
                 onClick={handleWatch}

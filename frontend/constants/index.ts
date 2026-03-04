@@ -18,6 +18,7 @@ export const SIZES = Array.from({ length: 8 }, (_, i) => 250 + i * 5);
 export const SORT_OPTIONS = [
   { label: '인기순', value: 'popular' },
   { label: '최신순', value: 'newest' },
+  { label: '입찰순', value: 'bid_count' },
   { label: '낮은 가격순', value: 'price_low' },
   { label: '마감 임박순', value: 'ending_soon' },
 ];

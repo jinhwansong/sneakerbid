@@ -20,7 +20,7 @@ export interface OrderItem {
   imageUrl: string;
   brand: string;
   finalPrice: number;
-  status: 'PENDING' | 'PAID' | 'CANCELLED';
+  status: 'PENDING' | 'PAID' | 'FAILED' | 'CANCELLED';
   createdAt: string;
   paidAt: string | null;
 }

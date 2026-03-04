@@ -34,6 +34,7 @@ export const SORT_OPTIONS = [
   'popular',
   'newest',
   'price_low',
+  'bid_count',
 ] as const;
 
 export const REFRESH_TTL = 7 * 24 * 60 * 60; // 7일(초)
