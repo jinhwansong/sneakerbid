@@ -1,10 +1,10 @@
 'use client';
-
 import Image from 'next/image';
 import { Clock } from 'lucide-react';
 import { AuctionItem } from '@/types/auction';
 import Badge from '@/components/common/Badge';
-import { cn } from '@/lib/cn';
+import { cn } from '@/lib/util/cn';
+
 
 interface DetailProductImageProps {
   item: AuctionItem;
@@ -14,6 +14,19 @@ interface DetailProductImageProps {
   isExpired: boolean;
 }
 
+/** 찜 버튼 공통 스타일 (상세페이지 기준) */
+export const WISHLIST_BUTTON_STYLE = {
+  base: 'z-50 flex items-center justify-center rounded-full shadow-md hover:shadow-lg hover:scale-110 active:scale-95 transition-all duration-200 cursor-pointer disabled:opacity-60',
+  default:
+    'w-10 h-10 bg-white/90 dark:bg-bg-main/95 border border-border-main/50',
+  active: 'bg-status-urgent/20 border-2 border-status-urgent/50',
+  icon: {
+    default: 'text-text-muted hover:text-status-urgent/70',
+    active: 'fill-status-urgent text-status-urgent',
+  },
+  iconSize: 18,
+} as const;
+
 export default function DetailProductImage({
   item,
   countdownLabel,
@@ -21,6 +34,9 @@ export default function DetailProductImage({
   isAuctionActive,
   isExpired,
 }: DetailProductImageProps) {
+
+
+
   return (
     <div className="relative aspect-square bg-bg-placeholder rounded-xl overflow-hidden group">
       <Image

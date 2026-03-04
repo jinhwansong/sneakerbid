@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { formatCountdown } from '@/lib/format';
+import { formatCountdown } from '@/lib/util/format';
 
 /** 경매 종료 시간까지의 카운트다운을 관리하는 훅  */
 export const useCountdown = (endTime: string) => {

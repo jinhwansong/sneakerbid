@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { motion, HTMLMotionProps } from 'framer-motion';
-import { cn } from '@/lib/cn';
+import { cn } from '@/lib/util/cn';
 
 const variants = {
   primary:

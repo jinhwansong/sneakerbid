@@ -1,20 +1,20 @@
 'use client';
 
-import { useState, type MouseEvent } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Users, Clock } from 'lucide-react';
+import { Heart, Users, Clock } from 'lucide-react';
 import { Button } from '@/components/common/Button';
 import Badge from '../common/Badge';
-import { formatPrice } from '@/lib/format';
+import { WISHLIST_BUTTON_STYLE } from '@/components/detail/DetailProductImage';
+import { formatPrice } from '@/lib/util/format';
+import { cn } from '@/lib/util/cn';
 import { useRemainingTime } from '@/hooks/useRemainingTime';
 import { useToastStore } from '@/store/useToastStore';
 import { useMe } from '@/hooks/query/useMe';
-import { useQueryClient } from '@tanstack/react-query';
-import { api } from '@/lib/api';
-import { queryKeys } from '@/hooks/query/queryKeys';
+import { useWishlistToggle } from '@/hooks/query/useMyWishlist';
+import { usePlaceBid } from '@/hooks/query/useMainAuctions';
 import { AuctionItem } from '@/types/auction';
 
 const BID_STEP = 10000;
@@ -29,15 +29,30 @@ export default function AuctionCard({ item }: AuctionCardProps) {
   const router = useRouter();
   const { showToast } = useToastStore((state) => state);
   const { data: user } = useMe();
-  const queryClient = useQueryClient();
+  const wishlistToggle = useWishlistToggle();
+  const placeBid = usePlaceBid();
   const remainingTime = useRemainingTime(item.endTime);
-  const [isBidding, setIsBidding] = useState(false);
 
   const minBid = item.currentBid + BID_STEP;
 
-  const handleBid = async (e: MouseEvent<HTMLButtonElement>) => {
+  const handleWishlist = async () => {
+    if (!user) {
+      showToast('로그인이 필요합니다.', 'error');
+      router.push('/login');
+      return;
+    }
+    try {
+      const result = await wishlistToggle.mutateAsync(item.id);
+      const next = result?.isWishlisted ?? !(item.isWishlisted ?? false);
+      showToast(next ? '관심 경매 추가 완료' : '관심 경매에서 제거되었습니다.');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '찜하기에 실패했습니다.';
+      showToast(msg, 'error');
+    }
+  };
+
+  const handleBid = async (e: React.MouseEvent) => {
     e.preventDefault();
-    e.stopPropagation();
 
     if (TERMINAL_STATES.has(item.status)) return;
 
@@ -52,21 +67,12 @@ export default function AuctionCard({ item }: AuctionCardProps) {
       return;
     }
 
-    setIsBidding(true);
     try {
-      await api.auctions.placeBid(item.id, minBid);
+      await placeBid.mutateAsync({ auctionId: item.id, amount: minBid });
       showToast('입찰이 완료되었습니다.');
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.me }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.auctions.myBidding }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.auctions.main }),
-        queryClient.invalidateQueries({ queryKey: ['auctions', 'list'] }),
-      ]);
     } catch (err) {
       const msg = err instanceof Error ? err.message : '입찰에 실패했습니다.';
       showToast(msg, 'error');
-    } finally {
-      setIsBidding(false);
     }
   };
 
@@ -74,15 +80,47 @@ export default function AuctionCard({ item }: AuctionCardProps) {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      whileHover={{ y: -4 }}
+      whileHover={{ scale: 1.01 }}
       transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
       className="group relative flex flex-col overflow-hidden rounded-2xl bg-bg-main border border-border-main hover:shadow-xl hover:shadow-black/5 dark:hover:shadow-white/5 transition-all"
     >
-      <Link href={`/auction/${item.id}`} className="flex flex-col flex-1">
-        <div className="absolute top-4 left-4 z-10">
-          <Badge status={item.status} />
-        </div>
+      <div className="absolute top-4 left-4 z-10">
+        <Badge status={item.status} />
+      </div>
+      {/* 찜 버튼: Link와 분리해 클릭이 fetch로 전달되도록 (z-[100]으로 최상단) */}
+      <div className="absolute top-3 right-3 z-100" style={{ isolation: 'isolate' }}>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            handleWishlist();
+          }}
+          disabled={
+            wishlistToggle.isPending && wishlistToggle.variables === item.id
+          }
+          className={cn(
+            WISHLIST_BUTTON_STYLE.base,
+            WISHLIST_BUTTON_STYLE.default,
+            item.isWishlisted && WISHLIST_BUTTON_STYLE.active,
+          )}
+          aria-label={item.isWishlisted ? '찜 해제' : '찜하기'}
+        >
+          <Heart
+            size={WISHLIST_BUTTON_STYLE.iconSize}
+            className={`transition-colors duration-200 ${
+              item.isWishlisted
+                ? WISHLIST_BUTTON_STYLE.icon.active
+                : WISHLIST_BUTTON_STYLE.icon.default
+            }`}
+          />
+        </button>
+      </div>
 
+      <Link
+        href={`/auction/${item.id}`}
+        className="flex flex-col flex-1 relative z-0"
+      >
         {/* Image Container */}
         <div className="aspect-4/3 relative overflow-hidden bg-bg-card">
           <Image
@@ -137,11 +175,11 @@ export default function AuctionCard({ item }: AuctionCardProps) {
           variant="primary"
           size="md"
           fullWidth
-          disabled={TERMINAL_STATES.has(item.status) || isBidding}
+          disabled={TERMINAL_STATES.has(item.status) || placeBid.isPending}
         >
           {TERMINAL_STATES.has(item.status)
             ? '경매 종료'
-            : isBidding
+            : placeBid.isPending
               ? '입찰 중...'
               : '지금 바로 입찰하기'}
         </Button>
@@ -150,8 +188,11 @@ export default function AuctionCard({ item }: AuctionCardProps) {
         <div className="flex items-center justify-between pt-3 border-t border-border-main/50 text-text-muted">
           <div className="flex items-center gap-1.5">
             <Clock size={12} />
-            <span className="text-[11px] font-medium tabular-nums" suppressHydrationWarning>
-              {remainingTime} 남음
+            <span
+              className="text-[11px] font-medium tabular-nums"
+              suppressHydrationWarning
+            >
+              {TERMINAL_STATES.has(item.status) ? '종료' : `${remainingTime} 남음`}
             </span>
           </div>
           <div className="flex items-center gap-1.5">
@@ -165,3 +206,7 @@ export default function AuctionCard({ item }: AuctionCardProps) {
     </motion.div>
   );
 }
+
+
+
+

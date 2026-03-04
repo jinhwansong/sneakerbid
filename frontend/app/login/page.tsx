@@ -2,9 +2,9 @@
 
 import React from 'react';
 import { Chrome, MessageCircle } from 'lucide-react';
-import { cn } from '@/lib/cn';
 import { useToastStore } from '@/store/useToastStore';
 import { api } from '@/lib/api';
+import { cn } from '@/lib/util/cn';
 
 export default function LoginPage() {
   const { showToast } = useToastStore();

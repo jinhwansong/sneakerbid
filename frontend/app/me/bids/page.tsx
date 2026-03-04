@@ -4,7 +4,7 @@ import { useState } from 'react';
 
 import { useMe } from '@/hooks/query/useMe';
 
-import { cn } from '@/lib/cn';
+import { cn } from '@/lib/util/cn';
 import LoginRequiredPrompt from '@/components/me/LoginRequiredPrompt';
 import { useMyOrders } from '@/hooks/query/useMyOrders';
 import { useMyBiddingAuctions } from '@/hooks/query/useMyBiddingAuctions';

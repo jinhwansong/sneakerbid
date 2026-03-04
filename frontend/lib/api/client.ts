@@ -1,4 +1,4 @@
-import { Fetcher } from '@/lib/fetcher';
+import { Fetcher } from '@/lib/util/fetcher';
 
 const baseUrl = () => process.env.NEXT_PUBLIC_SITE_URL ?? '';
 
@@ -47,6 +47,16 @@ export const apiClient = {
     return request<T>(path, {
       method: 'POST',
       body: body != null ? JSON.stringify(body) : undefined,
+    });
+  },
+
+  /** FormData 업로드 (multipart/form-data). Content-Type은 자동 설정됨 */
+  postForm<T>(path: string, formData: FormData): Promise<T> {
+    const base = (process.env.NEXT_PUBLIC_SITE_URL ?? '').replace(/\/$/, '');
+    const url = path.startsWith('/') ? `${base}${path}` : `${base}/${path}`;
+    return Fetcher<T>(url, {
+      method: 'POST',
+      body: formData,
     });
   },
 

@@ -13,13 +13,15 @@ async function doFetch<T>(
   // _skipRefreshRetry는 fetch 옵션에서 제외하기 위해 destructure (실제 fetch에는 전달 안 함)
   const { _skipRefreshRetry: _omit, ...fetchOpts } = options ?? {};
   void _omit;
+  const isFormData = fetchOpts.body instanceof FormData;
+  const headers = new Headers(fetchOpts.headers);
+  if (!isFormData && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
+  }
   const res = await fetch(input, {
     credentials: 'include',
     ...fetchOpts,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(fetchOpts.headers ?? {}),
-    },
+    headers,
   });
   if (res.ok) {
     let data: T;

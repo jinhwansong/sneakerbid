@@ -5,8 +5,8 @@ import AuctionCard from '@/components/auction/AuctionCard';
 import { Button } from '@/components/common/Button';
 import Dropdown from '@/components/common/Dropdown';
 import { SlidersHorizontal, X } from 'lucide-react';
-import { cn } from '@/lib/cn';
-import { BRANDS, SIZES, SORT_OPTIONS } from '@/constants';
+import { cn } from '@/lib/util/cn';
+import { BRANDS, SIZES, SORT_OPTIONS, type SortBy } from '@/constants';
 import VirtualizedList from '@/components/common/VirtualizedList';
 import {
   useAuctionList,
@@ -16,7 +16,7 @@ import {
 export default function AuctionListPage() {
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
   const [selectedSize, setSelectedSize] = useState<number | null>(null);
-  const [sortBy, setSortBy] = useState('popular');
+  const [sortBy, setSortBy] = useState<SortBy>('popular');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   const {
@@ -50,7 +50,8 @@ export default function AuctionListPage() {
   };
 
   const handleSortChange = (value: string) => {
-    setSortBy(value);
+    const valid = SORT_OPTIONS.some((o) => o.value === value);
+    if (valid) setSortBy(value as SortBy);
   };
 
   const handleFilterReset = () => {

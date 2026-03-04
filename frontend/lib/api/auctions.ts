@@ -1,10 +1,13 @@
-import type { AuctionHistoryQuery, AuctionHistoryResponse, AuctionListQuery, AuctionSummary, BidLogItem, CreateAuctionDto, CreateAuctionResponse, DeleteAuctionResponse, GetAuctionListResponse, GetAuctionResponse, GetMainAuctionsResponse, PlaceBidResponse, UpdateAuctionDto, UpdateAuctionResponse } from '@/types/auction';
+import type { AuctionHistoryQuery, AuctionHistoryResponse, AuctionListQuery, AuctionSummary, BidLogItem, CreateAuctionDto, CreateAuctionResponse, DeleteAuctionResponse, GetAuctionListResponse, GetAuctionResponse, GetMainAuctionsResponse, LiveStatsResponse, PlaceBidResponse, UpdateAuctionDto, UpdateAuctionResponse } from '@/types/auction';
 import { apiClient } from './client';
 
 /** 경매 관련 API */
 export const auctions = {
   /** 메인 경매 목록 */
   getMain: () => apiClient.get<GetMainAuctionsResponse>('/auctions/main'),
+
+  /** 실시간 마켓 지표 (LiveStats) */
+  getStats: () => apiClient.get<LiveStatsResponse>('/auctions/stats'),
 
   /** 거래 내역 */
   getHistory: (query?: AuctionHistoryQuery) => {

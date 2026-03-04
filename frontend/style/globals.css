@@ -72,8 +72,8 @@
 @layer base {
   html,
   body {
-    font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui,
-      sans-serif;
+  font-family: var(--font-pretendard), -apple-system, BlinkMacSystemFont,
+    system-ui, sans-serif;
     background-color: var(--bg-main);
     color: var(--text-main);
     line-height: 1.6;
