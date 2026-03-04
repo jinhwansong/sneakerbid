@@ -3,8 +3,8 @@
 import { AlertCircle, TrendingUp } from 'lucide-react';
 import { AuctionItem } from '@/types/auction';
 import { Button } from '@/components/common/Button';
-import { formatPrice } from '@/lib/format';
-import { cn } from '@/lib/cn';
+import { formatPrice } from '@/lib/util/format';
+import { cn } from '@/lib/util/cn';
 
 const BID_STEP = 10000;
 

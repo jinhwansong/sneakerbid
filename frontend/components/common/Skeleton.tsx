@@ -1,5 +1,5 @@
 import React from 'react';
-import { cn } from '@/lib/cn';
+import { cn } from '@/lib/util/cn';
 
 /**
  * 로딩 플레이스홀더. 기본적으로 decorative(aria-hidden)로 렌더되어

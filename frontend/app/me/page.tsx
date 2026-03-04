@@ -4,8 +4,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMe } from '@/hooks/query/useMe';
 import { Button } from '@/components/common/Button';
-import { formatPrice, formatJoinDate } from '@/lib/format';
-import { cn } from '@/lib/cn';
+import { formatPrice, formatJoinDate } from '@/lib/util/format';
+import { cn } from '@/lib/util/cn';
 import LoginRequiredPrompt from '@/components/me/LoginRequiredPrompt';
 
 const STATS_ITEMS = [
