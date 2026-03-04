@@ -34,10 +34,15 @@ export function useAuctionEvents({
           };
           onNewBid(bid);
         } else if (parsed?.type === 'auctionClosed' && parsed?.payload && onAuctionClosed) {
+          const p = parsed.payload;
+          const finalPrice = p.finalPrice;
+          if (typeof finalPrice !== 'number' || !Number.isFinite(finalPrice)) {
+            return; // skip malformed event
+          }
           const payload: AuctionClosedPayload = {
-            status: parsed.payload.status ?? 'CLOSED',
-            winnerUserId: parsed.payload.winnerUserId ?? null,
-            finalPrice: parsed.payload.finalPrice ?? 0,
+            status: p.status === 'buy_now' ? 'buy_now' : 'CLOSED',
+            winnerUserId: p.winnerUserId ?? null,
+            finalPrice,
           };
           onAuctionClosed(payload);
         }

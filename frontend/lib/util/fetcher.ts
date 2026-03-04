@@ -14,13 +14,14 @@ async function doFetch<T>(
   const { _skipRefreshRetry: _omit, ...fetchOpts } = options ?? {};
   void _omit;
   const isFormData = fetchOpts.body instanceof FormData;
+  const headers = new Headers(fetchOpts.headers);
+  if (!isFormData) {
+    headers.set('Content-Type', 'application/json');
+  }
   const res = await fetch(input, {
     credentials: 'include',
     ...fetchOpts,
-    headers: {
-      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
-      ...(fetchOpts.headers ?? {}),
-    },
+    headers,
   });
   if (res.ok) {
     let data: T;
