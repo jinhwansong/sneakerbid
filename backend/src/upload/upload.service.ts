@@ -4,11 +4,20 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import * as fs from 'fs';
 import * as path from 'path';
 import { v4 as uuid } from 'uuid';
+import { fromBuffer as fileTypeFromBuffer } from 'file-type';
 import {
   UPLOAD_ALLOWED_MIMES,
   UPLOAD_MAX_FILE_SIZE,
 } from '@/common/constants/upload.constants';
 import { getOrCreateUploadDir } from '@/common/util/upload.folder';
+
+/** Server-detected MIME → safe extension for allowed image types */
+const MIME_TO_EXT: Record<(typeof UPLOAD_ALLOWED_MIMES)[number], string> = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+  'image/gif': 'gif',
+};
 
 /** multer 업로드 파일 (검증용 최소 필드) */
 export interface UploadedFileInfo {
@@ -41,22 +50,33 @@ export class UploadService {
       });
     }
 
-    const port = this.config.get<number>('PORT', 5432) ?? 5432;
-    const host = this.config.get<string>('HOST', 'localhost') ?? 'localhost';
+    const port = this.config.get<number>('PORT', 3000);
+    const host = this.config.get<string>('HOST', 'localhost');
     this.localBaseUrl = `http://${host}:${port}/uploads`;
   }
 
   async uploadImage(file: MemoryUploadedFile | undefined): Promise<string> {
     this.validateImage(file);
 
-    const ext = path.extname(file.originalname) || '.jpg';
-    const filename = `${uuid()}${ext}`;
-
-    if (this.useSupabase && this.supabase) {
-      return this.uploadToSupabase(file.buffer, filename, file.mimetype);
+    const detected = await fileTypeFromBuffer(file.buffer);
+    const allowedMimes = new Set(UPLOAD_ALLOWED_MIMES);
+    if (
+      !detected ||
+      !allowedMimes.has(detected.mime as (typeof UPLOAD_ALLOWED_MIMES)[number])
+    ) {
+      throw new BadRequestException(
+        '허용된 이미지 형식만 업로드 가능합니다. (JPEG, PNG, WebP, GIF)',
+      );
     }
 
-    return this.uploadToLocal(file.buffer, filename);
+    const ext = MIME_TO_EXT[detected.mime as (typeof UPLOAD_ALLOWED_MIMES)[number]];
+    const filename = `${uuid()}.${ext}`;
+
+    if (this.useSupabase && this.supabase) {
+      return this.uploadToSupabase(file.buffer, filename, detected.mime);
+    }
+
+    return await this.uploadToLocal(file.buffer, filename);
   }
 
   private async uploadToSupabase(
@@ -83,22 +103,16 @@ export class UploadService {
     return publicUrl;
   }
 
-  private uploadToLocal(buffer: Buffer, filename: string): string {
+  private async uploadToLocal(buffer: Buffer, filename: string): Promise<string> {
     const dir = getOrCreateUploadDir('uploads');
     const filePath = path.join(dir, filename);
-    fs.writeFileSync(filePath, buffer);
+    await fs.promises.writeFile(filePath, buffer);
     return `${this.localBaseUrl}/${filename}`;
   }
 
-  validateImage(file: UploadedFileInfo | undefined): void {
+  private validateImage(file: UploadedFileInfo | undefined): void {
     if (!file) {
       throw new BadRequestException('이미지 파일이 필요합니다.');
-    }
-    const allowed = new Set(UPLOAD_ALLOWED_MIMES);
-    if (!allowed.has(file.mimetype as (typeof UPLOAD_ALLOWED_MIMES)[number])) {
-      throw new BadRequestException(
-        '허용된 이미지 형식만 업로드 가능합니다. (JPEG, PNG, WebP, GIF)',
-      );
     }
     if (file.size > UPLOAD_MAX_FILE_SIZE) {
       throw new BadRequestException('파일 크기는 5MB 이하여야 합니다.');

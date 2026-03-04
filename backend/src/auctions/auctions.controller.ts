@@ -25,6 +25,7 @@ import { Roles } from '@/common/decorator/roles.decorator';
 import { UserRole } from '@/common/enum/role.enum';
 import { RolesGuard } from '@/common/guard/roles.guard';
 import { CreateAuctionDto } from './dto/create.auction.dto';
+import { GetMySellingQueryDto } from './dto/get.my.selling.query.dto';
 import { PlaceBidDto } from './dto/place.bid.dto';
 import { RequestUser, User } from '@/common/decorator/user.decorator';
 import { UpdateAuctionDto } from './dto/update.auction.dto';
@@ -119,9 +120,12 @@ export class AuctionsController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   getMySelling(
     @User() user: RequestUser,
-    @Query('status') status?: 'all' | 'ongoing' | 'closed',
+    @Query() query: GetMySellingQueryDto,
   ) {
-    return this.auctionsService.getMySellingAuctions(user, status ?? 'all');
+    return this.auctionsService.getMySellingAuctions(
+      user,
+      query.status ?? 'all',
+    );
   }
 
   @Get(':id')
