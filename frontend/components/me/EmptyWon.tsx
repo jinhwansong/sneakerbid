@@ -1,6 +1,6 @@
 import React from 'react';
 import { CheckCircle2 } from 'lucide-react';
-import { Button } from '../common/Button';
+import { ButtonLink } from '../common/Button';
 
 export default function EmptyWon() {
   return (
@@ -14,9 +14,9 @@ export default function EmptyWon() {
       <p className="text-sm text-text-muted max-w-sm">
         경매에서 낙찰받으면 여기에 표시됩니다.
       </p>
-      <Button href="/auction" variant="outline" size="lg" className="mt-6">
+      <ButtonLink href="/auction" variant="outline" size="lg" className="mt-6">
         경매 둘러보기
-      </Button>
+      </ButtonLink>
     </div>
   );
 }

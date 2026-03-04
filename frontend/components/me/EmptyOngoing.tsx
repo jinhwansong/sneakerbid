@@ -1,6 +1,6 @@
 import React from 'react';
 import { Gavel } from 'lucide-react';
-import { Button } from '../common/Button';
+import { ButtonLink } from '../common/Button';
 
 export default function EmptyOngoing() {
   return (
@@ -14,9 +14,9 @@ export default function EmptyOngoing() {
       <p className="text-sm text-text-muted max-w-sm">
         관심 있는 경매에 입찰해보세요.
       </p>
-      <Button href="/auction" variant="outline" size="lg" className="mt-6">
+      <ButtonLink href="/auction" variant="outline" size="lg" className="mt-6">
         경매 둘러보기
-      </Button>
+      </ButtonLink>
     </div>
   );
 }

@@ -22,7 +22,7 @@ export class RedisService implements OnModuleDestroy {
           });
         } else {
           throw new Error(
-            `Invalid REDIS_URL: must start with redis:// or rediss://. Got: ${url}`,
+            'Invalid REDIS_URL: must start with redis:// or rediss://.',
           );
         }
       } else {

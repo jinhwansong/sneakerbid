@@ -30,12 +30,10 @@ interface ButtonProps extends Omit<HTMLMotionProps<'button'>, 'children'> {
   size?: 'sm' | 'md' | 'lg' | 'xl';
   children: React.ReactNode;
   fullWidth?: boolean;
-  /** When provided, renders as Link instead of button */
-  href?: string;
 }
 
-export const Button = React.forwardRef<HTMLButtonElement | HTMLAnchorElement, ButtonProps>(
-  ({ className, variant = 'primary', size = 'md', fullWidth, href, children, ...props }, ref) => {
+export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+  ({ className, variant = 'primary', size = 'md', fullWidth, children, disabled, type, ...props }, ref) => {
     const classes = cn(
       baseClasses,
       variants[variant],
@@ -44,23 +42,13 @@ export const Button = React.forwardRef<HTMLButtonElement | HTMLAnchorElement, Bu
       className,
     );
 
-    if (href) {
-      return (
-        <Link
-          href={href}
-          className={classes}
-          ref={ref as React.Ref<HTMLAnchorElement>}
-        >
-          {children}
-        </Link>
-      );
-    }
-
     return (
       <motion.button
-        ref={ref as React.Ref<HTMLButtonElement>}
+        ref={ref}
+        type={type}
         whileTap={{ scale: 0.98 }}
         className={classes}
+        disabled={disabled}
         {...props}
       >
         {children}
@@ -70,3 +58,39 @@ export const Button = React.forwardRef<HTMLButtonElement | HTMLAnchorElement, Bu
 );
 
 Button.displayName = 'Button';
+
+export interface ButtonLinkProps extends React.AnchorHTMLAttributes<HTMLAnchorElement> {
+  href: string;
+  variant?: 'primary' | 'secondary' | 'ghost' | 'outline';
+  size?: 'sm' | 'md' | 'lg' | 'xl';
+  children: React.ReactNode;
+  fullWidth?: boolean;
+  disabled?: boolean;
+}
+
+export const ButtonLink = React.forwardRef<HTMLAnchorElement, ButtonLinkProps>(
+  ({ className, variant = 'primary', size = 'md', fullWidth, href, children, disabled, ...props }, ref) => {
+    const classes = cn(
+      baseClasses,
+      variants[variant],
+      sizes[size],
+      fullWidth && 'w-full',
+      disabled && 'pointer-events-none opacity-50 cursor-not-allowed',
+      className,
+    );
+
+    return (
+      <Link
+        href={href}
+        className={classes}
+        ref={ref}
+        aria-disabled={disabled}
+        {...props}
+      >
+        {children}
+      </Link>
+    );
+  }
+);
+
+ButtonLink.displayName = 'ButtonLink';
