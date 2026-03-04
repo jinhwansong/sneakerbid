@@ -6,6 +6,7 @@ import {
   Min,
   IsISO8601,
   IsIn,
+  IsOptional,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { AUCTION_BRANDS, AUCTION_SIZES } from '@/common/enum/auction.enum';
@@ -42,10 +43,11 @@ export class CreateAuctionDto {
   @Min(0)
   startPrice: number;
 
+  @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(0)
-  buyNowPrice: number;
+  buyNowPrice?: number;
 
   @Type(() => Number)
   @IsInt()

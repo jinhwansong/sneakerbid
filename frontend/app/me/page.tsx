@@ -24,7 +24,8 @@ export default function ProfilePage() {
   const router = useRouter();
   const { data: profile, isLoading: isMeLoading } = useMe();
   if (isMeLoading) return null;
-  if (!profile) return <LoginRequiredPrompt />;
+  if (profile === null) return <LoginRequiredPrompt />;
+  if (!profile) return null;
 
   return (
     <main className="min-h-[calc(100vh-64px)] bg-bg-main">

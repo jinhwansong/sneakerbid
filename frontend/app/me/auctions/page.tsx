@@ -167,7 +167,7 @@ function EmptyState() {
         스니커즈를 등록하고 경매를 시작해보세요.
       </p>
       <Link
-        href="/me/auctions/new"
+        href="/me/auctions/create"
         className={cn(
           'inline-flex items-center justify-center gap-2 font-bold transition-all',
           'bg-text-main text-bg-main hover:brightness-110 shadow-lg shadow-black/5',
@@ -242,7 +242,8 @@ export default function MyAuctionsPage() {
       </main>
     );
   }
-  if (!profile) return <LoginRequiredPrompt />;
+  if (profile === null) return <LoginRequiredPrompt />;
+  if (!profile) return null;
 
   return (
     <main className="min-h-[calc(100vh-64px)] bg-bg-main">
@@ -258,7 +259,7 @@ export default function MyAuctionsPage() {
             </p>
           </div>
           <Link
-            href="/me/auctions/new"
+            href="/me/auctions/create"
             className={cn(
               'inline-flex items-center justify-center gap-2 font-bold transition-all shrink-0',
               'bg-text-main text-bg-main hover:brightness-110 shadow-lg shadow-black/5',

@@ -48,7 +48,8 @@ export default function MyBidsPage() {
   const [activeTab, setActiveTab] = useState<(typeof TABS)[number]['id']>('ongoing');
 
   if (isMeLoading) return null;
-  if (!profile) return <LoginRequiredPrompt />;
+  if (profile === null) return <LoginRequiredPrompt />;
+  if (!profile) return null;
 
   const lostItems = closedItems.filter((item) => item.winnerUserId !== profile.id);
 

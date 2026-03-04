@@ -39,10 +39,7 @@ export class WishlistController {
   @ApiParam({ name: 'auctionId', description: '경매 ID' })
   @ApiResponse({ status: 200, description: '{ isWishlisted: boolean }' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  toggle(
-    @Param('auctionId') auctionId: string,
-    @User() user: RequestUser,
-  ) {
+  toggle(@Param('auctionId') auctionId: string, @User() user: RequestUser) {
     return this.wishlistService.toggle(auctionId, user);
   }
 }
