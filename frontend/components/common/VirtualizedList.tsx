@@ -2,7 +2,7 @@
 
 import  { type ReactNode } from 'react';
 import { Virtuoso } from 'react-virtuoso';
-import { cn } from '@/lib/cn';
+import { cn } from '@/lib/util/cn';
 
 interface BaseVirtualizedListProps<T> {
   /** 렌더링할 데이터 리스트 */

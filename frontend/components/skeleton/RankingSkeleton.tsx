@@ -4,6 +4,9 @@ import { Skeleton } from '../common/Skeleton';
 export default function RankingSkeleton() {
   return (
     <main className="max-w-4xl mx-auto px-5 py-8 md:py-12">
+      <div role="status" aria-live="polite" aria-busy="true">
+        <span className="sr-only">랭킹을 불러오는 중입니다.</span>
+      </div>
       {/* Page Header */}
       <div className="flex flex-col gap-3 mb-12 text-center">
         <Skeleton className="h-10 w-48 mx-auto rounded-lg" />

@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, CheckCircle2, X } from 'lucide-react';
-import { formatPrice } from '@/lib/format';
+import { formatPrice } from '@/lib/util/format';
 import { useToastStore } from '@/store/useToastStore';
 import { Button } from '@/components/common/Button';
 

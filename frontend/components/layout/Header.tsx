@@ -3,7 +3,7 @@
 import { useState, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { cn } from '@/lib/cn';
+import { cn } from '@/lib/util/cn';
 import { ChevronDown, User, LogOut } from 'lucide-react';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { useMe } from '@/hooks/query/useMe';
@@ -22,7 +22,7 @@ export default function Header() {
     { label: '경매', href: '/auction' },
     { label: '거래내역', href: '/history' },
     { label: '랭킹', href: '/ranking' },
-    { label: '이벤트', href: '/events' },
+    // { label: '이벤트', href: '/events' },
   ];
 
   const profileNavItem = [

@@ -1,4 +1,4 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Controller, Get, NotFoundException, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { RequestUser, User } from '@/common/decorator/user.decorator';
 import { JwtAuthGuard } from '@/common/guard/jwt.guard';
@@ -17,7 +17,10 @@ export class UsersController {
   })
   @ApiResponse({ status: 200, description: '사용자 정보' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Not Found' })
   async getMe(@User() user: RequestUser) {
-    return this.usersService.getMeWithStats(user.id);
+    const me = await this.usersService.getMeWithStats(user.id);
+    if (!me) throw new NotFoundException('사용자를 찾을 수 없습니다.');
+    return me;
   }
 }

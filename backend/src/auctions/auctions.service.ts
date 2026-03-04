@@ -29,6 +29,7 @@ import { RequestUser } from '@/common/decorator/user.decorator';
 import { EventsService } from '@/events/events.service';
 import { BidLogItem } from '@/common/type/bot.type';
 import { WalletService } from '@/wallet/wallet.service';
+import { WishlistService } from '@/wishlist/wishlist.service';
 import { lockAuctionForUpdate } from './auction-lock.helper';
 import {
   SOFT_CLOSE_EXTEND_BY_MINUTES,
@@ -44,6 +45,7 @@ export class AuctionsService {
     private readonly prisma: PrismaService,
     private readonly eventsService: EventsService,
     private readonly walletService: WalletService,
+    private readonly wishlistService: WishlistService,
   ) {}
 
   /**
@@ -90,7 +92,7 @@ export class AuctionsService {
       throw new BadRequestException('허용된 사이즈가 아닙니다.');
     }
 
-    if (dto.buyNowPrice < dto.startPrice) {
+    if (dto.buyNowPrice != null && dto.buyNowPrice < dto.startPrice) {
       throw new BadRequestException(
         '즉시 구매 가격은 시작 가격 이상이어야 합니다.',
       );
@@ -124,7 +126,7 @@ export class AuctionsService {
           size: dto.size,
           startPrice: dto.startPrice,
           currentPrice: dto.startPrice,
-          buyNowPrice: dto.buyNowPrice,
+          buyNowPrice: dto.buyNowPrice ?? null,
           minimumIncrement: dto.minimumIncrement,
           status: 'OPEN',
           endTime,
@@ -140,8 +142,71 @@ export class AuctionsService {
     });
   }
 
+  /** 실시간 마켓 지표 (LiveStats) */
+  async getLiveStats(): Promise<{
+    activeBidders: number;
+    activeAuctions: number;
+    volume24h: number;
+    avgBidSpeedSeconds: number;
+  }> {
+    const now = new Date();
+    const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+    const [activeBidders, activeAuctions, volume24h, recentBids] =
+      await Promise.all([
+        this.prisma.bid
+          .findMany({
+            where: {
+              auction: { status: 'OPEN', endTime: { gt: now } },
+              disqualifiedAt: null,
+            },
+            select: { userId: true },
+            distinct: ['userId'],
+          })
+          .then((rows) => rows.length),
+        this.prisma.auction.count({
+          where: { status: 'OPEN', endTime: { gt: now } },
+        }),
+        this.prisma.auction
+          .aggregate({
+            where: {
+              status: 'CLOSED',
+              closedAt: { gte: dayAgo },
+              winnerUserId: { not: null },
+            },
+            _sum: { currentPrice: true },
+          })
+          .then((r) => r._sum.currentPrice ?? 0),
+        this.prisma.bid.findMany({
+          where: { disqualifiedAt: null },
+          select: { createdAt: true },
+          orderBy: { createdAt: 'desc' },
+          take: 100,
+        }),
+      ]);
+
+    let avgBidSpeedSeconds = 0.8;
+    if (recentBids.length >= 2) {
+      const times = recentBids.map((b) => b.createdAt.getTime()).reverse();
+      const diffs: number[] = [];
+      for (let i = 1; i < times.length; i++) {
+        diffs.push((times[i] - times[i - 1]) / 1000);
+      }
+      const sum = diffs.reduce((a, b) => a + b, 0);
+      avgBidSpeedSeconds = Math.round((sum / diffs.length) * 10) / 10;
+      if (avgBidSpeedSeconds <= 0) avgBidSpeedSeconds = 0.8;
+    }
+
+    return {
+      activeBidders,
+      activeAuctions,
+      volume24h,
+      avgBidSpeedSeconds,
+    };
+  }
+
   /** 메인 물건 리스트 */
-  async getMainAuctions(): Promise<{
+  async getMainAuctions(user?: RequestUser): Promise<{
     ongoing: AuctionSummary[];
     closed: AuctionSummary[];
   }> {
@@ -161,9 +226,18 @@ export class AuctionsService {
       }),
     ]);
 
+    const allIds = [...ongoing.map((a) => a.id), ...closed.map((a) => a.id)];
+    const wishlistedMap = user
+      ? await this.wishlistService.getWishlistedMap(user.id, allIds)
+      : {};
+
     return {
-      ongoing: ongoing.map((item) => this.toSummary(item)),
-      closed: closed.map((item) => this.toSummary(item)),
+      ongoing: ongoing.map((item) =>
+        this.toSummary(item, wishlistedMap[item.id] ?? false),
+      ),
+      closed: closed.map((item) =>
+        this.toSummary(item, wishlistedMap[item.id] ?? false),
+      ),
     };
   }
 
@@ -195,31 +269,52 @@ export class AuctionsService {
     return auctions.map((a) => this.toSummary(a));
   }
 
-  /** 내가 입찰한 경매 중 진행 중인 목록 */
-  async getMyBiddingAuctions(user: RequestUser): Promise<AuctionSummary[]> {
+  /** 내가 입찰한 경매 목록 (status: ongoing | closed | all) */
+  async getMyBiddingAuctions(
+    user: RequestUser,
+    status: 'ongoing' | 'closed' | 'all' = 'ongoing',
+  ): Promise<AuctionSummary[]> {
     const now = new Date();
-    const auctions = await this.prisma.auction.findMany({
-      where: {
-        status: 'OPEN',
-        endTime: { gt: now },
-        bids: {
-          some: {
-            userId: user.id,
-            disqualifiedAt: null,
-          },
+    const baseWhere: Prisma.AuctionWhereInput = {
+      bids: {
+        some: {
+          userId: user.id,
+          disqualifiedAt: null,
         },
       },
+    };
+
+    const statusWhere: Prisma.AuctionWhereInput =
+      status === 'ongoing'
+        ? { status: 'OPEN', endTime: { gt: now } }
+        : status === 'closed'
+          ? {
+              OR: [
+                { status: 'CLOSED' },
+                { status: 'OPEN', endTime: { lte: now } },
+              ],
+            }
+          : {};
+
+    const auctions = await this.prisma.auction.findMany({
+      where: { ...baseWhere, ...statusWhere },
       include: {
         sneaker: true,
         _count: { select: { bids: true } },
       },
-      orderBy: { endTime: 'asc' },
+      orderBy:
+        status === 'ongoing'
+          ? { endTime: 'asc' }
+          : [{ closedAt: 'desc' }, { updatedAt: 'desc' }],
     });
     return auctions.map((a) => this.toSummary(a));
   }
 
   /** 경매 리스트  */
-  async listAuctions(query: AuctionListQueryDto): Promise<{
+  async listAuctions(
+    query: AuctionListQueryDto,
+    user?: RequestUser,
+  ): Promise<{
     items: AuctionSummary[];
     nextCursor: string | null;
     hasMore: boolean;
@@ -235,7 +330,8 @@ export class AuctionsService {
 
     let orderBy:
       | Prisma.AuctionOrderByWithAggregationInput
-      | Prisma.AuctionOrderByWithRelationInput;
+      | Prisma.AuctionOrderByWithRelationInput
+      | Prisma.AuctionOrderByWithRelationInput[];
     switch (sort) {
       case 'ending_soon':
         orderBy = { endTime: 'asc' };
@@ -247,7 +343,7 @@ export class AuctionsService {
         orderBy = { currentPrice: 'asc' };
         break;
       case 'bid_count':
-        orderBy = { bids: { _count: 'desc' } };
+        orderBy = [{ bids: { _count: 'desc' } }, { id: 'asc' }];
         break;
       case 'newest':
       default:
@@ -272,15 +368,25 @@ export class AuctionsService {
     const sliced = hasMore ? items.slice(0, limit) : items;
     const nextCursor = hasMore ? sliced[sliced.length - 1].id : null;
 
+    const auctionIds = sliced.map((a) => a.id);
+    const wishlistedMap = user
+      ? await this.wishlistService.getWishlistedMap(user.id, auctionIds)
+      : {};
+
     return {
-      items: sliced.map((item) => this.toSummary(item)),
+      items: sliced.map((item) =>
+        this.toSummary(item, wishlistedMap[item.id] ?? false),
+      ),
       nextCursor,
       hasMore,
     };
   }
 
   /** 경매 상세 */
-  async getAuctionById(auctionId: string): Promise<AuctionDetail> {
+  async getAuctionById(
+    auctionId: string,
+    user?: RequestUser,
+  ): Promise<AuctionDetail> {
     const auction = await this.prisma.auction.findUnique({
       where: { id: auctionId },
       include: {
@@ -293,7 +399,14 @@ export class AuctionsService {
       throw new NotFoundException('경매를 찾을 수 없습니다.');
     }
 
-    return this.toDetail(auction);
+    let isWishlisted = false;
+    if (user) {
+      const map = await this.wishlistService.getWishlistedMap(user.id, [
+        auctionId,
+      ]);
+      isWishlisted = map[auctionId] ?? false;
+    }
+    return this.toDetail(auction, isWishlisted);
   }
 
   /** 입찰 목록 (상세 페이지용) */
@@ -789,7 +902,10 @@ export class AuctionsService {
   }
 
   /** 경매 상세 타입 변환 */
-  private toDetail(auction: AuctionWithDetails): AuctionDetail {
+  private toDetail(
+    auction: AuctionWithDetails,
+    isWishlisted = false,
+  ): AuctionDetail {
     const now = new Date();
     const endTime = new Date(auction.endTime);
     const msUntilEnd = endTime.getTime() - now.getTime();
@@ -836,13 +952,22 @@ export class AuctionsService {
       endTime: auction.endTime.toISOString(),
       participants: auction._count?.bids ?? 0,
       status,
-      isWishlisted: false,
+      isWishlisted,
       priceIncreasePercent,
+      minimumIncrement: auction.minimumIncrement,
     };
   }
 
   /** 경매 리스트 타입 변환 */
-  private toSummary(auction: AuctionWithDetails): AuctionSummary {
+  private toSummary(
+    auction: AuctionWithDetails,
+    isWishlisted?: boolean,
+  ): AuctionSummary {
+    const now = new Date();
+    const effectiveStatus =
+      auction.status === 'OPEN' && auction.endTime <= now
+        ? 'CLOSED'
+        : auction.status;
     return {
       auctionId: auction.id,
       sneakerName: auction.sneaker.modelName,
@@ -851,9 +976,13 @@ export class AuctionsService {
       size: auction.size,
       currentPrice: auction.currentPrice,
       endTime: auction.endTime,
-      status: auction.status,
+      status: effectiveStatus,
       bidCount: auction._count?.bids ?? undefined,
       buyNowPrice: auction.buyNowPrice,
+      winnerUserId: auction.winnerUserId ?? undefined,
+      closedAt: auction.closedAt ?? undefined,
+      minimumIncrement: auction.minimumIncrement,
+      isWishlisted,
     };
   }
 }

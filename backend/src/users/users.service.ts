@@ -1,13 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService, UserByIdResult } from '../prisma/prisma.service';
 
-export interface MeWithStats extends UserByIdResult {
+export type MeWithStats = NonNullable<UserByIdResult> & {
   stats: {
     bidCount: number;
     wonCount: number;
     soldCount: number;
   };
-}
+};
 
 @Injectable()
 export class UsersService {

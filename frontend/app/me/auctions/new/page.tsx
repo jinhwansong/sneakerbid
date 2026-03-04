@@ -1,13 +1,16 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
-import { useMe } from '@/hooks/query/useMe';
 import { Button } from '@/components/common/Button';
+import { useMe } from '@/hooks/query/useMe';
 import LoginRequiredPrompt from '@/components/me/LoginRequiredPrompt';
 
 export default function NewAuctionPage() {
-  const { data: profile } = useMe();
+  const router = useRouter();
+  const { data: profile, isLoading } = useMe();
+  if (isLoading) return null;
   if (!profile) return <LoginRequiredPrompt />;
 
   return (
@@ -28,11 +31,14 @@ export default function NewAuctionPage() {
         </p>
         <div className="bg-bg-sub/50 border border-border-main rounded-2xl p-12 text-center">
           <p className="text-text-muted font-medium">등록 폼 UI 구현 예정</p>
-          <Link href="/me/auctions" className="mt-6 inline-block">
-            <Button variant="outline" size="md">
-              목록으로
-            </Button>
-          </Link>
+          <Button
+            variant="outline"
+            size="md"
+            onClick={() => router.push('/me/auctions')}
+            className="mt-6"
+          >
+            목록으로
+          </Button>
         </div>
       </div>
     </main>
