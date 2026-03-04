@@ -3,14 +3,7 @@ import MainPageContent from '@/components/main/MainPageContent';
 import { queryKeys } from '@/hooks/query/queryKeys';
 import { queryDefaults } from '@/hooks/withQueryDefaults';
 import type { GetMainAuctionsResponse, LiveStatsResponse } from '@/types/auction';
-
-const EMPTY_MAIN: GetMainAuctionsResponse = { ongoing: [], closed: [] };
-const DEFAULT_STATS: LiveStatsResponse = {
-  activeBidders: 0,
-  activeAuctions: 0,
-  volume24h: 0,
-  avgBidSpeedSeconds: 0.8,
-};
+import { EMPTY_MAIN, DEFAULT_STATS } from '@/lib/constants/auction';
 
 async function prefetchMainAuctions(): Promise<GetMainAuctionsResponse> {
   const url = `${process.env.NEXT_PUBLIC_SITE_URL}/auctions/main`;

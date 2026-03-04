@@ -3,13 +3,7 @@ import { api } from '@/lib/api';
 import type { LiveStatsResponse } from '@/types/auction';
 import { withQueryDefaults } from '@/hooks/withQueryDefaults';
 import { queryKeys } from './queryKeys';
-
-const DEFAULT_STATS: LiveStatsResponse = {
-  activeBidders: 0,
-  activeAuctions: 0,
-  volume24h: 0,
-  avgBidSpeedSeconds: 0.8,
-};
+import { DEFAULT_STATS } from '@/lib/constants/auction';
 
 export function useLiveStats() {
   return useQuery(

@@ -43,14 +43,22 @@ export default function ConfirmModal({
         onClick={onClose}
       >
         <motion.div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="confirm-modal-title"
+          aria-describedby="confirm-modal-desc"
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.95 }}
           onClick={(e) => e.stopPropagation()}
           className="w-full max-w-md rounded-2xl bg-bg-main border border-border-main shadow-2xl p-6"
         >
-          <h3 className="text-lg font-black text-text-main mb-2">{title}</h3>
-          <p className="text-sm text-text-sub mb-6">{message}</p>
+          <h3 id="confirm-modal-title" className="text-lg font-black text-text-main mb-2">
+            {title}
+          </h3>
+          <p id="confirm-modal-desc" className="text-sm text-text-sub mb-6">
+            {message}
+          </p>
           <div className="flex gap-3 justify-end">
             <Button
               variant="secondary"
@@ -61,7 +69,7 @@ export default function ConfirmModal({
               {cancelLabel}
             </Button>
             <Button
-              variant={variant === 'danger' ? 'primary' : 'primary'}
+              variant="primary"
               size="md"
               onClick={handleConfirm}
               disabled={isLoading}

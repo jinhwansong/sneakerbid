@@ -10,6 +10,7 @@ import { queryKeys } from './queryKeys';
 import {
   updateMainCacheAuctionBid,
 } from '@/lib/util/mainCacheUpdater';
+import { EMPTY_MAIN } from '@/lib/constants/auction';
 
 function summaryToItem(s: AuctionSummary): AuctionItem {
   return {
@@ -26,8 +27,6 @@ function summaryToItem(s: AuctionSummary): AuctionItem {
     isWishlisted: s.isWishlisted,
   };
 }
-
-const EMPTY_MAIN: GetMainAuctionsResponse = { ongoing: [], closed: [] };
 
 export function useMainAuctions() {
   return useQuery(

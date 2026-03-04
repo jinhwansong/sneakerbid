@@ -30,7 +30,7 @@ export default function FeaturedAuction({
 }: FeaturedAuctionProps) {
   const router = useRouter();
   const { showToast } = useToastStore((state) => state);
-  const { data: user } = useMe();
+  const { data: user, isLoading: isMeLoading } = useMe();
   const { updateBid, invalidate } = useMainCacheUpdater();
   const placeBid = usePlaceBid();
   const remainingTime = useRemainingTime(item.endTime);
@@ -53,8 +53,8 @@ export default function FeaturedAuction({
   const minBid = item.currentBid + BID_STEP;
 
   const handleBid = async () => {
-    if (item.status === 'closed') return;
-
+    if (!canBid) return;
+    if (isMeLoading) return;
     if (!user) {
       showToast('로그인이 필요합니다.', 'error');
       router.push('/login');

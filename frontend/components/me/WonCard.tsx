@@ -39,7 +39,6 @@ export default function WonCard({ item }: { item: OrderItem }) {
     statusConfig.PENDING;
 
   return (
-<<<<<<< HEAD
     <>
       <Link
         href={`/auction/${item.auctionId}`}

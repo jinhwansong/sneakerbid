@@ -281,10 +281,7 @@ export default function MyAuctionsPage() {
         {isLoading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
             {[1, 2, 3].map((i) => (
-              <div
-                key={i}
-                className="h-64 rounded-2xl bg-bg-sub animate-pulse"
-              />
+              <Skeleton key={i} className="aspect-4/3 rounded-2xl" />
             ))}
           </div>
         ) : isError ? (

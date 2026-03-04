@@ -39,9 +39,15 @@ export function useAuctionEvents({
           if (typeof finalPrice !== 'number' || !Number.isFinite(finalPrice)) {
             return; // skip malformed event
           }
+          const allowedStatuses = ['buy_now', 'CLOSED'] as const;
+          if (!allowedStatuses.includes(p.status as (typeof allowedStatuses)[number])) {
+            return; // skip unknown status
+          }
+          const winnerUserId =
+            typeof p.winnerUserId === 'string' ? p.winnerUserId : null;
           const payload: AuctionClosedPayload = {
             status: p.status === 'buy_now' ? 'buy_now' : 'CLOSED',
-            winnerUserId: p.winnerUserId ?? null,
+            winnerUserId,
             finalPrice,
           };
           onAuctionClosed(payload);

@@ -192,7 +192,7 @@ export default function AuctionCard({ item }: AuctionCardProps) {
               className="text-[11px] font-medium tabular-nums"
               suppressHydrationWarning
             >
-              {remainingTime} 남음
+              {TERMINAL_STATES.has(item.status) ? '종료' : `${remainingTime} 남음`}
             </span>
           </div>
           <div className="flex items-center gap-1.5">

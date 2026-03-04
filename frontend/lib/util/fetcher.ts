@@ -15,7 +15,7 @@ async function doFetch<T>(
   void _omit;
   const isFormData = fetchOpts.body instanceof FormData;
   const headers = new Headers(fetchOpts.headers);
-  if (!isFormData) {
+  if (!isFormData && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json');
   }
   const res = await fetch(input, {
