@@ -25,6 +25,21 @@
 
 [Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
 
+## 환경 설정 (Supabase / Upstash)
+
+### Redis (Upstash)
+- Upstash Console → Redis → **Node** 탭에서 Connection URL 복사
+- `REDIS_URL=rediss://default:[token]@[host].upstash.io:6379` 형식 (TLS는 `rediss://`)
+
+### Supabase Storage (이미지 업로드)
+- Supabase Dashboard → Storage → `uploads` 버킷 생성
+- 버킷을 **Public**으로 설정 (이미지 URL 직접 접근용)
+- `.env`에 `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` 설정
+
+### Supabase Database (PostgreSQL)
+- Supabase Dashboard → Project Settings → Database → Connection string
+- `DATABASE_URL`에 연결 문자열 설정 후 `npx prisma migrate deploy`
+
 ## Project setup
 
 ```bash
