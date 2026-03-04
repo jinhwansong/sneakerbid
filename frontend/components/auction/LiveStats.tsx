@@ -45,7 +45,7 @@ export default function LiveStats() {
     },
     {
       label: '평균 입찰 속도',
-      value: String(data?.avgBidSpeedSeconds ?? 0.8),
+      value: Number(data?.avgBidSpeedSeconds ?? 0.8).toFixed(1),
       unit: '초',
       icon: Zap,
       color: 'text-status-urgent',
