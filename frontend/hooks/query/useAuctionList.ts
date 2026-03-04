@@ -5,6 +5,7 @@ import type {
   AuctionSummary,
   AuctionItem,
 } from '@/types/auction';
+import type { SortBy } from '@/constants';
 import { queryDefaults } from '@/hooks/withQueryDefaults';
 import { queryKeys } from './queryKeys';
 
@@ -27,7 +28,7 @@ function summaryToItem(s: AuctionSummary): AuctionItem {
 export interface UseAuctionListParams {
   brand?: string | null;
   size?: number | null;
-  sort?: string;
+  sort?: SortBy;
 }
 
 export function useAuctionList(params: UseAuctionListParams = {}) {
