@@ -15,9 +15,10 @@ export function useMainPageSSE(auctionIds: string[]) {
   const addReconnecting = useSSEConnectionStore((s) => s.addReconnecting);
   const removeReconnecting = useSSEConnectionStore((s) => s.removeReconnecting);
   const mountedRef = useRef(true);
-  const delayRef = useRef(INITIAL_DELAY_MS);
+  const delaysRef = useRef<Map<string, number>>(new Map());
   const connectionsRef = useRef<Map<string, EventSource>>(new Map());
   const timeoutsRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
+  const idsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     mountedRef.current = true;
@@ -43,7 +44,7 @@ export function useMainPageSSE(auctionIds: string[]) {
 
     if (!baseUrl || ids.length === 0) return;
 
-    const idsSet = new Set(ids);
+    idsRef.current = new Set(ids);
 
     const connect = (auctionId: string) => {
       const url = `${baseUrl}/events/auction/${auctionId}`;
@@ -66,12 +67,14 @@ export function useMainPageSSE(auctionIds: string[]) {
         es.close();
         connectionsRef.current.delete(auctionId);
         addReconnecting();
-        const delay = Math.min(delayRef.current, MAX_DELAY_MS);
+        const currentDelay = delaysRef.current.get(auctionId) ?? INITIAL_DELAY_MS;
+        const delay = Math.min(currentDelay, MAX_DELAY_MS);
         const t = setTimeout(() => {
           timeoutsRef.current.delete(t);
           if (!mountedRef.current) return;
-          if (idsSet.has(auctionId)) {
-            delayRef.current = Math.min(delayRef.current * 2, MAX_DELAY_MS);
+          if (idsRef.current.has(auctionId)) {
+            const nextDelay = Math.min(currentDelay * 2, MAX_DELAY_MS);
+            delaysRef.current.set(auctionId, nextDelay);
             connect(auctionId);
           }
           removeReconnecting();
@@ -80,7 +83,7 @@ export function useMainPageSSE(auctionIds: string[]) {
       };
 
       es.onopen = () => {
-        delayRef.current = INITIAL_DELAY_MS;
+        delaysRef.current.set(auctionId, INITIAL_DELAY_MS);
         removeReconnecting();
       };
 
@@ -90,6 +93,7 @@ export function useMainPageSSE(auctionIds: string[]) {
     ids.forEach(connect);
 
     return () => {
+      idsRef.current = new Set();
       timeoutsRef.current.forEach((t) => {
         clearTimeout(t);
       });
