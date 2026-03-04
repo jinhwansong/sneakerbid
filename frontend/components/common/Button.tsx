@@ -65,28 +65,20 @@ export interface ButtonLinkProps extends React.AnchorHTMLAttributes<HTMLAnchorEl
   size?: 'sm' | 'md' | 'lg' | 'xl';
   children: React.ReactNode;
   fullWidth?: boolean;
-  disabled?: boolean;
 }
 
 export const ButtonLink = React.forwardRef<HTMLAnchorElement, ButtonLinkProps>(
-  ({ className, variant = 'primary', size = 'md', fullWidth, href, children, disabled, ...props }, ref) => {
+  ({ className, variant = 'primary', size = 'md', fullWidth, href, children, ...props }, ref) => {
     const classes = cn(
       baseClasses,
       variants[variant],
       sizes[size],
       fullWidth && 'w-full',
-      disabled && 'pointer-events-none opacity-50 cursor-not-allowed',
       className,
     );
 
     return (
-      <Link
-        href={href}
-        className={classes}
-        ref={ref}
-        aria-disabled={disabled}
-        {...props}
-      >
+      <Link href={href} className={classes} ref={ref} {...props}>
         {children}
       </Link>
     );
