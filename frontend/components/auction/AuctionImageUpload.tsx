@@ -64,6 +64,13 @@ export default function AuctionImageUpload({
     if (file) handleFile(file);
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      fileInputRef.current?.click();
+    }
+  };
+
   const removeImage = () => {
     if (previewUrl && previewUrl.startsWith('blob:')) {
       URL.revokeObjectURL(previewUrl);
@@ -94,10 +101,14 @@ export default function AuctionImageUpload({
       </div>
       
       <div
+        role="button"
+        tabIndex={0}
+        aria-label="상품 이미지 업로드, 클릭하거나 파일을 드래그하세요"
         onDrop={onDrop}
         onDragOver={onDragOver}
         onDragLeave={onDragLeave}
         onClick={() => fileInputRef.current?.click()}
+        onKeyDown={handleKeyDown}
         className={cn(
           'relative aspect-square w-full rounded-2xl border transition-all cursor-pointer flex flex-col items-center justify-center overflow-hidden group',
           isDragging
@@ -129,6 +140,7 @@ export default function AuctionImageUpload({
                 e.stopPropagation();
                 removeImage();
               }}
+              aria-label="이미지 제거"
               className="absolute top-4 right-4 p-2 rounded-full bg-white/80 dark:bg-black/50 text-text-main dark:text-white shadow-lg hover:scale-110 transition-all opacity-0 group-hover:opacity-100 backdrop-blur-sm"
             >
               <X size={18} />

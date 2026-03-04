@@ -55,7 +55,8 @@ function auctionToFormValues(a: GetAuctionResponse): AuctionFormValues {
     size: a.size != null ? String(a.size) : '',
     startPrice: String(a.startPrice ?? ''),
     buyNowPrice: String(a.buyNowPrice ?? ''),
-    minimumIncrement: '10000',
+    minimumIncrement:
+      a.minimumIncrement != null ? String(a.minimumIncrement) : '10000',
     endTime: endTimeStr,
   };
 }

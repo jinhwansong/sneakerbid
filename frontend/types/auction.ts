@@ -139,7 +139,7 @@ export interface AuctionSummary {
   size: string;
   currentPrice: number;
   endTime: string; // ISO string
-  status: 'OPEN' | 'CLOSED';
+  status: 'OPEN' | 'CLOSED' | 'FAILED' | 'BUY_NOW';
   bidCount?: number;
   buyNowPrice?: number | null;
   /** 낙찰자 ID (closed 시 won/lost 판별용) */
