@@ -3,7 +3,7 @@
 import React from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Chrome, MessageCircle, AlertCircle } from 'lucide-react';
-import { cn } from '@/lib/cn';
+import { cn } from '@/lib/util/cn';
 import { useToastStore } from '@/store/useToastStore';
 import { api } from '@/lib/api';
 

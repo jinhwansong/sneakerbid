@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { ChevronDown } from 'lucide-react';
-import { cn } from '@/lib/cn';
+import { cn } from '@/lib/util/cn';
 import { Button } from '@/components/common/Button';
 
 export interface DropdownOption {

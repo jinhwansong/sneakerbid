@@ -9,10 +9,11 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useToastStore } from '@/store/useToastStore';
 import { api } from '@/lib/api';
 import { Button } from '@/components/common/Button';
-import { formatPrice } from '@/lib/format';
-import { cn } from '@/lib/cn';
+import { formatPrice } from '@/lib/util/format';
+import { cn } from '@/lib/util/cn';
 import LoginRequiredPrompt from '@/components/me/LoginRequiredPrompt';
 import Badge from '@/components/common/Badge';
+import ConfirmModal from '@/components/common/ConfirmModal';
 import { useRemainingTime } from '@/hooks/useRemainingTime';
 import { useState } from 'react';
 import type { AuctionItem } from '@/types/auction';
@@ -26,10 +27,10 @@ const STATUS_TABS = [
 /** 판매자용 경매 카드 - 입찰 버튼 대신 상세/수정/삭제 액션 */
 function MyAuctionCard({
   item,
-  onDelete,
+  onDeleteClick,
 }: {
   item: AuctionItem;
-  onDelete?: (id: string) => void;
+  onDeleteClick?: (id: string) => void;
 }) {
   const remainingTime = useRemainingTime(item.endTime);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -115,18 +116,19 @@ function MyAuctionCard({
                     <ExternalLink size={14} />
                     상세보기
                   </Link>
-                  <button
+                  <Link
+                    href={`/me/auctions/${item.id}/edit`}
                     className="flex items-center gap-2 w-full px-4 py-2 text-sm font-medium text-text-main hover:bg-bg-sub"
                     onClick={() => setMenuOpen(false)}
                   >
                     <Pencil size={14} />
                     수정
-                  </button>
+                  </Link>
                   <button
                     className="flex items-center gap-2 w-full px-4 py-2 text-sm font-medium text-status-urgent hover:bg-status-urgent/10"
                     onClick={() => {
                       setMenuOpen(false);
-                      onDelete?.(item.id);
+                      onDeleteClick?.(item.id);
                     }}
                   >
                     <Trash2 size={14} />
@@ -153,7 +155,7 @@ function EmptyState() {
       <p className="text-sm text-text-muted mb-8 max-w-sm">
         스니커즈를 등록하고 경매를 시작해보세요.
       </p>
-      <Link href="/me/auctions/new">
+      <Link href="/me/auctions/create">
         <Button variant="primary" size="lg" className="gap-2">
           <Plus size={20} />
           경매 등록
@@ -166,6 +168,8 @@ function EmptyState() {
 export default function MyAuctionsPage() {
   const { data: profile } = useMe();
   const [activeTab, setActiveTab] = useState<(typeof STATUS_TABS)[number]['id']>('all');
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const queryClient = useQueryClient();
   const showToast = useToastStore((s) => s.showToast);
 
@@ -174,17 +178,25 @@ export default function MyAuctionsPage() {
     enabled: !!profile,
   });
 
-  const handleDelete = async (id: string) => {
+  const handleDeleteClick = (id: string) => {
+    setDeleteTargetId(id);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTargetId) return;
+    setIsDeleting(true);
     try {
-      await api.auctions.delete(id);
+      await api.auctions.delete(deleteTargetId);
       showToast('경매가 삭제되었습니다.');
+      setDeleteTargetId(null);
       await queryClient.invalidateQueries({
         queryKey: ['auctions', 'mySelling'],
       });
     } catch (err) {
-      const msg =
-        err instanceof Error ? err.message : '삭제에 실패했습니다.';
+      const msg = err instanceof Error ? err.message : '삭제에 실패했습니다.';
       showToast(msg, 'error');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -203,7 +215,7 @@ export default function MyAuctionsPage() {
               등록한 경매 목록을 확인하고 관리하세요.
             </p>
           </div>
-          <Link href="/me/auctions/new">
+          <Link href="/me/auctions/create">
             <Button variant="primary" size="md" className="gap-2 shrink-0">
               <Plus size={18} />
               경매 등록
@@ -251,12 +263,24 @@ export default function MyAuctionsPage() {
               <MyAuctionCard
                 key={item.id}
                 item={item}
-                onDelete={handleDelete}
+                onDeleteClick={handleDeleteClick}
               />
             ))}
           </div>
         )}
       </div>
+
+      <ConfirmModal
+        isOpen={!!deleteTargetId}
+        onClose={() => !isDeleting && setDeleteTargetId(null)}
+        title="경매 삭제"
+        message="정말 이 경매를 삭제하시겠습니까? 삭제된 경매는 복구할 수 없습니다."
+        confirmLabel="삭제"
+        cancelLabel="취소"
+        variant="danger"
+        onConfirm={handleDeleteConfirm}
+        isLoading={isDeleting}
+      />
     </main>
   );
 }

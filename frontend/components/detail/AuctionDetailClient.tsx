@@ -10,11 +10,11 @@ import {
 } from '@/hooks/useAuctionEvents';
 import { useMe } from '@/hooks/query/useMe';
 import { useQueryClient } from '@tanstack/react-query';
-import { formatPrice } from '@/lib/format';
+import { formatPrice } from '@/lib/util/format';
 import { useToastStore } from '@/store/useToastStore';
 import { api } from '@/lib/api';
 import { queryKeys } from '@/hooks/query/queryKeys';
-import { sortBidHistory } from '@/lib/bidHistory';
+import { sortBidHistory } from '@/lib/util/bidHistory';
 import {
   DetailProductImage,
   DetailProductInfo,

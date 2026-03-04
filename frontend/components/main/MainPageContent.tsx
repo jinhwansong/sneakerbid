@@ -9,16 +9,11 @@ import {
   useMainAuctions,
   mainAuctionsToItems,
 } from '@/hooks/query/useMainAuctions';
-import { useMainPageSSE } from '@/hooks/useMainPageSSE';
 
 export default function MainPageContent() {
   const { data, isLoading } = useMainAuctions();
   const items = mainAuctionsToItems(data);
   const featuredItem = items[0];
-
-  /** MainAuctionSection 카드들 SSE 실시간 입찰 구독 */
-  const auctionIds = items.map((i) => i.id).filter(Boolean);
-  useMainPageSSE(auctionIds);
 
   if (isLoading) return <MainSkeleton />;
 
@@ -33,10 +28,11 @@ export default function MainPageContent() {
         <LiveStats />
         <LiveActivityFeed />
       </div>
-      <MainAuctionSection items={items} />
+      <MainAuctionSection />
     </main>
   );
 }
+
 
 
 

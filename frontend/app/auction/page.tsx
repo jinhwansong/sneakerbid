@@ -5,7 +5,7 @@ import AuctionCard from '@/components/auction/AuctionCard';
 import { Button } from '@/components/common/Button';
 import Dropdown from '@/components/common/Dropdown';
 import { SlidersHorizontal, X } from 'lucide-react';
-import { cn } from '@/lib/cn';
+import { cn } from '@/lib/util/cn';
 import { BRANDS, SIZES, SORT_OPTIONS } from '@/constants';
 import VirtualizedList from '@/components/common/VirtualizedList';
 import {

@@ -1,9 +1,11 @@
 'use client';
 
-import React, { useCallback, useState } from 'react';
+import { useCallback, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Activity, Zap, Gavel } from 'lucide-react';
-import { useHistoryEvents } from '@/hooks/useHistoryEvents';
-import { formatPrice } from '@/lib/format';
+import { useHistoryEvents, type RecentBidPayload } from '@/hooks/useHistoryEvents';
+import { queryKeys } from '@/hooks/query/queryKeys';
+import { formatPrice } from '@/lib/util/format';
 
 interface ActivityItem {
   id: string;
@@ -18,6 +20,7 @@ const MAX_ACTIVITIES = 20;
 
 export default function LiveActivityFeed() {
   const [activities, setActivities] = useState<ActivityItem[]>([]);
+  const queryClient = useQueryClient();
 
   useHistoryEvents({
     isActive: true,
@@ -34,6 +37,22 @@ export default function LiveActivityFeed() {
         ...prev.slice(0, MAX_ACTIVITIES - 1),
       ]);
     }, []),
+    onNewBid: useCallback((item: RecentBidPayload) => {
+      setActivities((prev) => [
+        {
+          id: `bid-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+          type: 'bid',
+          user: item.user,
+          model: item.modelName,
+          amount: formatPrice(item.amount),
+          time: item.time,
+        },
+        ...prev.slice(0, MAX_ACTIVITIES - 1),
+      ]);
+    }, []),
+    onStatsUpdate: useCallback(() => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.auctions.stats });
+    }, [queryClient]),
   });
 
   return (

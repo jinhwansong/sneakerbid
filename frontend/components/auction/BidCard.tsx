@@ -1,8 +1,8 @@
 'use client';
 
 import { Bot, User } from 'lucide-react';
-import { formatPrice } from '@/lib/format';
-import { cn } from '@/lib/cn';
+import { formatPrice } from '@/lib/util/format';
+import { cn } from '@/lib/util/cn';
 
 interface BidLogItem {
   id: string;

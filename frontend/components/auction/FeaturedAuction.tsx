@@ -1,5 +1,5 @@
 'use client';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
@@ -8,13 +8,13 @@ import Badge from '@/components/common/Badge';
 import { Button } from '@/components/common/Button';
 import { useToastStore } from '@/store/useToastStore';
 import { useMe } from '@/hooks/query/useMe';
-import { useQueryClient } from '@tanstack/react-query';
-import { api } from '@/lib/api';
-import { queryKeys } from '@/hooks/query/queryKeys';
-import { formatPrice } from '@/lib/format';
+import {
+  useMainCacheUpdater,
+  usePlaceBid,
+} from '@/hooks/query/useMainAuctions';
+import { formatPrice } from '@/lib/util/format';
 import { useRemainingTime } from '@/hooks/useRemainingTime';
 import { useAuctionEvents } from '@/hooks/useAuctionEvents';
-import { updateMainCacheAuctionBid } from '@/lib/mainCacheUpdater';
 import { AuctionItem } from '@/types/auction';
 
 const BID_STEP = 10000;
@@ -27,23 +27,17 @@ export default function FeaturedAuction({
   item,
 }: FeaturedAuctionProps) {
   const router = useRouter();
-  const [isWatched, setIsWatched] = useState(false);
-  const [isBidding, setIsBidding] = useState(false);
   const { showToast } = useToastStore((state) => state);
   const { data: user } = useMe();
-  const queryClient = useQueryClient();
+  const { updateBid, invalidate } = useMainCacheUpdater();
+  const placeBid = usePlaceBid();
   const remainingTime = useRemainingTime(item.endTime);
 
-  /** SSE 실시간 입찰 구독 - 캐시 갱신 */
   const handleNewBid = useCallback(
-    (bid: { amount: number }) => {
-      updateMainCacheAuctionBid(queryClient, item.id, bid.amount, 1);
-    },
-    [queryClient, item.id],
+    (bid: { amount: number }) => updateBid(item.id, bid.amount, 1),
+    [updateBid, item.id],
   );
-  const handleAuctionClosed = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: queryKeys.auctions.main });
-  }, [queryClient]);
+  const handleAuctionClosed = useCallback(() => invalidate(), [invalidate]);
 
   useAuctionEvents({
     auctionId: item.id,
@@ -68,32 +62,15 @@ export default function FeaturedAuction({
       return;
     }
 
-    setIsBidding(true);
     try {
-      await api.auctions.placeBid(item.id, minBid);
+      await placeBid.mutateAsync({ auctionId: item.id, amount: minBid });
       showToast('입찰이 완료되었습니다.');
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.me }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.auctions.myBidding }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.auctions.main }),
-        queryClient.invalidateQueries({ queryKey: ['auctions', 'list'] }),
-      ]);
     } catch (err) {
       const msg = err instanceof Error ? err.message : '입찰에 실패했습니다.';
       showToast(msg, 'error');
-    } finally {
-      setIsBidding(false);
     }
   };
 
-  const handleWatch = () => {
-    setIsWatched(!isWatched);
-    if (!isWatched) {
-      showToast('관심 경매 추가 완료');
-    } else {
-      showToast('관심 경매에서 제거되었습니다.');
-    }
-  };
 
   return (
     <section>
@@ -165,23 +142,16 @@ export default function FeaturedAuction({
                 onClick={handleBid}
                 variant="secondary"
                 size="xl"
-                disabled={item.status === 'closed' || isBidding}
+                disabled={item.status === 'closed' || placeBid.isPending}
                 className="px-10 h-16 text-lg rounded-2xl shadow-xl shadow-brand-primary/30"
               >
                 {item.status === 'closed'
                   ? '경매 종료'
-                  : isBidding
+                  : placeBid.isPending
                     ? '입찰 중...'
                     : '지금 바로 입찰하기'}
               </Button>
-              <Button
-                onClick={handleWatch}
-                variant="outline"
-                size="xl"
-                className={`px-10 h-16 text-lg rounded-2xl border-white/20 text-white hover:bg-white/10 ${isWatched ? 'bg-white/10 border-white/40' : ''}`}
-              >
-                {isWatched ? '관심 해제' : '관심 경매 추가'}
-              </Button>
+              
             </div>
           </div>
 

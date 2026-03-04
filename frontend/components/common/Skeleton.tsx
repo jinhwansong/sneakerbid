@@ -1,5 +1,5 @@
 import React from 'react';
-import { cn } from '@/lib/cn';
+import { cn } from '@/lib/util/cn';
 
 export interface SkeletonProps extends React.HTMLAttributes<HTMLDivElement> {
   /** 기본: 직사각형. circle: 원형 */
