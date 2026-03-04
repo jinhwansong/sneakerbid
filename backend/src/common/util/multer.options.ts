@@ -5,8 +5,10 @@ import {
   UPLOAD_MAX_FILE_SIZE,
 } from '@/common/constants/upload.constants';
 
+const ALLOWED_UPLOAD_MIMES = new Set(UPLOAD_ALLOWED_MIMES);
+
 /** Supabase Storage 사용 시 memoryStorage 필요. 로컬 fallback도 buffer 기반 처리 */
-export function createMulterOptions(_folder = 'uploads'): multer.Options {
+export function createMulterOptions(): multer.Options {
   return {
     storage: memoryStorage(),
     limits: { fileSize: UPLOAD_MAX_FILE_SIZE },
@@ -15,8 +17,7 @@ export function createMulterOptions(_folder = 'uploads'): multer.Options {
       file: { mimetype: string },
       cb: (error: Error | null, accept: boolean) => void,
     ) => {
-      const allowed = new Set(UPLOAD_ALLOWED_MIMES);
-      if (allowed.has(file.mimetype as (typeof UPLOAD_ALLOWED_MIMES)[number])) {
+      if (ALLOWED_UPLOAD_MIMES.has(file.mimetype as (typeof UPLOAD_ALLOWED_MIMES)[number])) {
         cb(null, true);
       } else {
         cb(

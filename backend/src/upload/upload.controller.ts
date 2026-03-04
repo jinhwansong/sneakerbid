@@ -20,7 +20,7 @@ import { UserRole } from '@/common/enum/role.enum';
 import { RolesGuard } from '@/common/guard/roles.guard';
 import type { MemoryMulterFile } from './upload.types';
 
-const MULTER_OPTIONS = createMulterOptions('uploads');
+const MULTER_OPTIONS = createMulterOptions();
 
 @ApiTags('Upload')
 @Controller('upload')

@@ -13,12 +13,18 @@ export class RedisService implements OnModuleDestroy {
   private getClient(): Redis {
     if (!this.client) {
       const url = this.configService.get<string>('REDIS_URL');
-      if (url && (url.startsWith('redis://') || url.startsWith('rediss://'))) {
-        this.client = new Redis(url, {
-          maxRetriesPerRequest: 3,
-          enableReadyCheck: true,
-          retryStrategy: (times) => Math.min(times * 50, 2000),
-        });
+      if (url) {
+        if (url.startsWith('redis://') || url.startsWith('rediss://')) {
+          this.client = new Redis(url, {
+            maxRetriesPerRequest: 3,
+            enableReadyCheck: true,
+            retryStrategy: (times) => Math.min(times * 50, 2000),
+          });
+        } else {
+          throw new Error(
+            `Invalid REDIS_URL: must start with redis:// or rediss://. Got: ${url}`,
+          );
+        }
       } else {
         const host =
           this.configService.get<string>('REDIS_HOST') ?? 'localhost';
