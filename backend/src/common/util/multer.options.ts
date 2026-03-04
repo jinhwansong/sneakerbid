@@ -17,7 +17,11 @@ export function createMulterOptions(): multer.Options {
       file: { mimetype: string },
       cb: (error: Error | null, accept: boolean) => void,
     ) => {
-      if (ALLOWED_UPLOAD_MIMES.has(file.mimetype as (typeof UPLOAD_ALLOWED_MIMES)[number])) {
+      if (
+        ALLOWED_UPLOAD_MIMES.has(
+          file.mimetype as (typeof UPLOAD_ALLOWED_MIMES)[number],
+        )
+      ) {
         cb(null, true);
       } else {
         cb(

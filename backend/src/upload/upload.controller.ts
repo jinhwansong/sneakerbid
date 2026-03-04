@@ -33,7 +33,8 @@ export class UploadController {
   @ApiBearerAuth('access-token')
   @ApiOperation({
     summary: '이미지 업로드',
-    description: '경매 상품 이미지 업로드. Supabase Storage 또는 로컬에 저장 후 URL 반환',
+    description:
+      '경매 상품 이미지 업로드. Supabase Storage 또는 로컬에 저장 후 URL 반환',
   })
   @ApiConsumes('multipart/form-data')
   @ApiBody({

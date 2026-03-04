@@ -41,6 +41,8 @@ export type AuctionSummary = {
   winnerUserId?: string | null;
   closedAt?: Date | null;
   minimumIncrement: number;
+  /** 로그인 시 찜 여부 */
+  isWishlisted?: boolean;
 };
 
 export type AuctionWithDetails = Auction & {

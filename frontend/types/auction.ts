@@ -111,7 +111,7 @@ export interface CreateAuctionDto {
   imageUrl: string;
   size: string;
   startPrice: number;
-  buyNowPrice: number;
+  buyNowPrice?: number;
   minimumIncrement: number;
   endTime: string;
 }
@@ -139,7 +139,7 @@ export interface AuctionSummary {
   size: string;
   currentPrice: number;
   endTime: string; // ISO string
-  status: 'OPEN' | 'CLOSED';
+  status: 'OPEN' | 'CLOSED' | 'FAILED' | 'BUY_NOW';
   bidCount?: number;
   buyNowPrice?: number | null;
   /** 낙찰자 ID (closed 시 won/lost 판별용) */

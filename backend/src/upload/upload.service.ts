@@ -45,7 +45,7 @@ export class UploadService {
     this.useSupabase = Boolean(supabaseUrl && supabaseKey);
 
     if (this.useSupabase) {
-      this.supabase = createClient(supabaseUrl!, supabaseKey!, {
+      this.supabase = createClient(supabaseUrl, supabaseKey, {
         auth: { persistSession: false },
       });
     }
@@ -69,7 +69,8 @@ export class UploadService {
       );
     }
 
-    const ext = MIME_TO_EXT[detected.mime as (typeof UPLOAD_ALLOWED_MIMES)[number]];
+    const ext =
+      MIME_TO_EXT[detected.mime as (typeof UPLOAD_ALLOWED_MIMES)[number]];
     const filename = `${uuid()}.${ext}`;
 
     if (this.useSupabase && this.supabase) {
@@ -84,7 +85,8 @@ export class UploadService {
     filename: string,
     mimetype: string,
   ): Promise<string> {
-    if (!this.supabase) throw new BadRequestException('Storage not configured.');
+    if (!this.supabase)
+      throw new BadRequestException('Storage not configured.');
 
     const { data, error } = await this.supabase.storage
       .from(BUCKET_NAME)
@@ -103,7 +105,10 @@ export class UploadService {
     return publicUrl;
   }
 
-  private async uploadToLocal(buffer: Buffer, filename: string): Promise<string> {
+  private async uploadToLocal(
+    buffer: Buffer,
+    filename: string,
+  ): Promise<string> {
     const dir = getOrCreateUploadDir('uploads');
     const filePath = path.join(dir, filename);
     await fs.promises.writeFile(filePath, buffer);
