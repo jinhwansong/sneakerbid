@@ -15,8 +15,8 @@ export const BOT_COOLDOWN_MS = 25_000;
 /** 경매 단위 쿨다운: 어떤 봇이든 입찰 후 N초 동안 해당 경매에 입찰 불가 (다중 봇 집중 방지) */
 export const AUCTION_COOLDOWN_SEC = 8;
 
-/** 입찰 턴당 시도할 (경매, 봇) 쌍 수 - 병렬 처리 */
-export const BIDS_PER_TURN = 30;
+/** 입찰 턴당 시도할 (경매, 봇) 쌍 수 - 병렬 처리 (봇 10개 기준) */
+export const BIDS_PER_TURN = 8;
 
 /** 각 입찰 시도 간 랜덤 지연 최대값 (ms) - 봇들이 동시에 움직이지 않도록 분산 */
 export const BID_STAGGER_MS = 18_000;

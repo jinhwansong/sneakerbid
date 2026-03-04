@@ -5,6 +5,7 @@ import type Redis from 'ioredis';
 import type {
   AuctionClosedPayload,
   NewBidPayload,
+  RecentBidPayload,
 } from '../common/type/events.types';
 import type { AuctionHistoryItem } from '../common/type/auction.type';
 import {
@@ -52,12 +53,13 @@ export class EventsService implements OnModuleInit {
             type: eventType,
             payload: data.payload,
           });
-        } else if (channel === REDIS_CHANNEL_SSE_HISTORY && data.payload) {
+        } else if (channel === REDIS_CHANNEL_SSE_HISTORY) {
+          const eventType = (data.type as string) ?? 'newDeal';
           this.historySubject.next({
             data: {
-              type: 'newDeal',
-              payload: data.payload as AuctionHistoryItem,
-            } as { type: string; payload: AuctionHistoryItem },
+              type: eventType,
+              payload: data.payload,
+            } as { type: string; payload?: unknown },
           } as MessageEvent);
         }
       } catch {
@@ -104,6 +106,21 @@ export class EventsService implements OnModuleInit {
       .catch((err) =>
         this.logger.warn('Redis publish newDeal failed', { err: err as Error }),
       );
+    this.emitStatsUpdate();
+  }
+
+  /** LiveStats 실시간 갱신 시그널 (입찰/체결 시 stats 재조회 유도) */
+  emitStatsUpdate(): void {
+    void this.redis
+      .publish(
+        REDIS_CHANNEL_SSE_HISTORY,
+        JSON.stringify({ type: 'statsUpdate' }),
+      )
+      .catch((err) =>
+        this.logger.warn('Redis publish statsUpdate failed', {
+          err: err as Error,
+        }),
+      );
   }
 
   /** 새 입찰 이벤트 브로드캐스트 */
@@ -119,6 +136,20 @@ export class EventsService implements OnModuleInit {
           err: err as Error,
         }),
       );
+    this.emitStatsUpdate();
+  }
+
+  /** LiveActivityFeed용 입찰 이벤트 (history 채널 브로드캐스트) */
+  emitRecentBidToHistory(payload: RecentBidPayload): void {
+    void this.redis
+      .publish(
+        REDIS_CHANNEL_SSE_HISTORY,
+        JSON.stringify({ type: 'newBid', payload }),
+      )
+      .catch((err) =>
+        this.logger.warn('Redis publish recentBid failed', { err: err as Error }),
+      );
+    this.emitStatsUpdate();
   }
 
   /** 경매 종료 이벤트 브로드캐스트 */

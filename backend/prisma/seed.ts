@@ -543,8 +543,9 @@ function shuffle<T>(arr: T[]): T[] {
 async function main() {
   await seedAuctions();
 
+  const BOTS_PER_TYPE = 2; // 타입당 2개 → 총 10개
   const existing = await prisma.bot.count();
-  if (existing >= 50) {
+  if (existing >= BOTS_PER_TYPE * 5) {
     console.log('Bots already exist. Run with --reset to recreate.');
     return;
   }
@@ -557,13 +558,13 @@ async function main() {
     'FOLLOWER',
   ];
 
-  const uniqueNicks = pickUniqueNicks(50);
+  const uniqueNicks = pickUniqueNicks(BOTS_PER_TYPE * 5);
   const output: object[] = [];
   let globalIdx = 0;
 
   for (const type of types) {
     const [budgetMin, budgetMax] = getBudgetRange(type);
-    for (let i = 1; i <= 10; i++) {
+    for (let i = 1; i <= BOTS_PER_TYPE; i++) {
       const nickname = `Bot_${uniqueNicks[globalIdx]}_${String(globalIdx + 1).padStart(2, '0')}`;
       globalIdx++;
       const params = getBotParams(type, i, nickname);
