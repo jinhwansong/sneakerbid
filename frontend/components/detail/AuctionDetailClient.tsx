@@ -155,6 +155,7 @@ export default function AuctionDetailClient({
     /** 낙관적 업데이트: 즉시 가격/참여자 반영 (bidHistory는 SSE newBid로 갱신) */
     const prevPrice = currentPrice;
     const prevParticipants = participants;
+    const prevBidAmount = bidAmount;
 
     setCurrentPrice(bidAmount);
     setParticipants((prev) => prev + 1);
@@ -171,7 +172,7 @@ export default function AuctionDetailClient({
       /** 실패 시 롤백 */
       setCurrentPrice(prevPrice);
       setParticipants(prevParticipants);
-      setBidAmount(bidAmount);
+      setBidAmount(prevBidAmount);
       const msg = err instanceof Error ? err.message : '입찰에 실패했습니다.';
       const displayMsg =
         msg.includes('로그인') || msg.includes('401')

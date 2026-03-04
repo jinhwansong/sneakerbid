@@ -82,13 +82,24 @@ export class AuctionsController {
   @UseGuards(RolesGuard)
   @ApiBearerAuth('access-token')
   @ApiOperation({
-    summary: '내 입찰중 경매',
-    description: '로그인 사용자가 입찰한 진행 중인 경매 목록',
+    summary: '내 입찰 경매 목록',
+    description: '로그인 사용자가 입찰한 경매 목록 (ongoing: 진행중, closed: 종료됨, all: 전체)',
+  })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    description: 'ongoing | closed | all (기본: ongoing)',
   })
   @ApiResponse({ status: 200, description: 'OK' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  getMyBidding(@User() user: RequestUser) {
-    return this.auctionsService.getMyBiddingAuctions(user);
+  getMyBidding(
+    @User() user: RequestUser,
+    @Query('status') status?: 'ongoing' | 'closed' | 'all',
+  ) {
+    return this.auctionsService.getMyBiddingAuctions(
+      user,
+      status ?? 'ongoing',
+    );
   }
 
   @Get('me/selling')

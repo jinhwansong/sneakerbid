@@ -8,7 +8,6 @@ import { useMyAuctions } from '@/hooks/query/useMyAuctions';
 import { useQueryClient } from '@tanstack/react-query';
 import { useToastStore } from '@/store/useToastStore';
 import { api } from '@/lib/api';
-import { Button } from '@/components/common/Button';
 import { formatPrice } from '@/lib/format';
 import { cn } from '@/lib/cn';
 import LoginRequiredPrompt from '@/components/me/LoginRequiredPrompt';
@@ -115,13 +114,14 @@ function MyAuctionCard({
                     <ExternalLink size={14} />
                     상세보기
                   </Link>
-                  <button
+                  <Link
+                    href={`/me/auctions/${item.id}/edit`}
                     className="flex items-center gap-2 w-full px-4 py-2 text-sm font-medium text-text-main hover:bg-bg-sub"
                     onClick={() => setMenuOpen(false)}
                   >
                     <Pencil size={14} />
                     수정
-                  </button>
+                  </Link>
                   <button
                     className="flex items-center gap-2 w-full px-4 py-2 text-sm font-medium text-status-urgent hover:bg-status-urgent/10"
                     onClick={() => {
@@ -153,18 +153,23 @@ function EmptyState() {
       <p className="text-sm text-text-muted mb-8 max-w-sm">
         스니커즈를 등록하고 경매를 시작해보세요.
       </p>
-      <Link href="/me/auctions/new">
-        <Button variant="primary" size="lg" className="gap-2">
-          <Plus size={20} />
-          경매 등록
-        </Button>
+      <Link
+        href="/me/auctions/new"
+        className={cn(
+          'inline-flex items-center justify-center gap-2 font-bold transition-all',
+          'bg-text-main text-bg-main hover:brightness-110 shadow-lg shadow-black/5',
+          'px-6 py-3.5 text-base rounded-2xl'
+        )}
+      >
+        <Plus size={20} />
+        경매 등록
       </Link>
     </div>
   );
 }
 
 export default function MyAuctionsPage() {
-  const { data: profile } = useMe();
+  const { data: profile, isLoading: isMeLoading } = useMe();
   const [activeTab, setActiveTab] = useState<(typeof STATUS_TABS)[number]['id']>('all');
   const queryClient = useQueryClient();
   const showToast = useToastStore((s) => s.showToast);
@@ -188,6 +193,7 @@ export default function MyAuctionsPage() {
     }
   };
 
+  if (isMeLoading) return null;
   if (!profile) return <LoginRequiredPrompt />;
 
   return (
@@ -203,11 +209,16 @@ export default function MyAuctionsPage() {
               등록한 경매 목록을 확인하고 관리하세요.
             </p>
           </div>
-          <Link href="/me/auctions/new">
-            <Button variant="primary" size="md" className="gap-2 shrink-0">
-              <Plus size={18} />
-              경매 등록
-            </Button>
+          <Link
+            href="/me/auctions/new"
+            className={cn(
+              'inline-flex items-center justify-center gap-2 font-bold transition-all shrink-0',
+              'bg-text-main text-bg-main hover:brightness-110 shadow-lg shadow-black/5',
+              'px-4 py-2.5 text-sm rounded-xl'
+            )}
+          >
+            <Plus size={18} />
+            경매 등록
           </Link>
         </div>
 

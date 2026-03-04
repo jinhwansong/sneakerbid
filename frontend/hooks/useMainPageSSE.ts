@@ -23,9 +23,13 @@ export function useMainPageSSE(auctionIds: string[]) {
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
-      connectionsRef.current.forEach((es) => es.close());
+      connectionsRef.current.forEach((es) => {
+        es.close();
+      });
       connectionsRef.current.clear();
-      timeoutsRef.current.forEach((t) => clearTimeout(t));
+      timeoutsRef.current.forEach((t) => {
+        clearTimeout(t);
+      });
       timeoutsRef.current.clear();
     };
   }, []);
@@ -86,6 +90,10 @@ export function useMainPageSSE(auctionIds: string[]) {
     ids.forEach(connect);
 
     return () => {
+      timeoutsRef.current.forEach((t) => {
+        clearTimeout(t);
+      });
+      timeoutsRef.current.clear();
       ids.forEach((id) => {
         const es = connectionsRef.current.get(id);
         if (es) {
