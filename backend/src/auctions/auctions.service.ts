@@ -195,25 +195,43 @@ export class AuctionsService {
     return auctions.map((a) => this.toSummary(a));
   }
 
-  /** 내가 입찰한 경매 중 진행 중인 목록 */
-  async getMyBiddingAuctions(user: RequestUser): Promise<AuctionSummary[]> {
+  /** 내가 입찰한 경매 목록 (status: ongoing | closed | all) */
+  async getMyBiddingAuctions(
+    user: RequestUser,
+    status: 'ongoing' | 'closed' | 'all' = 'ongoing',
+  ): Promise<AuctionSummary[]> {
     const now = new Date();
-    const auctions = await this.prisma.auction.findMany({
-      where: {
-        status: 'OPEN',
-        endTime: { gt: now },
-        bids: {
-          some: {
-            userId: user.id,
-            disqualifiedAt: null,
-          },
+    const baseWhere: Prisma.AuctionWhereInput = {
+      bids: {
+        some: {
+          userId: user.id,
+          disqualifiedAt: null,
         },
       },
+    };
+
+    const statusWhere: Prisma.AuctionWhereInput =
+      status === 'ongoing'
+        ? { status: 'OPEN', endTime: { gt: now } }
+        : status === 'closed'
+          ? {
+              OR: [
+                { status: 'CLOSED' },
+                { status: 'OPEN', endTime: { lte: now } },
+              ],
+            }
+          : {};
+
+    const auctions = await this.prisma.auction.findMany({
+      where: { ...baseWhere, ...statusWhere },
       include: {
         sneaker: true,
         _count: { select: { bids: true } },
       },
-      orderBy: { endTime: 'asc' },
+      orderBy:
+        status === 'ongoing'
+          ? { endTime: 'asc' }
+          : [{ closedAt: 'desc' }, { updatedAt: 'desc' }],
     });
     return auctions.map((a) => this.toSummary(a));
   }
@@ -235,7 +253,8 @@ export class AuctionsService {
 
     let orderBy:
       | Prisma.AuctionOrderByWithAggregationInput
-      | Prisma.AuctionOrderByWithRelationInput;
+      | Prisma.AuctionOrderByWithRelationInput
+      | Prisma.AuctionOrderByWithRelationInput[];
     switch (sort) {
       case 'ending_soon':
         orderBy = { endTime: 'asc' };
@@ -247,7 +266,7 @@ export class AuctionsService {
         orderBy = { currentPrice: 'asc' };
         break;
       case 'bid_count':
-        orderBy = { bids: { _count: 'desc' } };
+        orderBy = [{ bids: { _count: 'desc' } }, { id: 'asc' }];
         break;
       case 'newest':
       default:
@@ -854,6 +873,8 @@ export class AuctionsService {
       status: auction.status,
       bidCount: auction._count?.bids ?? undefined,
       buyNowPrice: auction.buyNowPrice,
+      winnerUserId: auction.winnerUserId ?? undefined,
+      closedAt: auction.closedAt ?? undefined,
     };
   }
 }

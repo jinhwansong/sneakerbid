@@ -1,6 +1,7 @@
 'use client';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useMe } from '@/hooks/query/useMe';
 import { Button } from '@/components/common/Button';
 import { formatPrice, formatJoinDate } from '@/lib/format';
@@ -20,7 +21,9 @@ const QUICK_LINKS = [
 ] as const;
 
 export default function ProfilePage() {
-  const { data: profile } = useMe();
+  const router = useRouter();
+  const { data: profile, isLoading: isMeLoading } = useMe();
+  if (isMeLoading) return null;
   if (!profile) return <LoginRequiredPrompt />;
 
   return (
@@ -82,7 +85,12 @@ export default function ProfilePage() {
                   {formatPrice(profile.balance)}원
                 </p>
               </div>
-              <Button variant="outline" size="sm">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => router.push('/me/charge')}
+                aria-label="충전하기"
+              >
                 충전하기
               </Button>
             </div>

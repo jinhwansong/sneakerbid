@@ -29,21 +29,24 @@ function summaryToItem(s: AuctionSummary): AuctionItem {
     participants: s.bidCount ?? 0,
     status,
     size: s.size ? Number(s.size) : undefined,
+    winnerUserId: s.winnerUserId,
   };
 }
 
 export interface UseMyBiddingAuctionsOptions {
   enabled?: boolean;
+  status?: 'ongoing' | 'closed' | 'all';
 }
 
 export function useMyBiddingAuctions(options?: UseMyBiddingAuctionsOptions) {
   const enabled = options?.enabled ?? true;
+  const status = options?.status ?? 'ongoing';
 
   return useQuery(
     withQueryDefaults<AuctionItem[]>({
-      queryKey: queryKeys.auctions.myBidding,
+      queryKey: [...queryKeys.auctions.myBidding, status],
       queryFn: async () => {
-        const items = await api.auctions.getMyBidding();
+        const items = await api.auctions.getMyBidding(status);
         return items.map(summaryToItem);
       },
       enabled,

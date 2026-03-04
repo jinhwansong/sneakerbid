@@ -21,18 +21,25 @@ const TABS = [
 ] as const;
 
 export default function MyBidsPage() {
-  const { data: profile } = useMe();
+  const { data: profile, isLoading: isMeLoading } = useMe();
   const { data: ongoingItems = [], isLoading: isLoadingOngoing } = useMyBiddingAuctions({
     enabled: !!profile,
+    status: 'ongoing',
+  });
+  const { data: closedItems = [], isLoading: isLoadingClosed } = useMyBiddingAuctions({
+    enabled: !!profile,
+    status: 'closed',
   });
   const { data: orders = [], isLoading: isLoadingWon } = useMyOrders({
     enabled: !!profile,
   });
   const [activeTab, setActiveTab] = useState<(typeof TABS)[number]['id']>('ongoing');
 
+  if (isMeLoading) return null;
   if (!profile) return <LoginRequiredPrompt />;
 
   const wonItems = orders;
+  const lostItems = closedItems.filter((item) => item.winnerUserId !== profile.id);
 
   return (
     <main className="min-h-[calc(100vh-64px)] bg-bg-main">
@@ -83,7 +90,23 @@ export default function MyBidsPage() {
             )}
           </>
         )}
-        {activeTab === 'lost' && <EmptyLost />}
+        {activeTab === 'lost' && (
+          <>
+            {isLoadingClosed ? (
+              <div className="flex justify-center py-16">
+                <div className="h-8 w-8 animate-spin rounded-full border-2 border-brand-primary border-t-transparent" />
+              </div>
+            ) : lostItems.length === 0 ? (
+              <EmptyLost />
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 md:gap-6">
+                {lostItems.map((item) => (
+                  <AuctionCard key={item.id} item={item} />
+                ))}
+              </div>
+            )}
+          </>
+        )}
         {activeTab === 'won' && (
           <>
             {isLoadingWon ? (

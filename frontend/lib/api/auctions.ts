@@ -33,9 +33,15 @@ export const auctions = {
     );
   },
 
-  /** 내 입찰중 경매 목록 */
-  getMyBidding: () =>
-    apiClient.get<AuctionSummary[]>('/auctions/me/bidding'),
+  /** 내 입찰 경매 목록 (status: ongoing | closed | all) */
+  getMyBidding: (status?: 'ongoing' | 'closed' | 'all') => {
+    const params = new URLSearchParams();
+    if (status && status !== 'ongoing') params.append('status', status);
+    const queryString = params.toString();
+    return apiClient.get<AuctionSummary[]>(
+      `/auctions/me/bidding${queryString ? `?${queryString}` : ''}`,
+    );
+  },
 
   /** 내 경매 등록 목록 */
   getMySelling: (status?: 'all' | 'ongoing' | 'closed') => {
@@ -56,11 +62,11 @@ export const auctions = {
 
   /** 경매 등록 */
   create: (dto: CreateAuctionDto) =>
-    apiClient.post<CreateAuctionResponse>(`/auctions`, {dto}),
+    apiClient.post<CreateAuctionResponse>(`/auctions`, dto),
 
   /** 경매 수정 */
   update: (id: string, dto: UpdateAuctionDto) =>
-    apiClient.patch<UpdateAuctionResponse>(`/auctions/${id}`, {dto}),
+    apiClient.patch<UpdateAuctionResponse>(`/auctions/${id}`, dto),
 
   /** 경매 삭제 */
   delete: (id: string) =>

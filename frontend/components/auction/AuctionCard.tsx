@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type MouseEvent } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -33,7 +33,7 @@ export default function AuctionCard({ item }: AuctionCardProps) {
 
   const minBid = item.currentBid + BID_STEP;
 
-  const handleBid = async (e: React.MouseEvent) => {
+  const handleBid = async (e: MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     e.stopPropagation();
 

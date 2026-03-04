@@ -13,8 +13,7 @@ export function Skeleton({
 }: SkeletonProps) {
   return (
     <div
-      role="status"
-      aria-label="로딩 중"
+      aria-hidden="true"
       className={cn(
         'bg-bg-sub animate-pulse',
         variant === 'circle' && 'rounded-full',
