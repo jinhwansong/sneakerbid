@@ -3,11 +3,12 @@
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { useMe } from '@/hooks/query/useMe';
-import { Button } from '@/components/common/Button';
+import { cn } from '@/lib/cn';
 import LoginRequiredPrompt from '@/components/me/LoginRequiredPrompt';
 
 export default function NewAuctionPage() {
-  const { data: profile } = useMe();
+  const { data: profile, isLoading } = useMe();
+  if (isLoading) return null;
   if (!profile) return <LoginRequiredPrompt />;
 
   return (
@@ -28,10 +29,15 @@ export default function NewAuctionPage() {
         </p>
         <div className="bg-bg-sub/50 border border-border-main rounded-2xl p-12 text-center">
           <p className="text-text-muted font-medium">등록 폼 UI 구현 예정</p>
-          <Link href="/me/auctions" className="mt-6 inline-block">
-            <Button variant="outline" size="md">
-              목록으로
-            </Button>
+          <Link
+            href="/me/auctions"
+            className={cn(
+              'mt-6 inline-flex items-center justify-center font-bold transition-all',
+              'bg-transparent border border-border-main text-text-main hover:bg-bg-sub',
+              'px-4 py-2.5 text-sm rounded-xl'
+            )}
+          >
+            목록으로
           </Link>
         </div>
       </div>

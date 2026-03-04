@@ -8,15 +8,15 @@ import { useMyAuctions } from '@/hooks/query/useMyAuctions';
 import { useQueryClient } from '@tanstack/react-query';
 import { useToastStore } from '@/store/useToastStore';
 import { api } from '@/lib/api';
-import { Button } from '@/components/common/Button';
-import { formatPrice } from '@/lib/util/format';
-import { cn } from '@/lib/util/cn';
 import LoginRequiredPrompt from '@/components/me/LoginRequiredPrompt';
 import Badge from '@/components/common/Badge';
-import ConfirmModal from '@/components/common/ConfirmModal';
 import { useRemainingTime } from '@/hooks/useRemainingTime';
 import { useState } from 'react';
 import type { AuctionItem } from '@/types/auction';
+import { formatPrice } from '@/lib/util/format';
+import { cn } from '@/lib/util/cn';
+import ConfirmModal from '@/components/common/ConfirmModal';
+import { Skeleton } from '@/components/common/Skeleton';
 
 const STATUS_TABS = [
   { id: 'all', label: '전체' },
@@ -155,18 +155,23 @@ function EmptyState() {
       <p className="text-sm text-text-muted mb-8 max-w-sm">
         스니커즈를 등록하고 경매를 시작해보세요.
       </p>
-      <Link href="/me/auctions/create">
-        <Button variant="primary" size="lg" className="gap-2">
-          <Plus size={20} />
-          경매 등록
-        </Button>
+      <Link
+        href="/me/auctions/new"
+        className={cn(
+          'inline-flex items-center justify-center gap-2 font-bold transition-all',
+          'bg-text-main text-bg-main hover:brightness-110 shadow-lg shadow-black/5',
+          'px-6 py-3.5 text-base rounded-2xl'
+        )}
+      >
+        <Plus size={20} />
+        경매 등록
       </Link>
     </div>
   );
 }
 
 export default function MyAuctionsPage() {
-  const { data: profile } = useMe();
+  const { data: profile, isLoading: isMeLoading } = useMe();
   const [activeTab, setActiveTab] = useState<(typeof STATUS_TABS)[number]['id']>('all');
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -178,9 +183,7 @@ export default function MyAuctionsPage() {
     enabled: !!profile,
   });
 
-  const handleDeleteClick = (id: string) => {
-    setDeleteTargetId(id);
-  };
+  const handleDeleteClick = (id: string) => setDeleteTargetId(id);
 
   const handleDeleteConfirm = async () => {
     if (!deleteTargetId) return;
@@ -200,6 +203,34 @@ export default function MyAuctionsPage() {
     }
   };
 
+  if (isMeLoading) {
+    return (
+      <main className="min-h-[calc(100vh-64px)] bg-bg-main">
+        <div className="max-w-4xl mx-auto px-5 py-8 md:py-12">
+          <div role="status" aria-live="polite" aria-busy="true">
+            <span className="sr-only">내 경매를 불러오는 중입니다.</span>
+            <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-8 md:mb-12">
+              <div>
+                <Skeleton className="h-9 w-48 rounded-lg" />
+                <Skeleton className="mt-2 h-5 w-64" />
+              </div>
+              <Skeleton className="h-11 w-36 rounded-xl shrink-0" />
+            </div>
+            <div className="flex bg-bg-sub p-1.5 rounded-2xl mb-10">
+              {[1, 2, 3].map((i) => (
+                <Skeleton key={i} className="flex-1 h-12 rounded-xl mx-1" />
+              ))}
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
+              {[1, 2, 3, 4].map((i) => (
+                <Skeleton key={i} className="aspect-4/3 rounded-2xl" />
+              ))}
+            </div>
+          </div>
+        </div>
+      </main>
+    );
+  }
   if (!profile) return <LoginRequiredPrompt />;
 
   return (
@@ -215,11 +246,16 @@ export default function MyAuctionsPage() {
               등록한 경매 목록을 확인하고 관리하세요.
             </p>
           </div>
-          <Link href="/me/auctions/create">
-            <Button variant="primary" size="md" className="gap-2 shrink-0">
-              <Plus size={18} />
-              경매 등록
-            </Button>
+          <Link
+            href="/me/auctions/new"
+            className={cn(
+              'inline-flex items-center justify-center gap-2 font-bold transition-all shrink-0',
+              'bg-text-main text-bg-main hover:brightness-110 shadow-lg shadow-black/5',
+              'px-4 py-2.5 text-sm rounded-xl'
+            )}
+          >
+            <Plus size={18} />
+            경매 등록
           </Link>
         </div>
 

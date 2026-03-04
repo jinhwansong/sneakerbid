@@ -1,22 +1,14 @@
 'use client';
 
 import React from 'react';
-import { useSearchParams } from 'next/navigation';
-import { Chrome, MessageCircle, AlertCircle } from 'lucide-react';
-import { cn } from '@/lib/util/cn';
+import { Chrome, MessageCircle } from 'lucide-react';
 import { useToastStore } from '@/store/useToastStore';
 import { api } from '@/lib/api';
+import { cn } from '@/lib/util/cn';
 
 export default function LoginPage() {
-  const searchParams = useSearchParams();
   const { showToast } = useToastStore();
 
-  // URL 쿼리 파라미터에서 에러 확인
-  const errorParam = searchParams.get('error');
-  const error =
-    errorParam === 'auth_failed'
-      ? '로그인에 실패했습니다. 다시 시도해주세요.'
-      : null;
 
   const handleLogin = (provider: 'google' | 'kakao') => {
 
@@ -45,16 +37,6 @@ export default function LoginPage() {
               실시간 경매에 참여하세요
             </p>
           </div>
-
-          {/* 에러 메시지 */}
-          {error && (
-            <div className="mb-6 flex items-center gap-2 px-4 py-3 bg-status-urgent/5 border border-status-urgent/10 rounded-xl animate-in zoom-in-95">
-              <AlertCircle size={14} className="text-status-urgent shrink-0" />
-              <p className="text-[11px] font-bold text-status-urgent leading-none">
-                {error}
-              </p>
-            </div>
-          )}
 
           {/* SNS 로그인 버튼 그룹 */}
           <div className="space-y-3">

@@ -19,6 +19,8 @@ import { AuctionItem } from '@/types/auction';
 
 const BID_STEP = 10000;
 
+const TERMINAL_STATES = new Set<string>(['closed', 'failed', 'buy_now']);
+
 interface AuctionCardProps {
   item: AuctionItem;
 }
@@ -52,7 +54,7 @@ export default function AuctionCard({ item }: AuctionCardProps) {
   const handleBid = async (e: React.MouseEvent) => {
     e.preventDefault();
 
-    if (item.status === 'closed') return;
+    if (TERMINAL_STATES.has(item.status)) return;
 
     if (!user) {
       showToast('로그인이 필요합니다.', 'error');
@@ -173,9 +175,9 @@ export default function AuctionCard({ item }: AuctionCardProps) {
           variant="primary"
           size="md"
           fullWidth
-          disabled={item.status === 'closed' || placeBid.isPending}
+          disabled={TERMINAL_STATES.has(item.status) || placeBid.isPending}
         >
-          {item.status === 'closed'
+          {TERMINAL_STATES.has(item.status)
             ? '경매 종료'
             : placeBid.isPending
               ? '입찰 중...'

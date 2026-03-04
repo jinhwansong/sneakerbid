@@ -45,14 +45,9 @@
 - [ ] 찜하기 API (POST/DELETE wishlist, isWishlisted 반영)
 
 ### Frontend
-<<<<<<< HEAD
 - [x] auctionClosed 이벤트 수신 및 UI 반영 *(완료)*
 - [x] 낙관적 입찰 *(완료)*
 - [x] 상태 기반 UI 정리 *(완료)*
-=======
-- [ ] auctionClosed 이벤트 수신 및 UI 반영 *(아래 상세)*
-- [ ] 낙관적 입찰
-- [ ] 상태 기반 UI 정리
 
 ---
 
@@ -76,7 +71,6 @@ interface AuctionClosedPayload {
   finalPrice: number;
 }
 ```
->>>>>>> 3caa4282465c197455a87cae5390dc1cef6cc961
 
 ---
 
@@ -92,7 +86,6 @@ interface AuctionClosedPayload {
 
 ---
 
-<<<<<<< HEAD
 ## 🏠 메인페이지 SSE (실시간 갱신)
 
 > LiveActivityFeed는 이미 useHistoryEvents로 SSE 연결됨 ✅
@@ -152,21 +145,6 @@ interface AuctionClosedPayload {
 
 ### Frontend
 - [ ] 이벤트/프로모션 페이지 (별도 라우트) - **현재 없음**
-=======
-## 👤 마이페이지 (My Page)
-
-### Backend
-- [ ] 내 경매 등록 목록 API (GET /me/auctions)
-- [ ] 내 참여 경매 목록 API (입찰한 경매)
-- [ ] 내 주문 목록 API *(기존 GET /orders/me 활용)*
-
-### Frontend
-- [ ] 마이페이지 레이아웃/라우트
-- [ ] 유저 정보 표시 (닉네임, 프로필, 잔액)
-- [ ] 내 경매 등록 목록 (수정/삭제)
-- [ ] 참여 경매 리스트 (입찰한 경매)
-- [ ] 내 주문 목록 (결제 대기/완료)
->>>>>>> 3caa4282465c197455a87cae5390dc1cef6cc961
 
 ---
 
