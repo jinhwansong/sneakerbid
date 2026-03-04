@@ -17,7 +17,7 @@ import { useWishlistToggle } from '@/hooks/query/useMyWishlist';
 import { usePlaceBid } from '@/hooks/query/useMainAuctions';
 import { AuctionItem } from '@/types/auction';
 
-const BID_STEP = 10000;
+const DEFAULT_BID_STEP = 10000;
 
 const TERMINAL_STATES = new Set<string>(['closed', 'failed', 'buy_now']);
 
@@ -33,7 +33,8 @@ export default function AuctionCard({ item }: AuctionCardProps) {
   const placeBid = usePlaceBid();
   const remainingTime = useRemainingTime(item.endTime);
 
-  const minBid = item.currentBid + BID_STEP;
+  const bidStep = item.minimumIncrement ?? DEFAULT_BID_STEP;
+  const minBid = item.currentBid + bidStep;
 
   const handleWishlist = async () => {
     if (!user) {

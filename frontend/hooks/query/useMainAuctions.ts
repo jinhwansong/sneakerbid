@@ -25,6 +25,7 @@ function summaryToItem(s: AuctionSummary): AuctionItem {
     status: s.status === 'OPEN' ? 'ongoing' : 'closed',
     size: s.size ? Number(s.size) : undefined,
     isWishlisted: s.isWishlisted,
+    minimumIncrement: s.minimumIncrement,
   };
 }
 

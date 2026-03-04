@@ -2,6 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Package, Plus, MoreHorizontal, Pencil, Trash2, ExternalLink } from 'lucide-react';
 import { useMe } from '@/hooks/query/useMe';
 import { useMyAuctions } from '@/hooks/query/useMyAuctions';
@@ -28,12 +29,22 @@ const STATUS_TABS = [
 function MyAuctionCard({
   item,
   onDeleteClick,
+  onEditClick,
 }: {
   item: AuctionItem;
   onDeleteClick?: (id: string) => void;
+  onEditClick?: (id: string) => void;
 }) {
+  const router = useRouter();
   const remainingTime = useRemainingTime(item.endTime);
   const [menuOpen, setMenuOpen] = useState(false);
+
+  const handleEdit = () => {
+    setMenuOpen(false);
+    (onEditClick ?? ((id: string) => router.push(`/me/auctions/${id}/edit`)))(
+      item.id,
+    );
+  };
 
   return (
     <div className="group relative flex flex-col overflow-hidden rounded-2xl bg-bg-main border border-border-main hover:shadow-xl hover:shadow-black/5 transition-all">
@@ -116,14 +127,14 @@ function MyAuctionCard({
                     <ExternalLink size={14} />
                     상세보기
                   </Link>
-                  <Link
-                    href={`/me/auctions/${item.id}/edit`}
+                  <button
+                    type="button"
+                    onClick={handleEdit}
                     className="flex items-center gap-2 w-full px-4 py-2 text-sm font-medium text-text-main hover:bg-bg-sub"
-                    onClick={() => setMenuOpen(false)}
                   >
                     <Pencil size={14} />
                     수정
-                  </Link>
+                  </button>
                   <button
                     className="flex items-center gap-2 w-full px-4 py-2 text-sm font-medium text-status-urgent hover:bg-status-urgent/10"
                     onClick={() => {

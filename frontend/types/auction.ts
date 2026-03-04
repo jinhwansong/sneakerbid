@@ -32,6 +32,8 @@ export interface AuctionItem {
   priceIncreasePercent?: string;
   /** 낙찰자 ID (closed 시 won/lost 판별용) */
   winnerUserId?: string | null;
+  /** 최소 입찰 단위 (서버 검증용, 없으면 10000 사용) */
+  minimumIncrement?: number;
 }
 
 /** 입찰 로그 아이템 */
@@ -143,6 +145,8 @@ export interface AuctionSummary {
   /** 낙찰자 ID (closed 시 won/lost 판별용) */
   winnerUserId?: string | null;
   closedAt?: string | null; // ISO string
+  /** 최소 입찰 단위 (서버 검증용) */
+  minimumIncrement?: number;
 }
 
 /** 메인 경매 목록 응답 */
@@ -205,6 +209,7 @@ export interface GetAuctionResponse {
   status: 'ongoing' | 'ending_soon' | 'closed' | 'failed' | 'buy_now';
   isWishlisted?: boolean;
   priceIncreasePercent: string;
+  minimumIncrement?: number;
 }
 
 /** 입찰 요청 DTO */
