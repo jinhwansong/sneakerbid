@@ -28,6 +28,7 @@ export default function MainAuctionSection() {
         <div
           className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
           role="status"
+          aria-live="polite"
           aria-busy="true"
         >
           <span className="sr-only">경매 상품을 불러오는 중입니다.</span>

@@ -857,6 +857,7 @@ export class AuctionsService {
       status,
       isWishlisted: false,
       priceIncreasePercent,
+      minimumIncrement: auction.minimumIncrement,
     };
   }
 
@@ -878,6 +879,7 @@ export class AuctionsService {
       buyNowPrice: auction.buyNowPrice,
       winnerUserId: auction.winnerUserId ?? undefined,
       closedAt: auction.closedAt ?? undefined,
+      minimumIncrement: auction.minimumIncrement,
     };
   }
 }
