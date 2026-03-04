@@ -180,6 +180,8 @@ export default function MyAuctionsPage() {
   });
 
   const handleDelete = async (id: string) => {
+    if (!window.confirm('이 경매를 삭제하시겠습니까?')) return;
+
     try {
       await api.auctions.delete(id);
       showToast('경매가 삭제되었습니다.');

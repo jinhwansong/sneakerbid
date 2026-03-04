@@ -862,6 +862,9 @@ export class AuctionsService {
 
   /** 경매 리스트 타입 변환 */
   private toSummary(auction: AuctionWithDetails): AuctionSummary {
+    const now = new Date();
+    const effectiveStatus =
+      auction.status === 'OPEN' && auction.endTime <= now ? 'CLOSED' : auction.status;
     return {
       auctionId: auction.id,
       sneakerName: auction.sneaker.modelName,
@@ -870,7 +873,7 @@ export class AuctionsService {
       size: auction.size,
       currentPrice: auction.currentPrice,
       endTime: auction.endTime,
-      status: auction.status,
+      status: effectiveStatus,
       bidCount: auction._count?.bids ?? undefined,
       buyNowPrice: auction.buyNowPrice,
       winnerUserId: auction.winnerUserId ?? undefined,

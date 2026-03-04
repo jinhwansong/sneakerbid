@@ -5,6 +5,9 @@ export default function ProfileSkeleton() {
   return (
     <main className="min-h-[calc(100vh-64px)] bg-bg-main">
       <div className="max-w-3xl mx-auto px-5 py-8 md:py-12">
+        <div role="status" aria-live="polite" aria-busy="true">
+          <span className="sr-only">프로필을 불러오는 중입니다.</span>
+        </div>
         <div className="mb-8 md:mb-12">
           <Skeleton className="h-9 w-48 rounded-lg" />
           <Skeleton className="mt-2 h-5 w-64" />
