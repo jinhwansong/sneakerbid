@@ -24,9 +24,17 @@ export interface AuctionEventPayload {
 }
 
 /** 거래내역 SSE - 새 체결 시 */
-export type HistoryEventType = 'newDeal' | 'ping';
+export type HistoryEventType = 'newDeal' | 'newBid' | 'ping';
+
+/** LiveActivityFeed용 입찰 이벤트 (history 채널 브로드캐스트) */
+export interface RecentBidPayload {
+  user: string;
+  modelName: string;
+  amount: number;
+  time: string;
+}
 
 export interface HistoryEventPayload {
   type: HistoryEventType;
-  payload?: AuctionHistoryItem;
+  payload?: AuctionHistoryItem | RecentBidPayload;
 }
