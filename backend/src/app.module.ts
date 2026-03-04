@@ -24,6 +24,8 @@ import { EventsModule } from './events/events.module';
 import { BotsModule } from './bots/bots.module';
 import { OrdersModule } from './orders/orders.module';
 import { WalletModule } from './wallet/wallet.module';
+import { WishlistModule } from './wishlist/wishlist.module';
+import { UploadModule } from './upload/upload.module';
 
 @Module({
   imports: [
@@ -60,6 +62,8 @@ import { WalletModule } from './wallet/wallet.module';
     BotsModule,
     OrdersModule,
     WalletModule,
+    WishlistModule,
+    UploadModule,
   ],
   controllers: [AppController, HealthController],
   providers: [
