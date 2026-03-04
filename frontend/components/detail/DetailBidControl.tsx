@@ -6,7 +6,7 @@ import { Button } from '@/components/common/Button';
 import { formatPrice } from '@/lib/util/format';
 import { cn } from '@/lib/util/cn';
 
-const BID_STEP = 10000;
+const DEFAULT_BID_STEP = 10000;
 
 interface DetailBidControlProps {
   item: AuctionItem;
@@ -88,7 +88,7 @@ export default function DetailBidControl({
                 onBidAmountChange(value);
               }}
               min={minBid}
-              step={BID_STEP}
+              step={item.minimumIncrement ?? DEFAULT_BID_STEP}
               className="w-full bg-bg-input px-5 py-3.5 text-2xl font-black rounded-xl border-2 border-transparent focus:border-border-accent focus:bg-bg-main transition-all tabular-nums outline-none"
               placeholder={minBid.toString()}
             />

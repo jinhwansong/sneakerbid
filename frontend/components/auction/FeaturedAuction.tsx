@@ -17,7 +17,7 @@ import { useRemainingTime } from '@/hooks/useRemainingTime';
 import { useAuctionEvents } from '@/hooks/useAuctionEvents';
 import { AuctionItem } from '@/types/auction';
 
-const BID_STEP = 10000;
+const DEFAULT_BID_STEP = 10000;
 
 const TERMINAL_STATES = new Set<string>(['closed', 'failed', 'buy_now']);
 
@@ -50,7 +50,8 @@ export default function FeaturedAuction({
     onAuctionClosed: handleAuctionClosed,
   });
 
-  const minBid = item.currentBid + BID_STEP;
+  const bidStep = item.minimumIncrement ?? DEFAULT_BID_STEP;
+  const minBid = item.currentBid + bidStep;
 
   const handleBid = async () => {
     if (!canBid) return;

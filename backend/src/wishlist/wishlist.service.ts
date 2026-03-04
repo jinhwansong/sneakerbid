@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
 import { RequestUser } from '@/common/decorator/user.decorator';
 
@@ -24,22 +25,11 @@ export interface WishlistItem {
 export class WishlistService {
   constructor(private readonly prisma: PrismaService) {}
 
-  /** 찜하기 토글 (있으면 해제, 없으면 추가) */
+  /** 찜하기 토글 (있으면 해제, 없으면 추가) - 원자적 패턴 */
   async toggle(
     auctionId: string,
     user: RequestUser,
   ): Promise<WishlistToggleResult> {
-    const existing = await this.prisma.wishlist.findUnique({
-      where: { userId_auctionId: { userId: user.id, auctionId } },
-    });
-
-    if (existing) {
-      await this.prisma.wishlist.delete({
-        where: { id: existing.id },
-      });
-      return { isWishlisted: false };
-    }
-
     const auction = await this.prisma.auction.findUnique({
       where: { id: auctionId },
     });
@@ -47,10 +37,23 @@ export class WishlistService {
       throw new NotFoundException('경매를 찾을 수 없습니다.');
     }
 
-    await this.prisma.wishlist.create({
-      data: { userId: user.id, auctionId },
-    });
-    return { isWishlisted: true };
+    try {
+      await this.prisma.wishlist.create({
+        data: { userId: user.id, auctionId },
+      });
+      return { isWishlisted: true };
+    } catch (err) {
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === 'P2002'
+      ) {
+        await this.prisma.wishlist.delete({
+          where: { userId_auctionId: { userId: user.id, auctionId } },
+        });
+        return { isWishlisted: false };
+      }
+      throw err;
+    }
   }
 
   /** 여러 경매 ID에 대해 찜 여부 맵 반환 (userId, auctionIds) */

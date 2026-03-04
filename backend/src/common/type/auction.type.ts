@@ -23,6 +23,7 @@ export type AuctionDetail = {
   isWishlisted?: boolean;
   /** 시작가 대비 현재가 상승률 (%) */
   priceIncreasePercent: string;
+  minimumIncrement: number;
 };
 
 export type AuctionSummary = {
@@ -39,6 +40,7 @@ export type AuctionSummary = {
   /** 낙찰자 ID (closed 시 won/lost 판별용) */
   winnerUserId?: string | null;
   closedAt?: Date | null;
+  minimumIncrement: number;
 };
 
 export type AuctionWithDetails = Auction & {

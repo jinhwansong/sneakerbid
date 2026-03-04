@@ -12,8 +12,8 @@ import RankingSkeleton from '@/components/skeleton/RankingSkeleton';
 
 const TABS = [
   { id: 'popular', label: '인기 급상승', icon: Flame, sort: 'popular' as const },
-  { id: 'bids', label: '입찰 많은 순', icon: Users, sort: 'popular' as const },
-  { id: 'trending', label: '시세 급등', icon: TrendingUp, sort: 'ending_soon' as const },
+  { id: 'bids', label: '입찰 많은 순', icon: Users, sort: 'bid_count' as const },
+  { id: 'trending', label: '최신순', icon: TrendingUp, sort: 'newest' as const },
 ];
 
 export default function RankingPage() {

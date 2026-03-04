@@ -19,16 +19,23 @@ type WishlistToggleContext = {
   previousIsWishlisted: boolean;
 };
 
+/** 백엔드 터미널 상태: 이 상태면 시간과 무관하게 closed */
+const WISHLIST_TERMINAL_STATUSES = new Set<string>([
+  'CLOSED',
+  'FAILED',
+  'BUY_NOW',
+  'CANCELLED',
+]);
+
 function wishlistToItem(w: WishlistItem): AuctionItem {
   const msUntilEnd = new Date(w.endTime).getTime() - Date.now();
-  const status =
-    w.status === 'CLOSED'
+  const status = WISHLIST_TERMINAL_STATUSES.has(w.status)
+    ? 'closed'
+    : msUntilEnd <= 0
       ? 'closed'
-      : msUntilEnd <= 0
-        ? 'closed'
-        : msUntilEnd <= 60 * 1000
-          ? 'ending_soon'
-          : 'ongoing';
+      : msUntilEnd <= 60 * 1000
+        ? 'ending_soon'
+        : 'ongoing';
 
   return {
     id: w.auctionId,
@@ -73,12 +80,18 @@ export function useWishlistToggle() {
         queryKeys.auctions.main,
       );
 
-      // 현재 isWishlisted 값 읽기
+      // 현재 isWishlisted 값: wishlist.my 또는 auctions.main에서 유도 (없으면 false)
+      const wishlistData = queryClient.getQueryData<AuctionItem[]>(
+        queryKeys.wishlist.my,
+      );
+      const inWishlist =
+        wishlistData?.some((item) => item.id === auctionId) ?? false;
       const findItem = (arr: AuctionSummary[] = []) =>
         arr.find((a) => a.auctionId === auctionId);
       const current =
         findItem(previousMain?.ongoing) ?? findItem(previousMain?.closed);
-      const previousIsWishlisted = current?.isWishlisted ?? false;
+      const previousIsWishlisted =
+        inWishlist || (current?.isWishlisted ?? false);
 
       // 낙관적 업데이트: 토글된 값으로 캐시 즉시 반영
       updateMainCacheWishlist(queryClient, auctionId, !previousIsWishlisted);

@@ -50,7 +50,6 @@ export default function MyBidsPage() {
   if (isMeLoading) return null;
   if (!profile) return <LoginRequiredPrompt />;
 
-  const wonItems = orders;
   const lostItems = closedItems.filter((item) => item.winnerUserId !== profile.id);
 
   return (
@@ -143,11 +142,11 @@ export default function MyBidsPage() {
                   낙찰 내역을 불러오는 중 오류가 발생했습니다.
                 </p>
               </div>
-            ) : wonItems.length === 0 ? (
+            ) : orders.length === 0 ? (
               <EmptyWon />
             ) : (
               <div className="flex flex-col gap-4">
-                {wonItems.map((item) => (
+                {orders.map((item) => (
                   <WonCard key={item.id} item={item} />
                 ))}
               </div>

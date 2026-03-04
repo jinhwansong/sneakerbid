@@ -29,5 +29,6 @@ export function summaryToAuctionItem(s: AuctionSummary): AuctionItem {
     status,
     size: s.size ? Number(s.size) : undefined,
     winnerUserId: s.winnerUserId,
+    minimumIncrement: s.minimumIncrement,
   };
 }
