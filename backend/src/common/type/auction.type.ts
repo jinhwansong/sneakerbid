@@ -36,6 +36,9 @@ export type AuctionSummary = {
   status: 'OPEN' | 'CLOSED';
   bidCount?: number;
   buyNowPrice?: number | null;
+  /** 낙찰자 ID (closed 시 won/lost 판별용) */
+  winnerUserId?: string | null;
+  closedAt?: Date | null;
 };
 
 export type AuctionWithDetails = Auction & {

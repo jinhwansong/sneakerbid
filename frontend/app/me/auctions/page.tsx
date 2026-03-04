@@ -8,14 +8,15 @@ import { useMyAuctions } from '@/hooks/query/useMyAuctions';
 import { useQueryClient } from '@tanstack/react-query';
 import { useToastStore } from '@/store/useToastStore';
 import { api } from '@/lib/api';
-import { Button } from '@/components/common/Button';
-import { formatPrice } from '@/lib/format';
-import { cn } from '@/lib/cn';
 import LoginRequiredPrompt from '@/components/me/LoginRequiredPrompt';
 import Badge from '@/components/common/Badge';
 import { useRemainingTime } from '@/hooks/useRemainingTime';
 import { useState } from 'react';
 import type { AuctionItem } from '@/types/auction';
+import { formatPrice } from '@/lib/util/format';
+import { cn } from '@/lib/util/cn';
+import ConfirmModal from '@/components/common/ConfirmModal';
+import { Skeleton } from '@/components/common/Skeleton';
 
 const STATUS_TABS = [
   { id: 'all', label: '전체' },
@@ -26,10 +27,10 @@ const STATUS_TABS = [
 /** 판매자용 경매 카드 - 입찰 버튼 대신 상세/수정/삭제 액션 */
 function MyAuctionCard({
   item,
-  onDelete,
+  onDeleteClick,
 }: {
   item: AuctionItem;
-  onDelete?: (id: string) => void;
+  onDeleteClick?: (id: string) => void;
 }) {
   const remainingTime = useRemainingTime(item.endTime);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -115,18 +116,19 @@ function MyAuctionCard({
                     <ExternalLink size={14} />
                     상세보기
                   </Link>
-                  <button
+                  <Link
+                    href={`/me/auctions/${item.id}/edit`}
                     className="flex items-center gap-2 w-full px-4 py-2 text-sm font-medium text-text-main hover:bg-bg-sub"
                     onClick={() => setMenuOpen(false)}
                   >
                     <Pencil size={14} />
                     수정
-                  </button>
+                  </Link>
                   <button
                     className="flex items-center gap-2 w-full px-4 py-2 text-sm font-medium text-status-urgent hover:bg-status-urgent/10"
                     onClick={() => {
                       setMenuOpen(false);
-                      onDelete?.(item.id);
+                      onDeleteClick?.(item.id);
                     }}
                   >
                     <Trash2 size={14} />
@@ -153,19 +155,26 @@ function EmptyState() {
       <p className="text-sm text-text-muted mb-8 max-w-sm">
         스니커즈를 등록하고 경매를 시작해보세요.
       </p>
-      <Link href="/me/auctions/new">
-        <Button variant="primary" size="lg" className="gap-2">
-          <Plus size={20} />
-          경매 등록
-        </Button>
+      <Link
+        href="/me/auctions/new"
+        className={cn(
+          'inline-flex items-center justify-center gap-2 font-bold transition-all',
+          'bg-text-main text-bg-main hover:brightness-110 shadow-lg shadow-black/5',
+          'px-6 py-3.5 text-base rounded-2xl'
+        )}
+      >
+        <Plus size={20} />
+        경매 등록
       </Link>
     </div>
   );
 }
 
 export default function MyAuctionsPage() {
-  const { data: profile } = useMe();
+  const { data: profile, isLoading: isMeLoading } = useMe();
   const [activeTab, setActiveTab] = useState<(typeof STATUS_TABS)[number]['id']>('all');
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const queryClient = useQueryClient();
   const showToast = useToastStore((s) => s.showToast);
 
@@ -174,20 +183,54 @@ export default function MyAuctionsPage() {
     enabled: !!profile,
   });
 
-  const handleDelete = async (id: string) => {
+  const handleDeleteClick = (id: string) => setDeleteTargetId(id);
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTargetId) return;
+    setIsDeleting(true);
     try {
-      await api.auctions.delete(id);
+      await api.auctions.delete(deleteTargetId);
       showToast('경매가 삭제되었습니다.');
+      setDeleteTargetId(null);
       await queryClient.invalidateQueries({
         queryKey: ['auctions', 'mySelling'],
       });
     } catch (err) {
-      const msg =
-        err instanceof Error ? err.message : '삭제에 실패했습니다.';
+      const msg = err instanceof Error ? err.message : '삭제에 실패했습니다.';
       showToast(msg, 'error');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
+  if (isMeLoading) {
+    return (
+      <main className="min-h-[calc(100vh-64px)] bg-bg-main">
+        <div className="max-w-4xl mx-auto px-5 py-8 md:py-12">
+          <div role="status" aria-live="polite" aria-busy="true">
+            <span className="sr-only">내 경매를 불러오는 중입니다.</span>
+            <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-8 md:mb-12">
+              <div>
+                <Skeleton className="h-9 w-48 rounded-lg" />
+                <Skeleton className="mt-2 h-5 w-64" />
+              </div>
+              <Skeleton className="h-11 w-36 rounded-xl shrink-0" />
+            </div>
+            <div className="flex bg-bg-sub p-1.5 rounded-2xl mb-10">
+              {[1, 2, 3].map((i) => (
+                <Skeleton key={i} className="flex-1 h-12 rounded-xl mx-1" />
+              ))}
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
+              {[1, 2, 3, 4].map((i) => (
+                <Skeleton key={i} className="aspect-4/3 rounded-2xl" />
+              ))}
+            </div>
+          </div>
+        </div>
+      </main>
+    );
+  }
   if (!profile) return <LoginRequiredPrompt />;
 
   return (
@@ -203,11 +246,16 @@ export default function MyAuctionsPage() {
               등록한 경매 목록을 확인하고 관리하세요.
             </p>
           </div>
-          <Link href="/me/auctions/new">
-            <Button variant="primary" size="md" className="gap-2 shrink-0">
-              <Plus size={18} />
-              경매 등록
-            </Button>
+          <Link
+            href="/me/auctions/new"
+            className={cn(
+              'inline-flex items-center justify-center gap-2 font-bold transition-all shrink-0',
+              'bg-text-main text-bg-main hover:brightness-110 shadow-lg shadow-black/5',
+              'px-4 py-2.5 text-sm rounded-xl'
+            )}
+          >
+            <Plus size={18} />
+            경매 등록
           </Link>
         </div>
 
@@ -233,10 +281,7 @@ export default function MyAuctionsPage() {
         {isLoading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
             {[1, 2, 3].map((i) => (
-              <div
-                key={i}
-                className="h-64 rounded-2xl bg-bg-sub animate-pulse"
-              />
+              <Skeleton key={i} className="aspect-4/3 rounded-2xl" />
             ))}
           </div>
         ) : isError ? (
@@ -251,12 +296,24 @@ export default function MyAuctionsPage() {
               <MyAuctionCard
                 key={item.id}
                 item={item}
-                onDelete={handleDelete}
+                onDeleteClick={handleDeleteClick}
               />
             ))}
           </div>
         )}
       </div>
+
+      <ConfirmModal
+        isOpen={!!deleteTargetId}
+        onClose={() => !isDeleting && setDeleteTargetId(null)}
+        title="경매 삭제"
+        message="정말 이 경매를 삭제하시겠습니까? 삭제된 경매는 복구할 수 없습니다."
+        confirmLabel="삭제"
+        cancelLabel="취소"
+        variant="danger"
+        onConfirm={handleDeleteConfirm}
+        isLoading={isDeleting}
+      />
     </main>
   );
 }
