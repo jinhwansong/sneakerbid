@@ -3,8 +3,8 @@
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { useMe } from '@/hooks/query/useMe';
-import { cn } from '@/lib/cn';
 import LoginRequiredPrompt from '@/components/me/LoginRequiredPrompt';
+import { cn } from '@/lib/util/cn';
 
 export default function NewAuctionPage() {
   const { data: profile, isLoading } = useMe();
