@@ -73,6 +73,13 @@ export interface AuctionHistoryResponse {
   items: AuctionHistoryItem[];
 }
 
+/** 실시간 마켓 지표 (LiveStats) */
+export interface LiveStatsResponse {
+  activeBidders: number;
+  activeAuctions: number;
+  volume24h: number;
+  avgBidSpeedSeconds: number;
+}
 
 /** 경매 목록 조회 쿼리 파라미터 */
 export interface AuctionListQuery {
@@ -131,6 +138,8 @@ export interface AuctionSummary {
   status: 'OPEN' | 'CLOSED';
   bidCount?: number;
   buyNowPrice?: number | null;
+  /** 로그인 시 API가 채워줌 */
+  isWishlisted?: boolean;
 }
 
 /** 메인 경매 목록 응답 */

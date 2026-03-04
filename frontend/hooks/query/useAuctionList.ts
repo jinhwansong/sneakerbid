@@ -20,6 +20,7 @@ function summaryToItem(s: AuctionSummary): AuctionItem {
     participants: s.bidCount ?? 0,
     status: s.status === 'OPEN' ? 'ongoing' : 'closed',
     size: s.size ? Number(s.size) : undefined,
+    isWishlisted: s.isWishlisted,
   };
 }
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { formatRemainingTime } from '@/lib/format';
+import { formatRemainingTime } from '@/lib/util/format';
 
 /** 마운트 후 1초마다 갱신되는 남은 시간. 하이드레이션 시에는 "—" 반환 */
 export function useRemainingTime(endTime: string): string {

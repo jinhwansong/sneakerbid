@@ -3,8 +3,12 @@ export const queryKeys = {
   orders: {
     my: ['orders', 'my'] as const,
   },
+  wishlist: {
+    my: ['wishlist', 'my'] as const,
+  },
   auctions: {
     main: ['auctions', 'main'] as const,
+    stats: ['auctions', 'stats'] as const,
     myBidding: ['auctions', 'myBidding'] as const,
     mySelling: (status?: string) =>
       ['auctions', 'mySelling', status] as const,
