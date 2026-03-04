@@ -231,7 +231,7 @@ export class AuctionsService {
       orderBy:
         status === 'ongoing'
           ? { endTime: 'asc' }
-          : { closedAt: 'desc', updatedAt: 'desc' },
+          : [{ closedAt: 'desc' }, { updatedAt: 'desc' }],
     });
     return auctions.map((a) => this.toSummary(a));
   }

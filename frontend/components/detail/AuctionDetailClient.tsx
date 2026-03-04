@@ -169,10 +169,10 @@ export default function AuctionDetailClient({
       queryClient.invalidateQueries({ queryKey: queryKeys.me });
       queryClient.invalidateQueries({ queryKey: queryKeys.auctions.myBidding });
     } catch (err) {
-      /** 실패 시 롤백 */
-      setCurrentPrice(prevPrice);
-      setParticipants(prevParticipants);
-      setBidAmount(prevBidAmount);
+      /** 실패 시 조건부 롤백: SSE로 갱신된 상태는 유지, 낙관적 업데이트만 되돌림 */
+      setCurrentPrice((prev) => (prev === bidAmount ? prevPrice : prev));
+      setParticipants((prev) => (prev === prevParticipants + 1 ? prevParticipants : prev));
+      setBidAmount((prev) => (prev === prevBidAmount + BID_STEP ? prevBidAmount : prev));
       const msg = err instanceof Error ? err.message : '입찰에 실패했습니다.';
       const displayMsg =
         msg.includes('로그인') || msg.includes('401')
