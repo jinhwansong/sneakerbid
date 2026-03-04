@@ -19,6 +19,7 @@ import {
 } from '@nestjs/swagger';
 import { AuctionsService } from './auctions.service';
 import { Public } from '@/common/decorator/public.decorator';
+import { OptionalAuth } from '@/common/decorator/optional-auth.decorator';
 import { AuctionHistoryQueryDto } from './dto/auction.history.query.dto';
 import { AuctionListQueryDto } from './dto/auction.list.query.dto';
 import { Roles } from '@/common/decorator/roles.decorator';
@@ -35,14 +36,25 @@ export class AuctionsController {
   constructor(private readonly auctionsService: AuctionsService) {}
 
   @Get('main')
-  @Public()
+  @OptionalAuth()
   @ApiOperation({
     summary: '메인 경매 목록',
-    description: '메인에 노출할 경매 목록',
+    description: '메인에 노출할 경매 목록. 로그인 시 isWishlisted 포함',
   })
   @ApiResponse({ status: 200, description: 'OK' })
-  getMainAuctions() {
-    return this.auctionsService.getMainAuctions();
+  getMainAuctions(@User() user?: RequestUser) {
+    return this.auctionsService.getMainAuctions(user);
+  }
+
+  @Get('stats')
+  @Public()
+  @ApiOperation({
+    summary: '실시간 마켓 지표',
+    description: 'LiveStats용: 입찰자 수, 진행 경매 수, 24h 거래액, 평균 입찰 속도',
+  })
+  @ApiResponse({ status: 200, description: 'OK' })
+  getLiveStats() {
+    return this.auctionsService.getLiveStats();
   }
 
   @Get('history')
@@ -67,14 +79,14 @@ export class AuctionsController {
   }
 
   @Get()
-  @Public()
+  @OptionalAuth()
   @ApiOperation({
     summary: '경매 목록',
-    description: '필터/페이지네이션 경매 목록',
+    description: '필터/페이지네이션 경매 목록. 로그인 시 isWishlisted 포함',
   })
   @ApiResponse({ status: 200, description: 'OK' })
-  getList(@Query() query: AuctionListQueryDto) {
-    return this.auctionsService.listAuctions(query);
+  getList(@Query() query: AuctionListQueryDto, @User() user?: RequestUser) {
+    return this.auctionsService.listAuctions(query, user);
   }
 
   @Get('me/bidding')
@@ -114,13 +126,16 @@ export class AuctionsController {
   }
 
   @Get(':id')
-  @Public()
-  @ApiOperation({ summary: '경매 상세', description: '경매 단건 상세 조회' })
+  @OptionalAuth()
+  @ApiOperation({
+    summary: '경매 상세',
+    description: '경매 단건 상세 조회. 로그인 시 isWishlisted 포함',
+  })
   @ApiParam({ name: 'id', description: '경매 ID' })
   @ApiResponse({ status: 200, description: 'OK' })
   @ApiResponse({ status: 404, description: 'Not Found' })
-  getById(@Param('id') auctionId: string) {
-    return this.auctionsService.getAuctionById(auctionId);
+  getById(@Param('id') auctionId: string, @User() user?: RequestUser) {
+    return this.auctionsService.getAuctionById(auctionId, user);
   }
 
   @Get(':id/bids')
