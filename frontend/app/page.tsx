@@ -25,8 +25,9 @@ async function prefetchLiveStats(): Promise<LiveStatsResponse> {
   const url = `${process.env.NEXT_PUBLIC_SITE_URL}/auctions/stats`;
   const res = await fetch(url, { cache: 'no-store' });
   if (!res.ok) throw new Error('Failed to fetch stats');
-  const body = (await res.json()) as LiveStatsResponse & { success?: boolean };
-  return body ?? DEFAULT_STATS;
+  const body = (await res.json()) as { success?: boolean; data?: LiveStatsResponse };
+  const data = (body?.success ? body.data : body) as LiveStatsResponse | undefined;
+  return data ?? DEFAULT_STATS;
 }
 
 export default async function Home() {
