@@ -5,6 +5,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 import compression from 'compression';
 import helmet from 'helmet';
+import { join } from 'path';
 import { AppModule } from './app.module';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { UndefinedToNullInterceptor } from './common/interceptors/undefinedToNull.Interceptor';
@@ -12,6 +13,9 @@ import { HttpExceptionFilter } from './common/filters/httpException.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  // 업로드된 이미지 정적 서빙
+  app.useStaticAssets(join(process.cwd(), 'uploads'), { prefix: '/uploads/' });
 
   // 프록시/로드밸런서 뒤에서 동작할 때 클라이언트 IP 등을 올바르게 인식하도록 설정
   app.set('trust proxy', 1);

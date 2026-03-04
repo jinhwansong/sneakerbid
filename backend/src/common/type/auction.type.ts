@@ -36,6 +36,8 @@ export type AuctionSummary = {
   status: 'OPEN' | 'CLOSED';
   bidCount?: number;
   buyNowPrice?: number | null;
+  /** 로그인 시 API가 채워줌 */
+  isWishlisted?: boolean;
 };
 
 export type AuctionWithDetails = Auction & {
