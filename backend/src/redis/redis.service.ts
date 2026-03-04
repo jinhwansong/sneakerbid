@@ -12,9 +12,19 @@ export class RedisService implements OnModuleDestroy {
 
   private getClient(): Redis {
     if (!this.client) {
-      const host = this.configService.get<string>('REDIS_HOST') ?? 'localhost';
-      const port = this.configService.get<number>('REDIS_PORT') ?? 6379;
-      this.client = new Redis({ host, port });
+      const url = this.configService.get<string>('REDIS_URL');
+      if (url && (url.startsWith('redis://') || url.startsWith('rediss://'))) {
+        this.client = new Redis(url, {
+          maxRetriesPerRequest: 3,
+          enableReadyCheck: true,
+          retryStrategy: (times) => Math.min(times * 50, 2000),
+        });
+      } else {
+        const host =
+          this.configService.get<string>('REDIS_HOST') ?? 'localhost';
+        const port = this.configService.get<number>('REDIS_PORT') ?? 6379;
+        this.client = new Redis({ host, port });
+      }
     }
     return this.client;
   }
