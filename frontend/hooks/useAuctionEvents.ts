@@ -2,15 +2,9 @@
 
 import { useCallback, useMemo } from 'react';
 import type { BidLogItem } from '@/types/auction';
+import type { AuctionClosedPayload } from '@/types/events';
 import { useReconnectingEventSource } from './useReconnectingEventSource';
 import { useSSEConnectionStore } from '@/store/useSSEConnectionStore';
-
-/** auctionClosed 이벤트 페이로드 */
-export interface AuctionClosedPayload {
-  status: 'CLOSED' | 'buy_now';
-  winnerUserId: string | null;
-  finalPrice: number;
-}
 
 interface UseAuctionEventsOptions {
   auctionId: string;
@@ -40,10 +34,21 @@ export function useAuctionEvents({
           };
           onNewBid(bid);
         } else if (parsed?.type === 'auctionClosed' && parsed?.payload && onAuctionClosed) {
+          const p = parsed.payload;
+          const finalPrice = p.finalPrice;
+          if (typeof finalPrice !== 'number' || !Number.isFinite(finalPrice)) {
+            return; // skip malformed event
+          }
+          const allowedStatuses = ['buy_now', 'CLOSED'] as const;
+          if (!allowedStatuses.includes(p.status as (typeof allowedStatuses)[number])) {
+            return; // skip unknown status
+          }
+          const winnerUserId =
+            typeof p.winnerUserId === 'string' ? p.winnerUserId : null;
           const payload: AuctionClosedPayload = {
-            status: parsed.payload.status ?? 'CLOSED',
-            winnerUserId: parsed.payload.winnerUserId ?? null,
-            finalPrice: parsed.payload.finalPrice ?? 0,
+            status: p.status === 'buy_now' ? 'buy_now' : 'CLOSED',
+            winnerUserId,
+            finalPrice,
           };
           onAuctionClosed(payload);
         }

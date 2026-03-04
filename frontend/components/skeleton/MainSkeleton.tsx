@@ -4,6 +4,9 @@ import { Skeleton } from '../common/Skeleton';
 export default function MainSkeleton() {
   return (
     <main className="max-w-7xl mx-auto px-5 py-8 md:py-12">
+      <div role="status" aria-live="polite" aria-busy="true">
+        <span className="sr-only">메인 페이지를 불러오는 중입니다.</span>
+      </div>
       {/* Featured Section */}
       <div className="mb-12 md:mb-16 min-h-[560px] rounded-3xl overflow-hidden bg-bg-sub">
         <div className="w-full flex flex-col lg:flex-row items-center px-8 lg:px-20 py-16 gap-12">

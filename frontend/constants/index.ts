@@ -21,7 +21,9 @@ export const SORT_OPTIONS = [
   { label: '입찰순', value: 'bid_count' },
   { label: '낮은 가격순', value: 'price_low' },
   { label: '마감 임박순', value: 'ending_soon' },
-];
+] as const;
+
+export type SortBy = (typeof SORT_OPTIONS)[number]['value'];
 
 export const PERIOD_OPTIONS = [
   { label: '전체 기간', value: 'all' },

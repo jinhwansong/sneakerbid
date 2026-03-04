@@ -4,16 +4,16 @@ import React, { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { TrendingUp, Users, Flame, Award } from 'lucide-react';
-import { cn } from '@/lib/cn';
-import { formatPrice } from '@/lib/format';
+import { cn } from '@/lib/util/cn';
+import { formatPrice } from '@/lib/util/format';
 import VirtualizedList from '@/components/common/VirtualizedList';
 import { useAuctionList, auctionListPagesToItems } from '@/hooks/query/useAuctionList';
 import RankingSkeleton from '@/components/skeleton/RankingSkeleton';
 
 const TABS = [
   { id: 'popular', label: '인기 급상승', icon: Flame, sort: 'popular' as const },
-  { id: 'bids', label: '입찰 많은 순', icon: Users, sort: 'popular' as const },
-  { id: 'trending', label: '시세 급등', icon: TrendingUp, sort: 'ending_soon' as const },
+  { id: 'bids', label: '입찰 많은 순', icon: Users, sort: 'bid_count' as const },
+  { id: 'trending', label: '최신순', icon: TrendingUp, sort: 'newest' as const },
 ];
 
 export default function RankingPage() {

@@ -100,9 +100,19 @@ export default function AuctionForm({
       alert('상품 이미지를 등록해주세요.');
       return;
     }
+    if (!formData.brand || !formData.brand.trim()) {
+      alert('브랜드를 선택해주세요.');
+      return;
+    }
+    if (formData.size === '' || formData.size == null) {
+      alert('사이즈를 선택해주세요.');
+      return;
+    }
 
     const startPrice = parseInt(formData.startPrice, 10);
-    const buyNowPrice = formData.buyNowPrice ? parseInt(formData.buyNowPrice, 10) : 0;
+    const buyNowPrice = formData.buyNowPrice
+      ? parseInt(formData.buyNowPrice, 10)
+      : undefined;
     const minimumIncrement = parseInt(formData.minimumIncrement, 10);
 
     if (Number.isNaN(startPrice) || startPrice < 0) {
@@ -126,7 +136,7 @@ export default function AuctionForm({
         description: formData.description,
         size: String(formData.size),
         startPrice,
-        buyNowPrice: buyNowPrice || undefined,
+        buyNowPrice: buyNowPrice ?? undefined,
         minimumIncrement,
         endTime: new Date(formData.endTime).toISOString(),
       };
@@ -140,7 +150,7 @@ export default function AuctionForm({
         imageUrl: '', // onSubmit에서 업로드 후 채움
         size: String(formData.size),
         startPrice,
-        buyNowPrice,
+        ...(buyNowPrice != null && { buyNowPrice }),
         minimumIncrement,
         endTime: new Date(formData.endTime).toISOString(),
       };

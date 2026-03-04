@@ -34,6 +34,9 @@ export default function AuctionImageUpload({
       alert('이미지 파일만 업로드 가능합니다.');
       return;
     }
+    if (previewUrl && previewUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(previewUrl);
+    }
     const url = URL.createObjectURL(file);
     setPreviewUrl(url);
     setNewFile(file);
@@ -62,11 +65,22 @@ export default function AuctionImageUpload({
   };
 
   const removeImage = () => {
+    if (previewUrl && previewUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(previewUrl);
+    }
     setPreviewUrl(null);
     setNewFile(null);
     onImageChange(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
+
+  React.useEffect(() => {
+    return () => {
+      if (previewUrl && previewUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
 
   return (
     <div className={cn('space-y-4', className)}>

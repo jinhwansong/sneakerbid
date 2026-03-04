@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Button } from '@/components/common/Button';
-import { cn } from '@/lib/cn';
+import { cn } from '@/lib/util/cn';
 import { AUCTION_FILTER_TABS } from '@/constants';
 
 interface AuctionFilterTabsProps {

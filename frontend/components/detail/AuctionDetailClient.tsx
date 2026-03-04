@@ -4,17 +4,15 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AuctionItem, BidLogItem } from '@/types/auction';
 import { useCountdown } from '@/hooks/useCountdown';
-import {
-  useAuctionEvents,
-  type AuctionClosedPayload,
-} from '@/hooks/useAuctionEvents';
+import { useAuctionEvents } from '@/hooks/useAuctionEvents';
+import type { AuctionClosedPayload } from '@/types/events';
 import { useMe } from '@/hooks/query/useMe';
 import { useQueryClient } from '@tanstack/react-query';
-import { formatPrice } from '@/lib/format';
+import { formatPrice } from '@/lib/util/format';
 import { useToastStore } from '@/store/useToastStore';
 import { api } from '@/lib/api';
 import { queryKeys } from '@/hooks/query/queryKeys';
-import { sortBidHistory } from '@/lib/bidHistory';
+import { sortBidHistory } from '@/lib/util/bidHistory';
 import {
   DetailProductImage,
   DetailProductInfo,
@@ -34,7 +32,7 @@ interface AuctionDetailClientProps {
   auctionId: string;
 }
 
-const BID_STEP = 10000;
+const DEFAULT_BID_STEP = 10000;
 
 /** 경매 상태: active(진행중) | closed(종료) */
 type AuctionStatus = 'active' | 'closed';
@@ -58,7 +56,8 @@ export default function AuctionDetailClient({
   const [bidHistory, setBidHistory] = useState<BidLogItem[]>(
     () => item.initialBids ?? [],
   );
-  const [bidAmount, setBidAmount] = useState(item.currentBid + BID_STEP);
+  const bidStep = item.minimumIncrement ?? DEFAULT_BID_STEP;
+  const [bidAmount, setBidAmount] = useState(item.currentBid + bidStep);
   const [bidError, setBidError] = useState('');
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [closedPayload, setClosedPayload] = useState<AuctionClosedPayload | null>(
@@ -98,7 +97,7 @@ export default function AuctionDetailClient({
 
   /** 실시간 입찰/종료 이벤트 구독 */
   useAuctionEvents({
-    auctionId: item.id,
+    auctionId,
     isActive: isAuctionActive,
     onNewBid: handleNewBidFromSSE,
     onAuctionClosed: handleAuctionClosed,
@@ -129,7 +128,7 @@ export default function AuctionDetailClient({
     return (((displayCurrentPrice - start) / start) * 100).toFixed(1);
   }, [displayCurrentPrice, item.startPrice, item.priceIncreasePercent]);
 
-  const minBid = displayCurrentPrice + BID_STEP;
+  const minBid = displayCurrentPrice + bidStep;
 
   /** 입찰하기 (낙관적 업데이트) */
   const handleBid = async () => {
@@ -152,26 +151,24 @@ export default function AuctionDetailClient({
 
     setBidError('');
 
-    /** 낙관적 업데이트: 즉시 가격/참여자 반영 (bidHistory는 SSE newBid로 갱신) */
+    /** 낙관적 업데이트: 즉시 가격 반영 (bidHistory·participants는 SSE newBid로 갱신) */
     const prevPrice = currentPrice;
-    const prevParticipants = participants;
+    const prevBidAmount = bidAmount;
 
     setCurrentPrice(bidAmount);
-    setParticipants((prev) => prev + 1);
-    setBidAmount(bidAmount + BID_STEP);
+    setBidAmount(bidAmount + bidStep);
 
     try {
       const res = await api.auctions.placeBid(auctionId, bidAmount);
       setCurrentPrice(res.currentPrice);
-      setBidAmount(res.currentPrice + BID_STEP);
+      setBidAmount(res.currentPrice + bidStep);
       showToast('입찰이 완료되었습니다.');
       queryClient.invalidateQueries({ queryKey: queryKeys.me });
       queryClient.invalidateQueries({ queryKey: queryKeys.auctions.myBidding });
     } catch (err) {
-      /** 실패 시 롤백 */
-      setCurrentPrice(prevPrice);
-      setParticipants(prevParticipants);
-      setBidAmount(bidAmount);
+      /** 실패 시 조건부 롤백: SSE로 갱신된 상태는 유지, 낙관적 업데이트만 되돌림 */
+      setCurrentPrice((prev) => (prev === bidAmount ? prevPrice : prev));
+      setBidAmount((prev) => (prev === prevBidAmount + bidStep ? prevBidAmount : prev));
       const msg = err instanceof Error ? err.message : '입찰에 실패했습니다.';
       const displayMsg =
         msg.includes('로그인') || msg.includes('401')

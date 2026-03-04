@@ -1,80 +1,24 @@
 'use client';
 
-import React, { useState } from 'react';
 import Link from 'next/link';
+import { useParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
-import { useRouter, useParams } from 'next/navigation';
 import { useMe } from '@/hooks/query/useMe';
-import { useQuery } from '@tanstack/react-query';
-import AuctionForm from '@/components/auction/AuctionForm';
 import LoginRequiredPrompt from '@/components/me/LoginRequiredPrompt';
-import { api } from '@/lib/api';
-import { useToastStore } from '@/store/useToastStore';
-import type { UpdateAuctionDto } from '@/types/auction';
+import { cn } from '@/lib/util/cn';
 
-export default function AuctionEditPage() {
-  const router = useRouter();
+export default function EditAuctionPage() {
   const params = useParams();
-  const id = params?.id as string;
-  const { data: profile } = useMe();
-  const showToast = useToastStore((s) => s.showToast);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const id = params?.id as string | undefined;
+  const { data: profile, isLoading } = useMe();
 
-  const { data: auction, isLoading, isError } = useQuery({
-    queryKey: ['auction', id],
-    queryFn: () => api.auctions.get(id),
-    enabled: !!id && !!profile,
-  });
-
-  const handleSubmit = async (dto: UpdateAuctionDto, imageFile: File | null) => {
-    if (!id) return;
-
-    setIsSubmitting(true);
-    try {
-      let payload = { ...dto };
-      if (imageFile) {
-        const { url } = await api.uploadImage(imageFile);
-        payload = { ...payload, imageUrl: url };
-      }
-      await api.auctions.update(id, payload);
-      showToast('경매가 수정되었습니다.');
-      router.push('/me/auctions');
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : '경매 수정에 실패했습니다.';
-      showToast(msg, 'error');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  if (!profile) return <LoginRequiredPrompt />;
-
-  if (isLoading || !auction) {
-    return (
-      <main className="min-h-[calc(100vh-64px)] bg-bg-main">
-        <div className="max-w-6xl mx-auto px-5 py-16 text-center">
-          <p className="text-text-muted">경매 정보를 불러오는 중...</p>
-        </div>
-      </main>
-    );
-  }
-
-  if (isError) {
-    return (
-      <main className="min-h-[calc(100vh-64px)] bg-bg-main">
-        <div className="max-w-6xl mx-auto px-5 py-16 text-center">
-          <p className="text-status-urgent mb-4">경매를 불러올 수 없습니다.</p>
-          <Link href="/me/auctions" className="text-brand-primary hover:underline">
-            내 경매로 돌아가기
-          </Link>
-        </div>
-      </main>
-    );
-  }
+  if (isLoading) return null;
+  if (profile === null) return <LoginRequiredPrompt />;
+  if (!profile) return null;
 
   return (
     <main className="min-h-[calc(100vh-64px)] bg-bg-main">
-      <div className="max-w-6xl mx-auto px-5 pt-8">
+      <div className="max-w-2xl mx-auto px-5 py-8 md:py-12">
         <Link
           href="/me/auctions"
           className="inline-flex items-center gap-2 text-sm font-medium text-text-muted hover:text-text-main mb-8"
@@ -82,14 +26,28 @@ export default function AuctionEditPage() {
           <ArrowLeft size={16} />
           내 경매로 돌아가기
         </Link>
+        <h1 className="text-2xl md:text-3xl font-black text-text-main tracking-tight mb-2">
+          경매 수정
+        </h1>
+        <p className="text-text-sub font-medium mb-12">
+          경매 수정 폼입니다. (준비 중)
+        </p>
+        <div className="bg-bg-sub/50 border border-border-main rounded-2xl p-12 text-center">
+          <p className="text-text-muted font-medium">
+            수정 폼 UI 구현 예정 {id && `(경매 ID: ${id})`}
+          </p>
+          <Link
+            href="/me/auctions"
+            className={cn(
+              'mt-6 inline-flex items-center justify-center font-bold transition-all',
+              'bg-transparent border border-border-main text-text-main hover:bg-bg-sub',
+              'px-4 py-2.5 text-sm rounded-xl'
+            )}
+          >
+            목록으로
+          </Link>
+        </div>
       </div>
-      <AuctionForm
-        initialData={auction}
-        auctionId={id}
-        onSubmit={handleSubmit}
-        submitLabel="수정 완료"
-        isSubmitting={isSubmitting}
-      />
     </main>
   );
 }
