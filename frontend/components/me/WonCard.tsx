@@ -1,15 +1,12 @@
 import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { CreditCard } from 'lucide-react';
-import { Button } from '@/components/common/Button';
 import { formatPrice } from '@/lib/format';
 import { cn } from '@/lib/cn';
 import type { OrderItem } from '@/types/orders';
 
 export default function WonCard({ item }: { item: OrderItem }) {
-  const router = useRouter();
   const statusConfig = {
     PENDING: {
       label: '결제 대기',
@@ -67,18 +64,16 @@ export default function WonCard({ item }: { item: OrderItem }) {
           {formatPrice(item.finalPrice)}
         </p>
         {item.status === 'PENDING' && (
-          <Button
-            variant="primary"
-            size="sm"
-            className="gap-1"
-            onClick={(e) => {
-              e.stopPropagation();
-              router.push(`/auction/${item.auctionId}`);
-            }}
+          <span
+            className={cn(
+              'inline-flex items-center gap-1 px-3 py-1.5 text-xs rounded-lg',
+              'bg-text-main text-bg-main hover:brightness-110 shadow-lg shadow-black/5',
+              'cursor-pointer font-bold transition-all',
+            )}
           >
             <CreditCard size={14} />
             결제하기
-          </Button>
+          </span>
         )}
       </div>
     </Link>

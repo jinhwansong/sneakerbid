@@ -19,6 +19,8 @@ import { AuctionItem } from '@/types/auction';
 
 const BID_STEP = 10000;
 
+const TERMINAL_STATES = new Set<string>(['closed', 'failed', 'buy_now']);
+
 interface FeaturedAuctionProps {
   item: AuctionItem;
 }
@@ -45,9 +47,11 @@ export default function FeaturedAuction({
     queryClient.invalidateQueries({ queryKey: queryKeys.auctions.main });
   }, [queryClient]);
 
+  const canBid = !TERMINAL_STATES.has(item.status);
+
   useAuctionEvents({
     auctionId: item.id,
-    isActive: item.status !== 'closed' && item.status !== 'failed' && item.status !== 'buy_now',
+    isActive: canBid,
     onNewBid: handleNewBid,
     onAuctionClosed: handleAuctionClosed,
   });
@@ -165,10 +169,10 @@ export default function FeaturedAuction({
                 onClick={handleBid}
                 variant="secondary"
                 size="xl"
-                disabled={item.status === 'closed' || isBidding}
+                disabled={!canBid || isBidding}
                 className="px-10 h-16 text-lg rounded-2xl shadow-xl shadow-brand-primary/30"
               >
-                {item.status === 'closed'
+                {!canBid
                   ? '경매 종료'
                   : isBidding
                     ? '입찰 중...'

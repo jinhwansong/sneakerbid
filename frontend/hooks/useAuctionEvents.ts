@@ -2,15 +2,9 @@
 
 import { useCallback, useMemo } from 'react';
 import type { BidLogItem } from '@/types/auction';
+import type { AuctionClosedPayload } from '@/types/events';
 import { useReconnectingEventSource } from './useReconnectingEventSource';
 import { useSSEConnectionStore } from '@/store/useSSEConnectionStore';
-
-/** auctionClosed 이벤트 페이로드 */
-export interface AuctionClosedPayload {
-  status: 'CLOSED' | 'buy_now';
-  winnerUserId: string | null;
-  finalPrice: number;
-}
 
 interface UseAuctionEventsOptions {
   auctionId: string;

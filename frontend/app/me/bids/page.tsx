@@ -22,15 +22,27 @@ const TABS = [
 
 export default function MyBidsPage() {
   const { data: profile, isLoading: isMeLoading } = useMe();
-  const { data: ongoingItems = [], isLoading: isLoadingOngoing } = useMyBiddingAuctions({
+  const {
+    data: ongoingItems = [],
+    isLoading: isLoadingOngoing,
+    isError: isErrorOngoing,
+  } = useMyBiddingAuctions({
     enabled: !!profile,
     status: 'ongoing',
   });
-  const { data: closedItems = [], isLoading: isLoadingClosed } = useMyBiddingAuctions({
+  const {
+    data: closedItems = [],
+    isLoading: isLoadingClosed,
+    isError: isErrorClosed,
+  } = useMyBiddingAuctions({
     enabled: !!profile,
     status: 'closed',
   });
-  const { data: orders = [], isLoading: isLoadingWon } = useMyOrders({
+  const {
+    data: orders = [],
+    isLoading: isLoadingWon,
+    isError: isErrorWon,
+  } = useMyOrders({
     enabled: !!profile,
   });
   const [activeTab, setActiveTab] = useState<(typeof TABS)[number]['id']>('ongoing');
@@ -79,6 +91,12 @@ export default function MyBidsPage() {
               <div className="flex justify-center py-16">
                 <div className="h-8 w-8 animate-spin rounded-full border-2 border-brand-primary border-t-transparent" />
               </div>
+            ) : isErrorOngoing ? (
+              <div className="py-16 text-center">
+                <p className="text-text-muted">
+                  입찰 중인 경매 목록을 불러오는 중 오류가 발생했습니다.
+                </p>
+              </div>
             ) : ongoingItems.length === 0 ? (
               <EmptyOngoing />
             ) : (
@@ -96,6 +114,12 @@ export default function MyBidsPage() {
               <div className="flex justify-center py-16">
                 <div className="h-8 w-8 animate-spin rounded-full border-2 border-brand-primary border-t-transparent" />
               </div>
+            ) : isErrorClosed ? (
+              <div className="py-16 text-center">
+                <p className="text-text-muted">
+                  유찰된 경매 목록을 불러오는 중 오류가 발생했습니다.
+                </p>
+              </div>
             ) : lostItems.length === 0 ? (
               <EmptyLost />
             ) : (
@@ -112,6 +136,12 @@ export default function MyBidsPage() {
             {isLoadingWon ? (
               <div className="flex justify-center py-16">
                 <div className="h-8 w-8 animate-spin rounded-full border-2 border-brand-primary border-t-transparent" />
+              </div>
+            ) : isErrorWon ? (
+              <div className="py-16 text-center">
+                <p className="text-text-muted">
+                  낙찰 내역을 불러오는 중 오류가 발생했습니다.
+                </p>
               </div>
             ) : wonItems.length === 0 ? (
               <EmptyWon />
