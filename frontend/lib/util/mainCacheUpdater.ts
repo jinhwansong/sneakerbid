@@ -22,7 +22,6 @@ export function updateMainCacheWishlist(
         );
       return {
         ongoing: updateOne(prev.ongoing ?? []),
-        closed: updateOne(prev.closed ?? []),
       };
     },
   );
@@ -74,7 +73,36 @@ export function updateMainCacheAuctionBid(
         );
       return {
         ongoing: updateOne(prev.ongoing ?? []),
-        closed: updateOne(prev.closed ?? []),
+      };
+    },
+  );
+}
+
+/** 리스트 경매 캐시에서 특정 경매의 입찰 정보 갱신 (입찰 성공 시 메인/리스트 즉시 반영) */
+export function updateListCacheAuctionBid(
+  queryClient: QueryClient,
+  auctionId: string,
+  bidAmount: number,
+  participantDelta = 1,
+): void {
+  queryClient.setQueriesData<InfiniteData<GetAuctionListResponse>>(
+    { queryKey: ['auctions', 'list'] },
+    (prev) => {
+      if (!prev?.pages) return prev;
+      return {
+        ...prev,
+        pages: prev.pages.map((page) => ({
+          ...page,
+          items: page.items.map((a) =>
+            a.auctionId === auctionId
+              ? {
+                  ...a,
+                  currentPrice: bidAmount,
+                  bidCount: (a.bidCount ?? 0) + participantDelta,
+                }
+              : a,
+          ),
+        })),
       };
     },
   );

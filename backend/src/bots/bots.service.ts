@@ -1,6 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { Cron, Interval } from '@nestjs/schedule';
-import { PrismaService } from '@/prisma/prisma.service';
+import { DatabaseService } from '@/database/database.service';
+import { AuctionRepository } from '@/database/repositories/auction.repository';
+import { BotRepository } from '@/database/repositories/bot.repository';
 import { AuctionsService } from '@/auctions/auctions.service';
 import { auctionCooldownKey, cooldownKey } from './cooldown.store';
 import type { BotCooldownStore } from './cooldown.store';
@@ -15,7 +17,6 @@ import {
   RELIST_DELAY_MAX_SEC,
   RELIST_DELAY_MIN_SEC,
 } from '@/common/constants/bot.constants';
-import { Auction, Bot } from '@prisma/client';
 
 /** 랜덤 정수 생성 */
 function randInt(min: number, max: number) {
@@ -29,10 +30,35 @@ function isWithinActivityHours(now: Date, start: number, end: number): boolean {
   return h >= start || h <= end;
 }
 
+interface AuctionWithSneaker {
+  id: string;
+  sneakerId: string;
+  size: string;
+  startPrice: number;
+  currentPrice: number;
+  minimumIncrement: number;
+  sellerUserId: string;
+  sneaker: { brand: string; modelName: string };
+}
+
+interface BotWithUser {
+  id: string;
+  userId: string;
+  type: string;
+  maxBidMultiplier: number;
+  bidUnit: number;
+  activityStartHour: number;
+  activityEndHour: number;
+  favoriteBrands: unknown;
+  user: { id: string; nickname: string; balance: number };
+}
+
 @Injectable()
 export class BotsService {
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly db: DatabaseService,
+    private readonly auctionRepo: AuctionRepository,
+    private readonly botRepo: BotRepository,
     private readonly auctionsService: AuctionsService,
     @Inject('BOT_COOLDOWN_STORE')
     private readonly cooldownStore: BotCooldownStore,
@@ -41,18 +67,12 @@ export class BotsService {
   /** 매일 00:10 KST에 봇들에게 랜덤 잔액 지급 */
   @Cron('10 0 * * *', { timeZone: 'Asia/Seoul' })
   async dailyBotBalanceTopUp() {
-    const bots = await this.prisma.bot.findMany({
-      include: { user: true },
-    });
+    const bots = await this.botRepo.findAll();
 
     for (const bot of bots) {
       const [min, max] = DAILY_TOPUP_RANGE_BY_TYPE[bot.type] ?? DEFAULT_RANGE;
       const amount = randInt(min, max);
-
-      await this.prisma.user.update({
-        where: { id: bot.userId },
-        data: { balance: { increment: amount } },
-      });
+      await this.botRepo.incrementUserBalance(bot.userId, amount);
     }
 
     if (bots.length > 0) {
@@ -97,71 +117,83 @@ export class BotsService {
     const minClosed = new Date(now.getTime() - RELIST_DELAY_MAX_SEC * 1000);
     const maxClosed = new Date(now.getTime() - RELIST_DELAY_MIN_SEC * 1000);
 
-    const botUserIds = (
-      await this.prisma.bot.findMany({ select: { userId: true } })
-    ).map((b) => b.userId);
+    const botUserIds = await this.botRepo.findUserIds();
     if (botUserIds.length === 0) return;
 
-    const alreadyRelistedIds = (
-      await this.prisma.auction.findMany({
-        where: { relistedFromAuctionId: { not: null } },
-        select: { relistedFromAuctionId: true },
-      })
-    )
-      .map((a) => a.relistedFromAuctionId)
-      .filter((id): id is string => id != null);
+    const alreadyRelistedIds = await this.botRepo.findRelistedAuctionIds();
 
-    const toRelist = await this.prisma.auction.findMany({
-      where: {
-        status: 'CLOSED',
-        winnerUserId: { in: botUserIds },
-        closedAt: { gte: minClosed, lte: maxClosed },
-        ...(alreadyRelistedIds.length > 0 && {
-          id: { notIn: alreadyRelistedIds },
-        }),
-      },
-      include: { sneaker: true },
+    const toRelist = await this.auctionRepo.findClosedForRelist({
+      botUserIds,
+      minClosed,
+      maxClosed,
+      excludeRelistedIds: alreadyRelistedIds,
     });
 
+    const supabase = this.db.getSupabase();
     for (const auction of toRelist) {
       if (!auction.winnerUserId) continue;
       const endTime = new Date(
         now.getTime() + RELIST_AUCTION_DURATION_SEC * 1000,
       );
-      await this.prisma.auction.create({
-        data: {
-          sneakerId: auction.sneakerId,
-          size: auction.size,
-          startPrice: auction.currentPrice,
-          currentPrice: auction.currentPrice,
-          buyNowPrice: auction.buyNowPrice,
-          minimumIncrement: auction.minimumIncrement,
-          status: 'OPEN',
-          endTime,
-          sellerUserId: auction.winnerUserId,
-          relistedFromAuctionId: auction.id,
-        },
+      await supabase.from('Auction').insert({
+        id: crypto.randomUUID(),
+        sneakerId: auction.sneakerId,
+        size: auction.size,
+        startPrice: auction.currentPrice,
+        currentPrice: auction.currentPrice,
+        buyNowPrice: auction.buyNowPrice,
+        minimumIncrement: auction.minimumIncrement,
+        status: 'OPEN',
+        endTime: endTime.toISOString(),
+        sellerUserId: auction.winnerUserId,
+        relistedFromAuctionId: auction.id,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       });
+      const brand = auction.sneaker_brand;
+      const model = auction.sneaker_modelName;
       console.log(
-        `[BotsService] 재등록: ${auction.sneaker.brand} ${auction.sneaker.modelName} (원본 ${auction.id})`,
+        `[BotsService] 재등록: ${brand} ${model} (원본 ${auction.id})`,
       );
     }
   }
 
   /** 경매·봇 데이터 조회 */
-  private async fetchData() {
+  private async fetchData(): Promise<[AuctionWithSneaker[], BotWithUser[]]> {
     const now = new Date();
-    return Promise.all([
-      this.prisma.auction.findMany({
-        where: { status: 'OPEN', endTime: { gt: now } },
-        include: { sneaker: true },
-        take: 15,
-        orderBy: { endTime: 'asc' },
-      }),
-      this.prisma.bot.findMany({
-        include: { user: true },
-      }),
+
+    const [auctionRows, botRows] = await Promise.all([
+      this.auctionRepo.findMainAuctions(now).then((rows) =>
+        rows.slice(0, 15).map((a) => ({
+          ...a,
+          sneaker: {
+            brand: a.sneaker_brand,
+            modelName: a.sneaker_modelName,
+          },
+        })),
+      ),
+      this.botRepo.findWithUsers(),
     ]);
+
+    const auctions: AuctionWithSneaker[] = auctionRows;
+
+    const bots: BotWithUser[] = botRows.map((b) => ({
+      id: b.id,
+      userId: b.userId,
+      type: b.type,
+      maxBidMultiplier: b.maxBidMultiplier,
+      bidUnit: b.bidUnit,
+      activityStartHour: b.activityStartHour,
+      activityEndHour: b.activityEndHour,
+      favoriteBrands: b.favoriteBrands,
+      user: {
+        id: b.user_id,
+        nickname: b.user_nickname,
+        balance: b.user_balance,
+      },
+    }));
+
+    return [auctions, bots];
   }
 
   /** (auction, bot) 쌍 랜덤 추출, 최대 BIDS_PER_TURN개 */
@@ -216,8 +248,8 @@ export class BotsService {
 
   /** 단일 입찰 시도: 쿨다운 → 검증 → 입찰 → 실패 시 쿨다운 해제 */
   private async tryPlaceBid(
-    auction: Auction & { sneaker: { brand: string; modelName: string } },
-    bot: Bot & { user: { id: string; nickname: string; balance: number } },
+    auction: AuctionWithSneaker,
+    bot: BotWithUser,
     now: Date,
   ): Promise<{
     bot: string;
@@ -284,18 +316,16 @@ export class BotsService {
 
   /** 입찰 검증 (활동 시간, 브랜드, 판매자 제외) */
   private validateBid(
-    auction: Auction & { sneaker: { brand: string }; sellerUserId: string },
-    bot: Bot & { userId: string },
+    auction: AuctionWithSneaker,
+    bot: BotWithUser,
     now: Date,
   ): boolean {
     if (auction.sellerUserId === bot.userId) return false;
-    /** 활동 시간 체크 */
     if (
       !isWithinActivityHours(now, bot.activityStartHour, bot.activityEndHour)
     ) {
       return false;
     }
-    /** 브랜드 체크 */
     const brands = Array.isArray(bot.favoriteBrands)
       ? (bot.favoriteBrands as unknown[]).filter(
           (x): x is string => typeof x === 'string',
@@ -304,7 +334,6 @@ export class BotsService {
     if (brands.length > 0 && !brands.includes(auction.sneaker.brand)) {
       return false;
     }
-
     return true;
   }
 }

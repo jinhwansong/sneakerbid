@@ -13,8 +13,8 @@ import { RolesGuard } from './common/guard/roles.guard';
 import { UndefinedToNullInterceptor } from './common/interceptors/undefinedToNull.Interceptor';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { HttpExceptionFilter } from './common/filters/httpException.filter';
-import { PrismaModule } from './prisma/prisma.module';
-import { PrismaExceptionFilter } from './common/filters/prismaException.filter';
+import { DatabaseModule } from './database/database.module';
+import { DatabaseExceptionFilter } from './common/filters/databaseException.filter';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { RedisModule } from './redis/redis.module';
@@ -32,7 +32,7 @@ import { UploadModule } from './upload/upload.module';
     ConfigModule.forRoot({
       // dotenv 전역사용
       isGlobal: true,
-      envFilePath: ['.env.local', '.env'],
+      envFilePath: ['.env.local', '.env', 'backend/.env'],
       // 환경변수 검증
       validate,
       // ConfigService 값 캐싱
@@ -52,7 +52,7 @@ import { UploadModule } from './upload/upload.module';
     }),
     // Health Check
     TerminusModule,
-    PrismaModule,
+    DatabaseModule,
     RedisModule,
     UsersModule,
     AuthModule,
@@ -103,7 +103,7 @@ import { UploadModule } from './upload/upload.module';
     },
     {
       provide: APP_FILTER,
-      useClass: PrismaExceptionFilter,
+      useClass: DatabaseExceptionFilter,
     },
   ],
 })

@@ -31,7 +31,7 @@ class EnvironmentVariables {
 
   // CORS
   @IsString()
-  CORS_ORIGIN: string = process.env.FRONTEND_URL;
+  CORS_ORIGIN: string;
 
   // Rate Limiting
   @IsNumber()
@@ -41,9 +41,26 @@ class EnvironmentVariables {
   @IsNumber()
   @Min(1)
   THROTTLE_LIMIT: number = 100;
+
+  // Database (Supabase)
+  @IsString()
+  SUPABASE_URL: string = process.env.SUPABASE_URL ?? '';
+
+  @IsString()
+  SUPABASE_SERVICE_ROLE_KEY: string =
+    process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
+
+  @IsString()
+  DATABASE_URL: string = process.env.DATABASE_URL ?? '';
 }
 
 export function validate(config: Record<string, unknown>) {
+  // CORS_ORIGIN이 없으면 FRONTEND_URL 사용 (env 키 불일치 대응)
+  const corsOrigin =
+    config.CORS_ORIGIN ?? config.FRONTEND_URL ?? process.env.FRONTEND_URL;
+  if (corsOrigin) {
+    config = { ...config, CORS_ORIGIN: corsOrigin };
+  }
   const validatedConfig = plainToInstance(EnvironmentVariables, config, {
     enableImplicitConversion: true,
   });

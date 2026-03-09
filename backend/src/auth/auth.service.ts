@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Request, Response } from 'express';
-import { OAuthProvider } from '@prisma/client';
-import { PrismaService, UserByIdResult } from '../prisma/prisma.service';
+import { DatabaseService } from '@/database/database.service';
+import type { OAuthProvider, UserByIdResult } from '@/common/database/db.types';
 import { INITIAL_USER_BALANCE } from '@/common/constants/auth.constants';
-import { RedisService } from '../redis/redis.service';
+import { RedisService } from '@/redis/redis.service';
 import { JwtService } from '@nestjs/jwt';
 import { REFRESH_TTL } from '@/common/constants';
 
@@ -18,7 +18,7 @@ export interface OAuthProfile {
 @Injectable()
 export class AuthService {
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly db: DatabaseService,
     private readonly configService: ConfigService,
     private readonly redis: RedisService,
     private readonly jwtService: JwtService,
@@ -29,61 +29,89 @@ export class AuthService {
     provider: OAuthProvider,
     profile: OAuthProfile,
   ): Promise<UserByIdResult> {
-    const existing = await this.prisma.socialAccount.findUnique({
-      where: {
-        provider_providerId: {
-          provider,
-          providerId: profile.providerId,
-        },
-      },
-      include: { user: true },
-    });
+    const supabase = this.db.getSupabase();
 
-    if (existing) {
-      // 기존 유저: 프로필 이미지 갱신 (provider에서 받은 값으로)
+    const { data: existing } = await supabase
+      .from('SocialAccount')
+      .select('id, userId')
+      .eq('provider', provider)
+      .eq('providerId', profile.providerId)
+      .maybeSingle();
+
+    if (existing?.userId) {
+      const { data: user } = await supabase
+        .from('User')
+        .select(
+          'id, nickname, role, balance, profileImageUrl, createdAt, updatedAt',
+        )
+        .eq('id', existing.userId)
+        .maybeSingle();
+
+      if (!user) throw new Error('User not found');
+
       if (profile.profileImageUrl) {
-        await this.prisma.user.update({
-          where: { id: existing.user.id },
-          data: { profileImageUrl: profile.profileImageUrl },
-        });
+        await supabase
+          .from('User')
+          .update({
+            profileImageUrl: profile.profileImageUrl,
+            updatedAt: new Date().toISOString(),
+          })
+          .eq('id', user.id);
       }
+
       return {
-        id: existing.user.id,
-        nickname: existing.user.nickname,
-        role: existing.user.role,
-        balance: existing.user.balance,
-        profileImageUrl:
-          profile.profileImageUrl ?? existing.user.profileImageUrl ?? null,
-        createdAt: existing.user.createdAt,
-        updatedAt: existing.user.updatedAt,
+        id: user.id as string,
+        nickname: user.nickname as string,
+        role: user.role as string,
+        balance: user.balance as number,
+        profileImageUrl: (profile.profileImageUrl ??
+          user.profileImageUrl ??
+          null) as string | null,
+        createdAt: new Date(user.createdAt as string),
+        updatedAt: new Date(user.updatedAt as string),
       };
     }
 
-    const user = await this.prisma.user.create({
-      data: {
-        nickname: profile.nickname || `user_${profile.providerId.slice(0, 8)}`,
-        email: profile.email ?? undefined,
-        profileImageUrl: profile.profileImageUrl ?? undefined,
-        balance: INITIAL_USER_BALANCE,
-      },
-    });
+    const newUser = {
+      id: crypto.randomUUID(),
+      nickname: profile.nickname || `user_${profile.providerId.slice(0, 8)}`,
+      email: profile.email ?? null,
+      profileImageUrl: profile.profileImageUrl ?? null,
+      balance: INITIAL_USER_BALANCE,
+      role: 'USER',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
 
-    await this.prisma.socialAccount.create({
-      data: {
-        userId: user.id,
-        provider,
-        providerId: profile.providerId,
-      },
-    });
+    const { error: userError } = await supabase.from('User').insert(newUser);
+    if (userError) {
+      console.error('[AuthService] User insert 실패:', userError);
+      throw new Error(`User 생성 실패: ${userError.message}`);
+    }
+
+    const socialAccount = {
+      id: crypto.randomUUID(),
+      userId: newUser.id,
+      provider,
+      providerId: profile.providerId,
+      createdAt: new Date().toISOString(),
+    };
+    const { error: socialError } = await supabase
+      .from('SocialAccount')
+      .insert(socialAccount);
+    if (socialError) {
+      console.error('[AuthService] SocialAccount insert 실패:', socialError);
+      throw new Error(`SocialAccount 생성 실패: ${socialError.message}`);
+    }
 
     return {
-      id: user.id,
-      nickname: user.nickname,
-      role: user.role,
-      balance: user.balance,
-      profileImageUrl: user.profileImageUrl ?? null,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
+      id: newUser.id,
+      nickname: newUser.nickname,
+      role: newUser.role,
+      balance: newUser.balance,
+      profileImageUrl: newUser.profileImageUrl ?? null,
+      createdAt: new Date(newUser.createdAt),
+      updatedAt: new Date(newUser.updatedAt),
     };
   }
 
@@ -94,17 +122,20 @@ export class AuthService {
   ): Promise<void> {
     const { accessToken, refreshToken } = await this.login(user);
 
-    res.cookie('accessToken', accessToken, {
+    const cookieOptions = {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: 'lax' as const,
+      path: '/',
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7일 (ms)
+    };
+
+    res.cookie('accessToken', accessToken, {
+      ...cookieOptions,
+      maxAge: 15 * 60 * 1000, // 15분
     });
 
-    res.cookie('refreshToken', refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-    });
+    res.cookie('refreshToken', refreshToken, cookieOptions);
   }
 
   /* 리프레시 토큰으로 새 토큰 발급 */
@@ -130,12 +161,26 @@ export class AuthService {
     refreshToken: string,
     res: Response,
   ): Promise<boolean> {
-    const userId = await this.redis.getUserIdByRefreshToken(refreshToken);
+    let userId = await this.redis.getUserIdByRefreshToken(refreshToken);
+
+    // Redis에 없으면 JWT 검증 폴백 (Upstash 등 Redis 연결 이슈 대응)
     if (!userId) {
-      return false;
+      try {
+        const payload = this.jwtService.verify<{ sub: string; role: string }>(
+          refreshToken,
+        );
+        userId = payload.sub;
+        try {
+          await this.redis.setRefreshToken(refreshToken, userId, REFRESH_TTL);
+        } catch {
+          // Redis 저장 실패해도 userId는 있으므로 계속 진행
+        }
+      } catch {
+        return false;
+      }
     }
 
-    const user = await this.prisma.findUserById(userId);
+    const user = await this.db.findUserById(userId);
     if (!user) {
       await this.redis.revokeRefreshToken(refreshToken);
       return false;
@@ -154,14 +199,15 @@ export class AuthService {
       await this.redis.revokeRefreshToken(refreshToken);
     }
 
-    const cookieOptions = {
+    const clearOptions = {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax' as const,
+      path: '/',
       maxAge: 0,
     };
-    res.clearCookie('accessToken', cookieOptions);
-    res.clearCookie('refreshToken', cookieOptions);
+    res.clearCookie('accessToken', clearOptions);
+    res.clearCookie('refreshToken', clearOptions);
 
     return res.status(200).json({ message: '로그아웃을 성공했습니다.' });
   }
@@ -179,7 +225,12 @@ export class AuthService {
       expiresIn: '7d',
     });
 
-    await this.redis.setRefreshToken(refreshToken, user.id, REFRESH_TTL);
+    try {
+      await this.redis.setRefreshToken(refreshToken, user.id, REFRESH_TTL);
+    } catch (err) {
+      // Redis 연결 실패 시에도 로그인은 진행 (refresh 시 JWT 폴백 사용)
+      console.error('[AuthService] Redis setRefreshToken 실패:', err);
+    }
 
     return { accessToken, refreshToken };
   }

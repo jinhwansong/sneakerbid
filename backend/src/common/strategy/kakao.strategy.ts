@@ -2,9 +2,9 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { Profile, Strategy } from 'passport-kakao';
-import { OAuthProvider } from '@prisma/client';
+import type { OAuthProvider } from '@/common/database/db.types';
 import { AuthService, OAuthProfile } from '../../auth/auth.service';
-import type { UserByIdResult } from '../../prisma/prisma.service';
+import type { UserByIdResult } from '@/common/database/db.types';
 
 @Injectable()
 export class KakaoStrategy extends PassportStrategy(Strategy, 'kakao') {
@@ -43,7 +43,7 @@ export class KakaoStrategy extends PassportStrategy(Strategy, 'kakao') {
     };
 
     const user = await this.authService.findOrCreateUserByOAuth(
-      OAuthProvider.KAKAO,
+      'KAKAO' as OAuthProvider,
       profileData,
     );
 

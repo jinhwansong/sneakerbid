@@ -1,4 +1,37 @@
-import type { Auction, Sneaker } from '@prisma/client';
+/** Auction/Sneaker row shapes (replaces @prisma/client types) */
+export interface AuctionRow {
+  id: string;
+  sneakerId: string;
+  size: string;
+  startPrice: number;
+  currentPrice: number;
+  buyNowPrice: number | null;
+  minimumIncrement: number;
+  status: string;
+  endTime: Date;
+  winnerUserId: string | null;
+  closedAt: Date | null;
+  version?: number;
+  lastExtendedAt?: Date | null;
+  extendCount?: number;
+  sellerUserId: string;
+  relistedFromAuctionId?: string | null;
+}
+
+export interface SneakerRow {
+  id: string;
+  modelName: string;
+  brand: string;
+  colorway: string | null;
+  description: string | null;
+  imageUrl: string;
+  popularityScore?: number;
+  styleCode?: string | null;
+  releaseYear?: number | null;
+  condition?: string | null;
+  origin?: string | null;
+  boxIncluded?: boolean | null;
+}
 
 /** 상세 페이지용 (AuctionItem과 호환) */
 export type AuctionDetail = {
@@ -45,8 +78,8 @@ export type AuctionSummary = {
   isWishlisted?: boolean;
 };
 
-export type AuctionWithDetails = Auction & {
-  sneaker: Sneaker;
+export type AuctionWithDetails = AuctionRow & {
+  sneaker: SneakerRow;
   _count?: { bids: number };
 };
 

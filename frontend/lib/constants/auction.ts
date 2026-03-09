@@ -1,6 +1,6 @@
 import type { GetMainAuctionsResponse, LiveStatsResponse } from '@/types/auction';
 
-export const EMPTY_MAIN: GetMainAuctionsResponse = { ongoing: [], closed: [] };
+export const EMPTY_MAIN: GetMainAuctionsResponse = { ongoing: [] };
 
 export const DEFAULT_STATS: LiveStatsResponse = {
   activeBidders: 0,

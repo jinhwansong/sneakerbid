@@ -76,27 +76,25 @@ export async function Fetcher<T>(
 
   let message = 'api 요청 실패';
   const text = await res.text().catch(() => '');
-   try {
-     type ErrorBody = {
-       success?: boolean;
-       code?: number;
-       data?: unknown;
-       message?: unknown;
-     };
+  try {
+    type ErrorBody = {
+      success?: boolean;
+      code?: number;
+      data?: unknown;
+      message?: unknown;
+    };
 
-     const body = (await res.json()) as ErrorBody;
-     const raw = body?.data ?? body?.message;
+    const body = JSON.parse(text) as ErrorBody;
+    const raw = body?.data ?? body?.message;
 
-     if (Array.isArray(raw)) {
-       message = (raw[0] as string | undefined) || message;
-     } else if (typeof raw === 'string') {
-       message = raw || message;
-     } else {
-      message = text;
-     }
-   } catch {
-     message = text;
-   }
+    if (Array.isArray(raw)) {
+      message = (raw[0] as string | undefined) || message;
+    } else if (typeof raw === 'string') {
+      message = raw || message;
+    }
+  } catch {
+    message = text || message;
+  }
 
   const err: HttpError = new Error(message);
   err.status = res.status; // Query onError에서 401/403 등 분기용

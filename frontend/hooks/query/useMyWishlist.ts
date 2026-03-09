@@ -88,8 +88,7 @@ export function useWishlistToggle() {
         wishlistData?.some((item) => item.id === auctionId) ?? false;
       const findItem = (arr: AuctionSummary[] = []) =>
         arr.find((a) => a.auctionId === auctionId);
-      const current =
-        findItem(previousMain?.ongoing) ?? findItem(previousMain?.closed);
+      const current = findItem(previousMain?.ongoing);
       const previousIsWishlisted =
         inWishlist || (current?.isWishlisted ?? false);
 

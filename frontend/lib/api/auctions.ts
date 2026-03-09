@@ -56,12 +56,13 @@ export const auctions = {
     );
   },
 
-  /** 경매 상세 조회 */
-  get: (id: string) => apiClient.get<GetAuctionResponse>(`/auctions/${id}`),
+  /** 경매 상세 조회 (init.headers: 서버 prefetch 시 쿠키 전달용) */
+  get: (id: string, init?: Pick<RequestInit, 'headers'>) =>
+    apiClient.get<GetAuctionResponse>(`/auctions/${id}`, undefined, init),
 
   /** 입찰 목록 조회 */
-  getBids: (auctionId: string) =>
-    apiClient.get<BidLogItem[]>(`/auctions/${auctionId}/bids`),
+  getBids: (auctionId: string, init?: Pick<RequestInit, 'headers'>) =>
+    apiClient.get<BidLogItem[]>(`/auctions/${auctionId}/bids`, undefined, init),
 
   /** 경매 등록 */
   create: (dto: CreateAuctionDto) =>

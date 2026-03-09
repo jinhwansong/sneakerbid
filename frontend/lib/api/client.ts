@@ -39,8 +39,9 @@ export const apiClient = {
   get<T>(
     path: string,
     query?: Record<string, string | number | undefined | null>,
+    init?: Pick<RequestInit, 'headers'>,
   ): Promise<T> {
-    return request<T>(path, { method: 'GET', query });
+    return request<T>(path, { method: 'GET', query, ...init });
   },
 
   post<T>(path: string, body?: unknown): Promise<T> {

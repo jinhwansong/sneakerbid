@@ -19,7 +19,7 @@ export default function AuctionCreatePage() {
 
   const handleSubmit = async (
     dto: CreateAuctionDto | import('@/types/auction').UpdateAuctionDto,
-    imageFile: File | null,
+    imageFile?: File | null,
   ) => {
     if (!imageFile) {
       showToast('상품 이미지를 등록해주세요.', 'error');

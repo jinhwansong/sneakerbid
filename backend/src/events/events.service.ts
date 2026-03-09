@@ -147,7 +147,9 @@ export class EventsService implements OnModuleInit {
         JSON.stringify({ type: 'newBid', payload }),
       )
       .catch((err) =>
-        this.logger.warn('Redis publish recentBid failed', { err: err as Error }),
+        this.logger.warn('Redis publish recentBid failed', {
+          err: err as Error,
+        }),
       );
     this.emitStatsUpdate();
   }

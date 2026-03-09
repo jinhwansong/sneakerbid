@@ -21,6 +21,7 @@
   --color-border-sub: var(--border-sub);
   --color-border-subtle: var(--border-subtle);
   --color-border-accent: var(--border-accent);
+  --color-deep-navy: var(--deep-navy);
 }
 
 :root {
@@ -67,6 +68,7 @@
   --border-sub: #e5e8eb;
   --border-subtle: #2d2d2d;
   --border-accent: #f9fafb;
+  --deep-navy: #111111;
 }
 
 @layer base {
@@ -116,8 +118,6 @@
     cursor: pointer;
     box-sizing: border-box;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    min-height: 48px;
-    min-width: 48px;
   }
 
   p {

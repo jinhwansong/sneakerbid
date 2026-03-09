@@ -23,8 +23,33 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko" className={pretendard.variable} suppressHydrationWarning>
+      <head>
+        {/* F5 새로고침 시 테마 플래시 방지: CSS 로드 전에 테마 클래스 적용 */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+(function() {
+  try {
+    var theme = localStorage.getItem('theme');
+    var sysDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    var resolved = theme === 'dark' ? 'dark' : theme === 'light' ? 'light' : (theme === 'system' || !theme) && sysDark ? 'dark' : 'light';
+    document.documentElement.classList.remove('light', 'dark');
+    document.documentElement.classList.add(resolved);
+    document.documentElement.style.colorScheme = resolved;
+  } catch (e) {}
+})();
+`,
+          }}
+        />
+      </head>
       <body className="antialiased">
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          enableColorScheme
+          disableTransitionOnChange
+        >
           <QueryProvider>
             <GlobalToast />
             <SSEReconnectBanner />

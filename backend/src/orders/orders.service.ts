@@ -7,7 +7,10 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
-import { PrismaService } from '@/prisma/prisma.service';
+import { DatabaseService } from '@/database/database.service';
+import { AuctionRepository } from '@/database/repositories/auction.repository';
+import { BidRepository } from '@/database/repositories/bid.repository';
+import { OrderRepository } from '@/database/repositories/order.repository';
 import { RequestUser } from '@/common/decorator/user.decorator';
 import { EventsService } from '@/events/events.service';
 import { AuctionsService } from '@/auctions/auctions.service';
@@ -19,13 +22,17 @@ import {
   PENDING_ORDER_TIMEOUT_DAYS,
   REOPEN_AUCTION_DURATION_HOURS,
 } from '@/common/constants';
+import type { ReopenOrderPayload } from './orders.types';
 
 @Injectable()
 export class OrdersService {
   private readonly logger = new Logger(OrdersService.name);
 
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly db: DatabaseService,
+    private readonly auctionRepo: AuctionRepository,
+    private readonly bidRepo: BidRepository,
+    private readonly orderRepo: OrderRepository,
     private readonly eventsService: EventsService,
     private readonly auctionsService: AuctionsService,
     private readonly walletService: WalletService,
@@ -36,19 +43,14 @@ export class OrdersService {
   async closeExpiredAuctions() {
     const now = new Date();
     const start = Date.now();
-    const expired = await this.prisma.auction.findMany({
-      where: {
-        status: 'OPEN',
-        endTime: { lte: now },
-      },
-      select: { id: true },
-      take: CLOSE_EXPIRED_BATCH_SIZE,
-      orderBy: { endTime: 'asc' },
-    });
+    const expired = await this.auctionRepo.findExpiredForClose(
+      now,
+      CLOSE_EXPIRED_BATCH_SIZE,
+    );
 
     for (const { id: auctionId } of expired) {
       if (Date.now() - start >= CLOSE_EXPIRED_TIMEOUT_MS) break;
-      const closed = await this.prisma.$transaction(async (tx) => {
+      const closed = await this.db.transaction(async (tx) => {
         const locked = await lockAuctionForUpdate(tx, auctionId, {
           status: 'OPEN',
           endTimeLte: now,
@@ -66,7 +68,8 @@ export class OrdersService {
         });
         if (!auction) return null;
 
-        const winnerBid = auction.bids[0];
+        const bids = auction.bids ?? [];
+        const winnerBid = bids[0];
         const winnerUserId = winnerBid?.userId ?? null;
         const finalPrice = winnerBid?.bidPrice ?? auction.currentPrice;
 
@@ -80,7 +83,7 @@ export class OrdersService {
           },
         });
 
-        for (const bid of auction.bids) {
+        for (const bid of bids) {
           if (bid.userId !== winnerUserId) {
             await this.walletService.releaseBidHold(
               tx,
@@ -124,26 +127,11 @@ export class OrdersService {
     const deadline = new Date();
     deadline.setDate(deadline.getDate() - PENDING_ORDER_TIMEOUT_DAYS);
 
-    const expired = await this.prisma.order.findMany({
-      where: {
-        status: 'PENDING',
-        createdAt: { lt: deadline },
-      },
-      include: {
-        auction: {
-          include: {
-            bids: {
-              where: { disqualifiedAt: null },
-              orderBy: { bidPrice: 'desc' },
-            },
-          },
-        },
-      },
-    });
+    const expired = await this.orderRepo.findExpiredPending(deadline);
 
     for (const order of expired) {
       const nowPerOrder = new Date();
-      await this.prisma.$transaction(async (tx) => {
+      await this.db.transaction(async (tx) => {
         const locked = await lockAuctionForUpdate(tx, order.auctionId);
         if (!locked) return;
 
@@ -167,7 +155,8 @@ export class OrdersService {
         });
         if (orderUpdated.count === 0) return;
 
-        const winnerBid = auction.bids[0];
+        const bids = auction.bids ?? [];
+        const winnerBid = bids[0];
         const isAuctionWinner =
           winnerBid?.userId === order.buyerUserId &&
           winnerBid?.bidPrice === order.finalPrice;
@@ -192,8 +181,8 @@ export class OrdersService {
 
         const baselinePrice =
           isAuctionWinner && winnerBid
-            ? (auction.bids[1]?.bidPrice ?? auction.startPrice)
-            : (auction.bids[0]?.bidPrice ?? auction.startPrice);
+            ? (bids[1]?.bidPrice ?? auction.startPrice)
+            : (bids[0]?.bidPrice ?? auction.startPrice);
 
         await tx.auction.update({
           where: { id: order.auctionId },
@@ -213,11 +202,7 @@ export class OrdersService {
   async buyNow(auctionId: string, user: RequestUser) {
     const now = new Date();
 
-    const auction = await this.prisma.auction.findUnique({
-      where: { id: auctionId },
-      include: { sneaker: true },
-    });
-
+    const auction = await this.auctionsService.getAuctionByIdRaw(auctionId);
     if (!auction) {
       throw new NotFoundException('경매를 찾을 수 없습니다.');
     }
@@ -231,15 +216,12 @@ export class OrdersService {
       throw new BadRequestException('즉시 구매 가능한 경매가 아닙니다.');
     }
 
-    const buyer = await this.prisma.user.findUnique({
-      where: { id: user.id },
-      select: { balance: true },
-    });
+    const buyer = await this.db.findUserById(user.id);
     if (!buyer || buyer.balance < auction.buyNowPrice) {
       throw new BadRequestException('잔액이 부족합니다.');
     }
 
-    const order = await this.prisma.$transaction(async (tx) => {
+    const order = await this.db.transaction(async (tx) => {
       const locked = await lockAuctionForUpdate(tx, auctionId, {
         status: 'OPEN',
         endTimeGt: now,
@@ -289,20 +271,7 @@ export class OrdersService {
 
   /** 결제 (시뮬레이션) */
   async payOrder(orderId: string, user: RequestUser) {
-    const order = await this.prisma.order.findUnique({
-      where: { id: orderId },
-      include: {
-        auction: {
-          include: {
-            bids: {
-              orderBy: { bidPrice: 'desc' },
-              take: 1,
-            },
-          },
-        },
-      },
-    });
-
+    const order = await this.orderRepo.findForPay(orderId);
     if (!order) {
       throw new NotFoundException('주문을 찾을 수 없습니다.');
     }
@@ -315,14 +284,12 @@ export class OrdersService {
       );
     }
 
-    const winningBid = order.auction.bids[0];
+    const winningBid = await this.bidRepo.findWinningBid(order.auctionId);
     const isAuctionWinner =
       winningBid?.userId === user.id &&
       winningBid?.bidPrice === order.finalPrice;
-
     try {
-      const updated = await this.prisma.$transaction(async (tx) => {
-        // 조건부 업데이트로 동시 결제 방지 (이중 결제 방지)
+      const updated = await this.db.transaction(async (tx) => {
         const claimed = await tx.order.updateMany({
           where: { id: orderId, status: 'PENDING' },
           data: { status: 'PAID', paidAt: new Date() },
@@ -354,7 +321,7 @@ export class OrdersService {
 
         await this.walletService.settleSeller(
           tx,
-          order.auction.sellerUserId,
+          order.sellerUserId,
           order.finalPrice,
           orderId,
         );
@@ -362,10 +329,11 @@ export class OrdersService {
         return tx.order.findUniqueOrThrow({ where: { id: orderId } });
       });
 
+      const u = updated;
       return {
-        orderId: updated.id,
-        status: updated.status,
-        paidAt: updated.paidAt,
+        orderId: u.id,
+        status: u.status,
+        paidAt: u.paidAt,
       };
     } catch (err: unknown) {
       if (err instanceof ConflictException) throw err;
@@ -389,13 +357,8 @@ export class OrdersService {
   }
 
   /** 결제 실패 시 경매 재오픈 (주문 취소, BID_HOLD 해제, 경매 재개) */
-  private async reopenAuctionForFailedPayment(order: {
-    id: string;
-    auctionId: string;
-    buyerUserId: string;
-    finalPrice: number;
-  }) {
-    await this.prisma.$transaction(async (tx) => {
+  private async reopenAuctionForFailedPayment(order: ReopenOrderPayload) {
+    await this.db.transaction(async (tx) => {
       const nowPerOrder = new Date();
       const locked = await lockAuctionForUpdate(tx, order.auctionId);
       if (!locked) return;
@@ -420,7 +383,8 @@ export class OrdersService {
       });
       if (orderUpdated.count === 0) return;
 
-      const winnerBid = auction.bids[0];
+      const bids = auction.bids ?? [];
+      const winnerBid = bids[0];
       const isAuctionWinner =
         winnerBid?.userId === order.buyerUserId &&
         winnerBid?.bidPrice === order.finalPrice;
@@ -445,8 +409,8 @@ export class OrdersService {
 
       const baselinePrice =
         isAuctionWinner && winnerBid
-          ? (auction.bids[1]?.bidPrice ?? auction.startPrice)
-          : (auction.bids[0]?.bidPrice ?? auction.startPrice);
+          ? (bids[1]?.bidPrice ?? auction.startPrice)
+          : (bids[0]?.bidPrice ?? auction.startPrice);
 
       await tx.auction.update({
         where: { id: order.auctionId },
@@ -463,20 +427,14 @@ export class OrdersService {
 
   /** 내 주문 목록 */
   async getMyOrders(user: RequestUser) {
-    const orders = await this.prisma.order.findMany({
-      where: { buyerUserId: user.id },
-      include: {
-        auction: { include: { sneaker: true } },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+    const rows = await this.orderRepo.findMyOrders(user.id);
 
-    return orders.map((o) => ({
+    return rows.map((o) => ({
       id: o.id,
       auctionId: o.auctionId,
-      sneakerName: o.auction.sneaker.modelName,
-      imageUrl: o.auction.sneaker.imageUrl,
-      brand: o.auction.sneaker.brand,
+      sneakerName: o.sneaker_modelName,
+      imageUrl: o.sneaker_imageUrl,
+      brand: o.sneaker_brand,
       finalPrice: o.finalPrice,
       status: o.status,
       createdAt: o.createdAt,

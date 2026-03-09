@@ -1,59 +1,58 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
-import { PrismaService } from '@/prisma/prisma.service';
-import { RequestUser } from '@/common/decorator/user.decorator';
-
-export interface WishlistToggleResult {
-  isWishlisted: boolean;
-}
-
-export interface WishlistItem {
-  id: string;
-  auctionId: string;
-  sneakerName: string;
-  brand: string;
-  imageUrl: string;
-  size: string;
-  currentPrice: number;
-  endTime: Date;
-  status: string;
-  bidCount: number;
-  buyNowPrice: number | null;
-}
+import { DatabaseService } from '@/database/database.service';
+import { WishlistRepository } from '@/database/repositories/wishlist.repository';
+import type { RequestUser } from '@/common/decorator/user.decorator';
+import type {
+  WishlistItem,
+  WishlistToggleResult,
+  WishlistEntryRow,
+} from './wishlist.types';
 
 @Injectable()
 export class WishlistService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly db: DatabaseService,
+    private readonly wishlistRepo: WishlistRepository,
+  ) {}
 
   /** 찜하기 토글 (있으면 해제, 없으면 추가) - 원자적 패턴 */
   async toggle(
     auctionId: string,
     user: RequestUser,
   ): Promise<WishlistToggleResult> {
-    const auction = await this.prisma.auction.findUnique({
-      where: { id: auctionId },
-    });
+    const supabase = this.db.getSupabase();
+
+    const { data: auction } = await supabase
+      .from('Auction')
+      .select('id')
+      .eq('id', auctionId)
+      .single();
+
     if (!auction) {
       throw new NotFoundException('경매를 찾을 수 없습니다.');
     }
 
-    try {
-      await this.prisma.wishlist.create({
-        data: { userId: user.id, auctionId },
-      });
+    const { error } = await supabase.from('Wishlist').insert({
+      id: crypto.randomUUID(),
+      userId: user.id,
+      auctionId,
+      createdAt: new Date().toISOString(),
+    });
+
+    if (!error) {
       return { isWishlisted: true };
-    } catch (err) {
-      if (
-        err instanceof Prisma.PrismaClientKnownRequestError &&
-        err.code === 'P2002'
-      ) {
-        await this.prisma.wishlist.delete({
-          where: { userId_auctionId: { userId: user.id, auctionId } },
-        });
-        return { isWishlisted: false };
-      }
-      throw err;
     }
+
+    if (error.code === '23505') {
+      await supabase
+        .from('Wishlist')
+        .delete()
+        .eq('userId', user.id)
+        .eq('auctionId', auctionId);
+      return { isWishlisted: false };
+    }
+
+    throw error;
   }
 
   /** 여러 경매 ID에 대해 찜 여부 맵 반환 (userId, auctionIds) */
@@ -62,44 +61,36 @@ export class WishlistService {
     auctionIds: string[],
   ): Promise<Record<string, boolean>> {
     if (auctionIds.length === 0) return {};
-    const entries = await this.prisma.wishlist.findMany({
-      where: {
-        userId,
-        auctionId: { in: auctionIds },
-      },
-      select: { auctionId: true },
-    });
-    const set = new Set(entries.map((e) => e.auctionId));
+
+    const { data: entries } = await this.db
+      .getSupabase()
+      .from('Wishlist')
+      .select('auctionId')
+      .eq('userId', userId)
+      .in('auctionId', auctionIds);
+
+    const set = new Set(
+      (entries ?? []).map((e: { auctionId: string }) => e.auctionId),
+    );
     return Object.fromEntries(auctionIds.map((id) => [id, set.has(id)]));
   }
 
-  /** 내 찜 목록 조회 */
+  /** 내 찜 목록 조회 (raw SQL - Supabase auction/sneaker relation 이슈 회피) */
   async getMyWishlist(user: RequestUser): Promise<WishlistItem[]> {
-    const entries = await this.prisma.wishlist.findMany({
-      where: { userId: user.id },
-      orderBy: { createdAt: 'desc' },
-      include: {
-        auction: {
-          include: {
-            sneaker: true,
-            _count: { select: { bids: true } },
-          },
-        },
-      },
-    });
+    const rows = await this.wishlistRepo.findMyWishlist(user.id);
 
-    return entries.map((entry) => ({
-      id: entry.id,
-      auctionId: entry.auctionId,
-      sneakerName: entry.auction.sneaker.modelName,
-      brand: entry.auction.sneaker.brand,
-      imageUrl: entry.auction.sneaker.imageUrl,
-      size: entry.auction.size,
-      currentPrice: entry.auction.currentPrice,
-      endTime: entry.auction.endTime,
-      status: entry.auction.status,
-      bidCount: entry.auction._count.bids,
-      buyNowPrice: entry.auction.buyNowPrice,
+    return rows.map((r) => ({
+      id: r.id,
+      auctionId: r.auctionId,
+      sneakerName: r.sneaker_modelName,
+      brand: r.sneaker_brand,
+      imageUrl: r.sneaker_imageUrl,
+      size: r.size,
+      currentPrice: r.currentPrice,
+      endTime: r.endTime,
+      status: r.status,
+      bidCount: r.bid_count,
+      buyNowPrice: r.buyNowPrice,
     }));
   }
 }

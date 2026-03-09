@@ -8,16 +8,16 @@
 
 | 구분 | 항목 | Backend | Frontend |
 |------|------|---------|----------|
-| 경매 등록 | UI 및 API 연동 | ✅ API 있음 | ❌ 폼 UI 없음 |
+| 경매 등록 | UI 및 API 연동 | ✅ API 있음 | ✅ 완료 |
 | 경매 등록 목록 | API | ✅ 완료 | ✅ 완료 |
-| 찜하기 | API + UI | ❌ API 없음 | ❌ API 연동 없음 |
-| 찜 목록 페이지 | /me/wishlist | - | ❌ 페이지 없음 |
+| 찜하기 | API + UI | ✅ 완료 | ✅ 완료 |
+| 찜 목록 페이지 | /me/wishlist | - | ✅ 완료 |
 | 메인 FeaturedAuction | SSE 실시간 갱신 | ✅ | ✅ 완료 |
 | 메인 MainAuctionSection | SSE 실시간 갱신 | ✅ | ✅ 완료 |
-| LiveStats | 실시간 지표 | ❌ API 없음 | ❌ 하드코딩 |
+| LiveStats | 실시간 지표 | ✅ 완료 | ✅ 완료 |
 | 이벤트 페이지 | 별도 페이지 | - | ❌ 없음 |
 | 관리자 페이지 | 전체 | ❌ | ❌ |
-| 경매 수정 | MyAuctionCard | ✅ API 있음 | ❌ placeholder |
+| 경매 수정 | MyAuctionCard | ✅ API 있음 | ✅ 완료 |
 
 ---
 
@@ -42,7 +42,7 @@
 - [x] 봇 시뮬레이션 개선 (per-auction cooldown 등)
 - [x] EventsService 구독 0일 때 Subject 정리
 - [x] closeExpiredAuctions 배치 크기/타임아웃
-- [ ] 찜하기 API (POST/DELETE wishlist, isWishlisted 반영)
+- [x] 찜하기 API (POST/DELETE wishlist, isWishlisted 반영)
 
 ### Frontend
 - [x] auctionClosed 이벤트 수신 및 UI 반영 *(완료)*
@@ -50,30 +50,6 @@
 - [x] 상태 기반 UI 정리 *(완료)*
 
 ---
-
-#### auctionClosed 이벤트 — 프론트 작업 상세
-
-백엔드에서 경매 종료 시 SSE로 `auctionClosed` 이벤트를 전송합니다. 프론트는 이를 수신해 즉시 UI를 갱신해야 합니다.
-
-| 작업 | 위치 | 내용 |
-|------|------|------|
-| 이벤트 파싱 | `useAuctionEvents` | `parsed?.type === 'auctionClosed'` 분기 추가, `onAuctionClosed` 콜백 호출 |
-| 상태 반영 | `AuctionDetailClient` | `onAuctionClosed`에서 `item.status = 'closed'`, `isExpired = true` 등으로 UI 전환 |
-| 낙찰자/즉구 표시 | 상세 페이지 | `payload.status === 'buy_now'` → 즉시구매 완료, `winnerUserId` → 낙찰자 표시 |
-| 입찰 비활성화 | `DetailBidControl` | auctionClosed 수신 시 즉시 PLACE BID / BUY NOW 버튼 비활성화 |
-| 카운트다운 정지 | `useCountdown` | `isExpired` 강제 설정 또는 `endTime` 과거로 갱신 |
-
-**페이로드 타입** (참고):
-```ts
-interface AuctionClosedPayload {
-  status: 'CLOSED' | 'buy_now';
-  winnerUserId: string | null;
-  finalPrice: number;
-}
-```
-
----
-
 ## 🔒 보안 (Security)
 
 ### Backend
@@ -92,8 +68,8 @@ interface AuctionClosedPayload {
 
 ### Frontend
 - [x] FeaturedAuction: SSE 연결 *(완료)*
-- [x] MainAuctionSection: SSE 연결 *(완료: useMainPageSSE)*
-- [ ] LiveStats: 실시간 지표 API 연동 (현재 하드코딩: 1,284, 42, 8.4억 등)
+- [x] MainAuctionSection: SSE 연결 *(완료)*
+- [x] LiveStats: 실시간 지표 API 연동 *(완료: useLiveStats, statsUpdate SSE)*
 
 ---
 
@@ -103,9 +79,9 @@ interface AuctionClosedPayload {
 - [x] POST /auctions (CreateAuctionDto) *(완료)*
 
 ### Frontend
-- [ ] 경매 등록 폼 UI (/me/auctions/new)
-- [ ] api.auctions.create 연동
-- [ ] 이미지 업로드 또는 URL 입력 (CreateAuctionDto.imageUrl)
+- [x] 경매 등록 폼 UI *(완료: /me/auctions/create, AuctionForm)*
+- [x] api.auctions.create 연동 *(완료)*
+- [x] 이미지 업로드 (CreateAuctionDto.imageUrl) *(완료: api.uploadImage)*
 
 ---
 
@@ -119,32 +95,24 @@ interface AuctionClosedPayload {
 ### Frontend
 - [x] 마이페이지 레이아웃/라우트 *(/me, /me/auctions, /me/bids)*
 - [x] 유저 정보 표시 (닉네임, 프로필, 잔액)
-- [x] 내 경매 등록 목록 (수정/삭제) *(삭제 완료, 수정 placeholder)*
+- [x] 내 경매 등록 목록 (수정/삭제) *(완료: useDeleteAuction, useUpdateAuction)*
 - [x] 참여 경매 리스트 (입찰중·낙찰됨 탭)
 - [x] 내 주문 목록 (결제 대기/완료)
-- [ ] 찜 목록 페이지 (/me/wishlist) - **페이지 없음**
-- [ ] 경매 수정 페이지 (MyAuctionCard 수정 버튼 → edit 페이지)
+- [x] 찜 목록 페이지 (/me/wishlist) *(완료)*
+- [x] 경매 수정 페이지 (MyAuctionCard 수정 버튼 → /me/auctions/[id]/edit) *(완료)*
 
 ---
 
 ## ❤️ 찜하기 (Wishlist)
 
 ### Backend
-- [ ] POST /wishlist (찜 추가)
-- [ ] DELETE /wishlist/:auctionId (찜 해제)
-- [ ] 경매 목록/상세 응답에 isWishlisted 필드 반영
+- [x] GET /wishlist/me, PATCH /wishlist/:auctionId (토글) *(완료)*
+- [x] 경매 목록/상세 응답에 isWishlisted 필드 반영 *(완료)*
 
 ### Frontend
-- [ ] 찜하기 API 연동 (FeaturedAuction, AuctionCard handleWatch)
-- [ ] 찜 목록 페이지 (/me/wishlist) 생성
-- [ ] 찜 목록 API 및 useWishlist 훅
-
----
-
-## 🎪 이벤트 페이지
-
-### Frontend
-- [ ] 이벤트/프로모션 페이지 (별도 라우트) - **현재 없음**
+- [x] 찜하기 API 연동 (AuctionCard useWishlistToggle) *(완료)*
+- [x] 찜 목록 페이지 (/me/wishlist) *(완료)*
+- [x] 찜 목록 API 및 useMyWishlist 훅 *(완료)*
 
 ---
 
@@ -171,3 +139,82 @@ interface AuctionClosedPayload {
 ### Frontend
 - [x] 종료 임박 강조 UI *(완료: DetailProductImage urgent 타이머, Badge ending_soon)*
 - [x] 최고 입찰자 표시 *(완료: BidCard TOP 뱃지, Live Bids)*
+
+---
+
+## 🔔 알림 (Notifications)
+
+> 헤더 종 모양 아이콘으로 알림 목록/읽음 처리
+
+### Backend
+- [ ] 알림 API 설계 (GET /notifications, PATCH /notifications/:id/read)
+- [ ] 알림 생성 이벤트 (낙찰, 입찰 추월, 경매 종료 임박 등)
+- [ ] 실시간 알림 (SSE 또는 WebSocket)
+
+### Frontend
+- [ ] 헤더에 알림(종) 아이콘 추가
+- [ ] 알림 드롭다운/패널 UI
+- [ ] 알림 목록 API 연동
+- [ ] 읽음 처리 및 배지(미읽음 개수)
+
+---
+
+## 🧪 테스트 코드 (Test)
+
+### Backend
+- [ ] Jest 설정 확인 (이미 있음, spec 파일 없음)
+- [ ] 핵심 서비스 단위 테스트 (auth, auctions, orders)
+- [ ] E2E 테스트 (test/jest-e2e.json)
+
+### Frontend
+- [ ] 테스트 프레임워크 도입 (Vitest 권장)
+- [ ] React Testing Library 설정
+- [ ] 핵심 컴포넌트/훅 테스트
+
+---
+
+## 📚 스토리북 (Storybook)
+
+### Frontend
+- [ ] Storybook 설치 및 설정
+- [ ] 공통 컴포넌트 스토리 (Button, Badge, Input, Dropdown 등)
+- [ ] 도메인 컴포넌트 스토리 (AuctionCard, MyAuctionCard 등)
+- [ ] Chromatic 또는 CI 연동 (선택)
+
+---
+
+## 🗄️ 인프라 / 마이그레이션
+
+### Prisma → Supabase 마이그레이션
+- [x] DB: Supabase (PostgreSQL) 전환 *(완료)*
+- [x] Auth: Supabase Auth 또는 JWT 유지 *(완료)*
+- [x] Supabase Storage: 이미지 업로드 전용 사용 *(완료)*
+- [x] 프로덕션에서 Supabase Storage만 사용하도록 설정
+- [x] `uploads` 버킷 정책 및 public URL 확인 (README 문서화)
+
+### Redis → Upstash
+- [x] Upstash Redis 계정 생성 및 연결 *(완료)*
+- [x] `REDIS_URL`을 Upstash 제공 URL로 교체 (rediss://) *(완료)*
+- [x] ioredis 호환 확인 (Upstash는 ioredis/redis 프로토콜 지원) *(완료)*
+
+---
+
+## 💡 추가 권장 항목 (추후 검토)
+
+### UX/성능
+- [ ] 경매 등록 후 useCreateAuction 훅 (mySelling 캐시 무효화)
+- [ ] 무한 스크롤/페이지네이션 로딩 UX 개선 (경매 목록)
+- [ ] 이미지 lazy loading / placeholder 최적화
+
+### 에러/예외 처리
+- [ ] 404 페이지 커스터마이징
+- [ ] 글로벌 에러 바운더리 (Error Boundary)
+- [ ] API 에러 메시지 통일 및 사용자 친화적 변환
+
+### SEO/접근성
+- [ ] 페이지별 메타 태그 (title, description, og:image)
+- [ ] 접근성(a11y) 개선 (aria-label, 키보드 네비게이션)
+
+### 개발 경험
+- [ ] 환경변수 검증 (env.validation) 스크립트
+- [ ] API 타입 정의 통일 (shared types 또는 OpenAPI)

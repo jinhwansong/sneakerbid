@@ -10,6 +10,7 @@ import {
   UPLOAD_MAX_FILE_SIZE,
 } from '@/common/constants/upload.constants';
 import { getOrCreateUploadDir } from '@/common/util/upload.folder';
+import { UploadFile } from './upload.types';
 
 /** Server-detected MIME → safe extension for allowed image types */
 const MIME_TO_EXT: Record<(typeof UPLOAD_ALLOWED_MIMES)[number], string> = {
@@ -19,19 +20,7 @@ const MIME_TO_EXT: Record<(typeof UPLOAD_ALLOWED_MIMES)[number], string> = {
   'image/gif': 'gif',
 };
 
-/** multer 업로드 파일 (검증용 최소 필드) */
-export interface UploadedFileInfo {
-  mimetype: string;
-  size: number;
-}
-
-/** memoryStorage 파일 (buffer 포함) */
-export interface MemoryUploadedFile extends UploadedFileInfo {
-  buffer: Buffer;
-  originalname: string;
-}
-
-const BUCKET_NAME = 'uploads';
+const BUCKET_NAME = 'upload';
 
 @Injectable()
 export class UploadService {
@@ -42,20 +31,28 @@ export class UploadService {
   constructor(private readonly config: ConfigService) {
     const supabaseUrl = this.config.get<string>('SUPABASE_URL');
     const supabaseKey = this.config.get<string>('SUPABASE_SERVICE_ROLE_KEY');
+    const isProduction = this.config.get<string>('NODE_ENV') === 'production';
+
     this.useSupabase = Boolean(supabaseUrl && supabaseKey);
+
+    if (isProduction && !this.useSupabase) {
+      throw new Error(
+        '프로덕션에서는 SUPABASE_URL과 SUPABASE_SERVICE_ROLE_KEY가 필요합니다. Supabase Storage를 사용하세요.',
+      );
+    }
 
     if (this.useSupabase) {
       this.supabase = createClient(supabaseUrl, supabaseKey, {
         auth: { persistSession: false },
-      });
+      }) as SupabaseClient;
     }
 
     const port = this.config.get<number>('PORT', 3000);
     const host = this.config.get<string>('HOST', 'localhost');
-    this.localBaseUrl = `http://${host}:${port}/uploads`;
+    this.localBaseUrl = `http://${host}:${port}/upload`;
   }
 
-  async uploadImage(file: MemoryUploadedFile | undefined): Promise<string> {
+  async uploadImage(file: UploadFile | undefined): Promise<string> {
     this.validateImage(file);
 
     const detected = await fileTypeFromBuffer(file.buffer);
@@ -109,13 +106,13 @@ export class UploadService {
     buffer: Buffer,
     filename: string,
   ): Promise<string> {
-    const dir = getOrCreateUploadDir('uploads');
+    const dir = getOrCreateUploadDir('upload');
     const filePath = path.join(dir, filename);
     await fs.promises.writeFile(filePath, buffer);
     return `${this.localBaseUrl}/${filename}`;
   }
 
-  private validateImage(file: UploadedFileInfo | undefined): void {
+  private validateImage(file: Pick<UploadFile, 'size'> | undefined): void {
     if (!file) {
       throw new BadRequestException('이미지 파일이 필요합니다.');
     }
