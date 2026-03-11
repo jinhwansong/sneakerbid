@@ -1,10 +1,12 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { DatabaseService } from '@/database/database.service';
 import type { UserByIdResult } from '@/common/database/db.types';
 import type { MeWithStats } from './users.types';
 
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
+
   constructor(private readonly db: DatabaseService) {}
 
   findById(id: string): Promise<UserByIdResult> {
@@ -33,6 +35,28 @@ export class UsersService {
         .eq('sellerUserId', userId)
         .eq('status', 'CLOSED'),
     ]);
+
+    if (bidRes.error) {
+      this.logger.error(
+        `getMeWithStats: Bid count failed for userId=${userId}`,
+        bidRes.error,
+      );
+      throw new Error(`Failed to fetch bid count: ${bidRes.error.message}`);
+    }
+    if (orderRes.error) {
+      this.logger.error(
+        `getMeWithStats: Order count failed for userId=${userId}`,
+        orderRes.error,
+      );
+      throw new Error(`Failed to fetch order count: ${orderRes.error.message}`);
+    }
+    if (auctionRes.error) {
+      this.logger.error(
+        `getMeWithStats: Auction count failed for userId=${userId}`,
+        auctionRes.error,
+      );
+      throw new Error(`Failed to fetch auction count: ${auctionRes.error.message}`);
+    }
 
     const bidCount = bidRes.count ?? 0;
     const wonCount = orderRes.count ?? 0;

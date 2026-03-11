@@ -115,7 +115,7 @@ CREATE TABLE "Order" (
     "paidAt" TIMESTAMP(3),
     CONSTRAINT "Order_pkey" PRIMARY KEY ("id")
 );
-CREATE INDEX "Order_auctionId_idx" ON "Order"("auctionId");
+CREATE UNIQUE INDEX "Order_auctionId_key" ON "Order"("auctionId");
 CREATE INDEX "Order_buyerUserId_idx" ON "Order"("buyerUserId");
 ALTER TABLE "Order" ADD CONSTRAINT "Order_auctionId_fkey" FOREIGN KEY ("auctionId") REFERENCES "Auction"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 ALTER TABLE "Order" ADD CONSTRAINT "Order_buyerUserId_fkey" FOREIGN KEY ("buyerUserId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -162,8 +162,37 @@ CREATE TABLE "Bot" (
     "favoriteBrands" JSONB NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT "Bot_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "Bot_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "Bot_activity_hours_valid" CHECK (
+        "activityStartHour" >= 0 AND "activityStartHour" <= 23
+        AND "activityEndHour" >= 0 AND "activityEndHour" <= 23
+    )
 );
 CREATE UNIQUE INDEX "Bot_userId_key" ON "Bot"("userId");
 CREATE INDEX "Bot_type_idx" ON "Bot"("type");
 ALTER TABLE "Bot" ADD CONSTRAINT "Bot_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- updatedAt auto-update triggers
+CREATE OR REPLACE FUNCTION set_updated_timestamp()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW."updatedAt" := CURRENT_TIMESTAMP;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_set_updatedAt_User
+  BEFORE UPDATE ON "User"
+  FOR EACH ROW EXECUTE FUNCTION set_updated_timestamp();
+
+CREATE TRIGGER trg_set_updatedAt_Sneaker
+  BEFORE UPDATE ON "Sneaker"
+  FOR EACH ROW EXECUTE FUNCTION set_updated_timestamp();
+
+CREATE TRIGGER trg_set_updatedAt_Auction
+  BEFORE UPDATE ON "Auction"
+  FOR EACH ROW EXECUTE FUNCTION set_updated_timestamp();
+
+CREATE TRIGGER trg_set_updatedAt_Bot
+  BEFORE UPDATE ON "Bot"
+  FOR EACH ROW EXECUTE FUNCTION set_updated_timestamp();

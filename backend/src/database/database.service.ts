@@ -1,4 +1,4 @@
-import { Injectable, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { Pool } from 'pg';
@@ -7,6 +7,7 @@ import type { UserByIdResult } from '@/common/database/db.types';
 
 @Injectable()
 export class DatabaseService implements OnModuleDestroy {
+  private readonly logger = new Logger(DatabaseService.name);
   private readonly supabase: SupabaseClient;
   private readonly pool: Pool;
 
@@ -77,7 +78,12 @@ export class DatabaseService implements OnModuleDestroy {
       .eq('id', id)
       .single();
 
-    if (error || !data) return null;
+    if (error) {
+      this.logger.error(`findUserById failed for id=${id}`, error);
+      throw error;
+    }
+    if (!data) return null;
+
     return {
       id: data.id as string,
       nickname: data.nickname as string,

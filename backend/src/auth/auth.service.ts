@@ -101,6 +101,16 @@ export class AuthService {
       .insert(socialAccount);
     if (socialError) {
       console.error('[AuthService] SocialAccount insert 실패:', socialError);
+      const { error: deleteError } = await supabase
+        .from('User')
+        .delete()
+        .eq('id', newUser.id);
+      if (deleteError) {
+        console.error(
+          '[AuthService] User 보상 삭제 실패 (orphan user 가능):',
+          deleteError,
+        );
+      }
       throw new Error(`SocialAccount 생성 실패: ${socialError.message}`);
     }
 
@@ -156,28 +166,24 @@ export class AuthService {
     return res.status(200).json({ success: true });
   }
 
-  /* 리프레시 토큰으로 새 토큰 발급 (쿠키 설정 포함) */
+  /* 리프레시 토큰으로 새 토큰 발급 (쿠키 설정 포함)
+   * Redis가 원천: Redis에 없거나 Redis 오류 시 JWT 폴백하지 않음 (로그아웃 우회 방지)
+   */
   private async refreshWithCookies(
     refreshToken: string,
     res: Response,
   ): Promise<boolean> {
-    let userId = await this.redis.getUserIdByRefreshToken(refreshToken);
+    let userId: string | null;
+    try {
+      userId = await this.redis.getUserIdByRefreshToken(refreshToken);
+    } catch {
+      // Redis 장애 시 인증 거부 (fail-closed)
+      return false;
+    }
 
-    // Redis에 없으면 JWT 검증 폴백 (Upstash 등 Redis 연결 이슈 대응)
     if (!userId) {
-      try {
-        const payload = this.jwtService.verify<{ sub: string; role: string }>(
-          refreshToken,
-        );
-        userId = payload.sub;
-        try {
-          await this.redis.setRefreshToken(refreshToken, userId, REFRESH_TTL);
-        } catch {
-          // Redis 저장 실패해도 userId는 있으므로 계속 진행
-        }
-      } catch {
-        return false;
-      }
+      // Redis에 없음 = revoked 또는 미저장. JWT 폴백하지 않음
+      return false;
     }
 
     const user = await this.db.findUserById(userId);

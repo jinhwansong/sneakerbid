@@ -116,7 +116,7 @@
 
 ---
 
-## 🔧 관리자 페이지 (Admin)
+## 🔧 관리자 페이지 (Admin) — *여유 있을 때*
 
 ### Backend
 - [ ] 관리자 전용 API (ADMIN role guard)
@@ -142,7 +142,7 @@
 
 ---
 
-## 🔔 알림 (Notifications)
+## 🔔 알림 (Notifications) — *여유 있을 때*
 
 > 헤더 종 모양 아이콘으로 알림 목록/읽음 처리
 
@@ -161,19 +161,17 @@
 
 ## 🧪 테스트 코드 (Test)
 
-### Backend
-- [ ] Jest 설정 확인 (이미 있음, spec 파일 없음)
-- [ ] 핵심 서비스 단위 테스트 (auth, auctions, orders)
-- [ ] E2E 테스트 (test/jest-e2e.json)
+### 🟢 우선: 기본 설정
+- [ ] Backend: Jest 설정 확인 (spec 1개 샘플)
+- [ ] Frontend: Vitest + React Testing Library 도입 (테스트 1개 샘플)
 
-### Frontend
-- [ ] 테스트 프레임워크 도입 (Vitest 권장)
-- [ ] React Testing Library 설정
-- [ ] 핵심 컴포넌트/훅 테스트
+### 🔵 여유: 커버리지 확대
+- [ ] Backend: 핵심 서비스 단위 테스트 (auth, auctions, orders), E2E
+- [ ] Frontend: 핵심 컴포넌트/훅 테스트 확대
 
 ---
 
-## 📚 스토리북 (Storybook)
+## 📚 스토리북 (Storybook) — *여유 있을 때*
 
 ### Frontend
 - [ ] Storybook 설치 및 설정
@@ -199,12 +197,9 @@
 
 ---
 
-## 💡 추가 권장 항목 (추후 검토)
+## 🟢 우선 처리 (빠르게 가능)
 
-### UX/성능
-- [ ] 경매 등록 후 useCreateAuction 훅 (mySelling 캐시 무효화)
-- [ ] 무한 스크롤/페이지네이션 로딩 UX 개선 (경매 목록)
-- [ ] 이미지 lazy loading / placeholder 최적화
+> 1~2일 내 단기로 가능한 작업들
 
 ### 에러/예외 처리
 - [ ] 404 페이지 커스터마이징
@@ -218,3 +213,15 @@
 ### 개발 경험
 - [ ] 환경변수 검증 (env.validation) 스크립트
 - [ ] API 타입 정의 통일 (shared types 또는 OpenAPI)
+
+---
+
+## 🔵 여유 있을 때 (나중에)
+
+### UX/성능
+- [ ] 경매 등록 후 useCreateAuction 훅 (mySelling 캐시 무효화)
+- [ ] 무한 스크롤/페이지네이션 로딩 UX 개선 (경매 목록)
+- [ ] 이미지 lazy loading / placeholder 최적화
+
+### 관리자 페이지
+- [ ] 전체 상세: 🔧 관리자 페이지 (Admin) 섹션 참고

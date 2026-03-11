@@ -193,7 +193,7 @@ export class AuctionsService {
     const rows = await this.auctionRepo.findMainAuctions(now);
     const ongoing = rows.map((row) =>
       this.auctionRepo.rowToAuctionWithDetails(row),
-    ) as AuctionWithDetails[];
+    );
 
     const wishlistedMap =
       user && ongoing.length > 0
@@ -263,9 +263,7 @@ export class AuctionsService {
     });
     const hasMore = rows.length > limit;
     const sliced = hasMore ? rows.slice(0, limit) : rows;
-    const nextCursor = hasMore
-      ? (sliced[sliced.length - 1]?.id ?? null)
-      : null;
+    const nextCursor = hasMore ? (sliced[sliced.length - 1]?.id ?? null) : null;
 
     const items: AuctionWithDetails[] = sliced.map((row) =>
       this.auctionRepo.rowToAuctionWithDetails(row),
@@ -352,7 +350,12 @@ export class AuctionsService {
       }
       const auction = await tx.auction.findUnique({
         where: { id: auctionId },
-        include: { bids: { where: { disqualifiedAt: null }, orderBy: { bidPrice: 'desc' } } },
+        include: {
+          bids: {
+            where: { disqualifiedAt: null },
+            orderBy: { bidPrice: 'desc' },
+          },
+        },
       });
 
       if (!auction) {
@@ -363,7 +366,9 @@ export class AuctionsService {
           '본인이 등록한 경매에는 입찰할 수 없습니다.',
         );
       }
-      const leadingBid = (auction.bids as { userId: string }[] | undefined)?.[0];
+      const leadingBid = (
+        auction.bids as { userId: string }[] | undefined
+      )?.[0];
       if (leadingBid?.userId === user.id) {
         throw new BadRequestException(
           '이미 최고 입찰자입니다. 다른 사용자의 입찰을 기다려 주세요.',
@@ -451,11 +456,19 @@ export class AuctionsService {
 
       const auction = await tx.auction.findUnique({
         where: { id: auctionId },
-        include: { bids: { where: { disqualifiedAt: null }, orderBy: { bidPrice: 'desc' } } },
+        include: {
+          bids: {
+            where: { disqualifiedAt: null },
+            orderBy: { bidPrice: 'desc' },
+          },
+        },
       });
       if (!auction || auction.status !== 'OPEN') return null;
+      if (new Date(auction.endTime) <= now) return null;
       if (auction.sellerUserId === botUser.id) return null;
-      const leadingBid = (auction.bids as { userId: string }[] | undefined)?.[0];
+      const leadingBid = (
+        auction.bids as { userId: string }[] | undefined
+      )?.[0];
       if (leadingBid?.userId === botUser.id) return null;
 
       const minBid = auction.currentPrice + auction.minimumIncrement;
@@ -542,9 +555,9 @@ export class AuctionsService {
 
     const bidCounts = await Promise.all(
       historyRows.map((r) =>
-        this.bidRepo.countByAuctionId(r.id).then((count) => [
-          { count: String(count) },
-        ]),
+        this.bidRepo
+          .countByAuctionId(r.id)
+          .then((count) => [{ count: String(count) }]),
       ),
     );
 
@@ -615,9 +628,16 @@ export class AuctionsService {
       throw new ForbiddenException('수정 권한이 없습니다.');
     }
 
+    const now = new Date();
     if (auction.status !== 'OPEN') {
       throw new BadRequestException('진행 중인 경매만 수정할 수 있습니다.');
     }
+    if (new Date(auction.endTime) <= now) {
+      throw new BadRequestException('이미 종료된 경매는 수정할 수 없습니다.');
+    }
+
+    const bidCount = await this.bidRepo.countByAuctionId(auctionId);
+    const hasBids = bidCount > 0;
 
     const sneakerUpdates: Record<string, unknown> = {};
     const auctionUpdates: Record<string, unknown> = {};
@@ -640,10 +660,20 @@ export class AuctionsService {
       sneakerUpdates.description = updateDto.description;
     if (updateDto.imageUrl) sneakerUpdates.imageUrl = updateDto.imageUrl;
     if (typeof updateDto.startPrice === 'number') {
+      if (hasBids) {
+        throw new BadRequestException(
+          '입찰이 있는 경매는 시작 가격을 변경할 수 없습니다.',
+        );
+      }
       auctionUpdates.startPrice = updateDto.startPrice;
       auctionUpdates.currentPrice = updateDto.startPrice;
     }
     if (typeof updateDto.buyNowPrice === 'number') {
+      if (hasBids && updateDto.buyNowPrice < auction.currentPrice) {
+        throw new BadRequestException(
+          `즉시 구매 가격은 현재 최고 입찰가(${auction.currentPrice.toLocaleString()}원) 이상이어야 합니다.`,
+        );
+      }
       auctionUpdates.buyNowPrice = updateDto.buyNowPrice;
     }
     if (typeof updateDto.minimumIncrement === 'number') {
@@ -678,6 +708,7 @@ export class AuctionsService {
     return this.db.transaction(async (tx) => {
       const locked = await lockAuctionForUpdate(tx, auctionId, {
         status: 'OPEN',
+        endTimeGt: now,
       });
       if (!locked) {
         throw new BadRequestException(
@@ -729,6 +760,25 @@ export class AuctionsService {
       throw new ForbiddenException('삭제 권한이 없습니다.');
     }
 
+    const bidCount = await this.bidRepo.countByAuctionId(auctionId);
+    if (bidCount > 0) {
+      throw new BadRequestException(
+        '입찰이 있는 경매는 삭제할 수 없습니다. 입찰을 취소한 후 다시 시도해 주세요.',
+      );
+    }
+
+    const orderRows = await this.db.query<{ count: string }>(
+      `SELECT COUNT(*)::text as count FROM "Order" WHERE "auctionId" = $1 AND status IN ('PENDING', 'PAID', 'FAILED')`,
+      [auctionId],
+    );
+    const activeOrderCount = parseInt(orderRows[0]?.count ?? '0', 10);
+    if (activeOrderCount > 0) {
+      throw new BadRequestException(
+        '결제 대기 중이거나 완료된 주문이 있는 경매는 삭제할 수 없습니다.',
+      );
+    }
+
+    await supabase.from('Order').delete().eq('auctionId', auctionId);
     await supabase.from('Auction').delete().eq('id', auctionId);
   }
 

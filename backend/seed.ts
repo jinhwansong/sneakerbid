@@ -24,6 +24,7 @@ async function seed() {
   const client = await pool.connect();
   try {
     console.log('🌱 시드 시작...');
+    await client.query('BEGIN');
 
     // 1. 판매자 유저 (경매 등록자)
     const sellerId = uuid();
@@ -120,9 +121,15 @@ async function seed() {
     }
     console.log('  ✓ 봇 5개 생성');
 
+    await client.query('COMMIT');
     console.log('✅ 시드 완료! 봇들이 20초마다 입찰을 시도합니다.');
   } catch (err) {
     console.error('❌ 시드 실패:', err);
+    try {
+      await client.query('ROLLBACK');
+    } catch (rollbackErr) {
+      console.error('롤백 실패:', rollbackErr);
+    }
     throw err;
   } finally {
     client.release();

@@ -31,7 +31,7 @@ export default async function AuctionDetailPage({ params }: AuctionDetailPagePro
   });
 
   try {
-    await queryClient.prefetchQuery({
+    await queryClient.fetchQuery({
       queryKey: queryKeys.auctions.detail(id),
       queryFn: () => prefetchAuctionDetail(id),
     });

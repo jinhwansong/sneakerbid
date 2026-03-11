@@ -1,6 +1,7 @@
 import { plainToInstance } from 'class-transformer';
 import {
   IsEnum,
+  IsNotEmpty,
   IsNumber,
   IsString,
   validateSync,
@@ -44,14 +45,16 @@ class EnvironmentVariables {
 
   // Database (Supabase)
   @IsString()
-  SUPABASE_URL: string = process.env.SUPABASE_URL ?? '';
+  @IsNotEmpty()
+  SUPABASE_URL: string = process.env.SUPABASE_URL;
 
   @IsString()
-  SUPABASE_SERVICE_ROLE_KEY: string =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
+  @IsNotEmpty()
+  SUPABASE_SERVICE_ROLE_KEY: string = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   @IsString()
-  DATABASE_URL: string = process.env.DATABASE_URL ?? '';
+  @IsNotEmpty()
+  DATABASE_URL: string = process.env.DATABASE_URL;
 }
 
 export function validate(config: Record<string, unknown>) {

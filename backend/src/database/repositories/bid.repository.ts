@@ -57,7 +57,7 @@ export class BidRepository {
     return this.db.query<BidLogRow>(
       `SELECT b.id, b."bidPrice", b."createdAt", b."sourceType", u.nickname as "user_nickname"
        FROM "Bid" b JOIN "User" u ON b."userId" = u.id
-       WHERE b."auctionId" = $1 ORDER BY b."bidPrice" DESC LIMIT $2`,
+       WHERE b."auctionId" = $1 AND b."disqualifiedAt" IS NULL ORDER BY b."bidPrice" DESC LIMIT $2`,
       [auctionId, limit],
     );
   }
@@ -68,7 +68,7 @@ export class BidRepository {
     bidPrice: number;
   } | null> {
     const rows = await this.db.query<{ userId: string; bidPrice: number }>(
-      'SELECT "userId", "bidPrice" FROM "Bid" WHERE "auctionId" = $1 ORDER BY "bidPrice" DESC LIMIT 1',
+      'SELECT "userId", "bidPrice" FROM "Bid" WHERE "auctionId" = $1 AND "disqualifiedAt" IS NULL ORDER BY "bidPrice" DESC LIMIT 1',
       [auctionId],
     );
     return rows[0] ?? null;

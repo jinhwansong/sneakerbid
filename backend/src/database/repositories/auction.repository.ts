@@ -59,7 +59,9 @@ export class AuctionRepository {
   }
 
   /** 경매 상세 (sneaker 포함) */
-  async findByIdWithSneaker(auctionId: string): Promise<AuctionDetailRow | null> {
+  async findByIdWithSneaker(
+    auctionId: string,
+  ): Promise<AuctionDetailRow | null> {
     const rows = await this.db.query<AuctionDetailRow>(
       `SELECT a.*, s.id as "sneaker_id", s."modelName" as "sneaker_modelName", s.brand as "sneaker_brand", s."imageUrl" as "sneaker_imageUrl",
          s.colorway as "sneaker_colorway", s.description as "sneaker_description", s."styleCode" as "sneaker_styleCode",
@@ -181,11 +183,11 @@ export class AuctionRepository {
 
   /** LiveStats: 진행 중 경매 수 */
   async countOpen(now: Date): Promise<number> {
-    const rows = await this.db.query<{ id: string }>(
-      `SELECT id FROM "Auction" WHERE status = 'OPEN' AND "endTime" > $1`,
+    const result = await this.db.query<{ count: number }>(
+      `SELECT COUNT(*)::int as count FROM "Auction" WHERE status = 'OPEN' AND "endTime" > $1`,
       [now],
     );
-    return rows.length;
+    return Number(result[0]?.count ?? 0);
   }
 
   /** LiveStats: 24h 거래량 */
@@ -199,7 +201,9 @@ export class AuctionRepository {
   }
 
   /** 오늘 마감된 경매 (거래 내역 통계용) */
-  async findTodaysClosings(todayStart: Date): Promise<{ currentPrice: number }[]> {
+  async findTodaysClosings(
+    todayStart: Date,
+  ): Promise<{ currentPrice: number }[]> {
     return this.db.query<{ currentPrice: number }>(
       `SELECT "currentPrice" FROM "Auction" WHERE status = 'CLOSED' AND "closedAt" >= $1`,
       [todayStart],
@@ -246,7 +250,10 @@ export class AuctionRepository {
   }
 
   /** 만료된 경매 (종료 배치용) */
-  async findExpiredForClose(now: Date, limit: number): Promise<{ id: string }[]> {
+  async findExpiredForClose(
+    now: Date,
+    limit: number,
+  ): Promise<{ id: string }[]> {
     return this.db.query<{ id: string }>(
       `SELECT id FROM "Auction" WHERE status = 'OPEN' AND "endTime" <= $1 ORDER BY "endTime" ASC LIMIT $2`,
       [now, limit],
@@ -282,7 +289,9 @@ export class AuctionRepository {
   }
 
   /** row → AuctionWithDetails 변환 */
-  rowToAuctionWithDetails(row: AuctionDetailRow | AuctionListRow): AuctionWithDetails {
+  rowToAuctionWithDetails(
+    row: AuctionDetailRow | AuctionListRow,
+  ): AuctionWithDetails {
     return {
       id: row.id,
       sneakerId: row.sneakerId,
@@ -302,12 +311,15 @@ export class AuctionRepository {
         brand: row.sneaker_brand,
         imageUrl: row.sneaker_imageUrl,
         colorway: 'sneaker_colorway' in row ? row.sneaker_colorway : null,
-        description: 'sneaker_description' in row ? row.sneaker_description : null,
+        description:
+          'sneaker_description' in row ? row.sneaker_description : null,
         styleCode: 'sneaker_styleCode' in row ? row.sneaker_styleCode : null,
-        releaseYear: 'sneaker_releaseYear' in row ? row.sneaker_releaseYear : null,
+        releaseYear:
+          'sneaker_releaseYear' in row ? row.sneaker_releaseYear : null,
         condition: 'sneaker_condition' in row ? row.sneaker_condition : null,
         origin: 'sneaker_origin' in row ? row.sneaker_origin : null,
-        boxIncluded: 'sneaker_boxIncluded' in row ? row.sneaker_boxIncluded : null,
+        boxIncluded:
+          'sneaker_boxIncluded' in row ? row.sneaker_boxIncluded : null,
       },
       _count: { bids: row.bid_count ?? 0 },
     } as AuctionWithDetails;

@@ -103,6 +103,10 @@ export default function AuctionForm({
       showToast('상품 이미지를 등록해주세요.', 'error');
       return;
     }
+    if (!formData.modelName || !formData.modelName.trim()) {
+      showToast('모델명을 입력해주세요.', 'error');
+      return;
+    }
     if (!formData.brand || !formData.brand.trim()) {
       showToast('브랜드를 선택해주세요.', 'error');
       return;

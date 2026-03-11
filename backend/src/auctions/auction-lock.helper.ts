@@ -10,17 +10,26 @@ export async function lockAuctionForUpdate(
     endTimeGt?: Date;
   },
 ): Promise<boolean> {
+  if (options?.endTimeLte != null && options?.endTimeGt != null) {
+    throw new Error(
+      'lockAuctionForUpdate: endTimeLte and endTimeGt cannot both be provided',
+    );
+  }
+
   let sql: string;
   let values: unknown[];
 
   if (options?.status === 'OPEN' && options?.endTimeLte) {
-    sql = 'SELECT 1 FROM "Auction" WHERE "id" = $1 AND "status" = $2 AND "endTime" <= $3 FOR UPDATE';
+    sql =
+      'SELECT 1 FROM "Auction" WHERE "id" = $1 AND "status" = $2 AND "endTime" <= $3 FOR UPDATE';
     values = [auctionId, 'OPEN', options.endTimeLte];
   } else if (options?.status === 'OPEN' && options?.endTimeGt) {
-    sql = 'SELECT 1 FROM "Auction" WHERE "id" = $1 AND "status" = $2 AND "endTime" > $3 FOR UPDATE';
+    sql =
+      'SELECT 1 FROM "Auction" WHERE "id" = $1 AND "status" = $2 AND "endTime" > $3 FOR UPDATE';
     values = [auctionId, 'OPEN', options.endTimeGt];
   } else if (options?.status === 'OPEN') {
-    sql = 'SELECT 1 FROM "Auction" WHERE "id" = $1 AND "status" = $2 FOR UPDATE';
+    sql =
+      'SELECT 1 FROM "Auction" WHERE "id" = $1 AND "status" = $2 FOR UPDATE';
     values = [auctionId, 'OPEN'];
   } else {
     sql = 'SELECT 1 FROM "Auction" WHERE "id" = $1 FOR UPDATE';

@@ -1,6 +1,72 @@
 import type { PoolClient } from 'pg';
 import type { WalletTxType, WalletRefType } from '@/common/database/db.types';
 
+/** 허용된 컬럼만 포함하여 SQL 인젝션 방지 */
+const SNEAKER_UPDATE_WHITELIST = new Set([
+  'modelName',
+  'brand',
+  'colorway',
+  'description',
+  'imageUrl',
+  'popularityScore',
+  'styleCode',
+  'releaseYear',
+  'condition',
+  'origin',
+  'boxIncluded',
+]);
+const AUCTION_UPDATE_WHITELIST = new Set([
+  'sneakerId',
+  'size',
+  'startPrice',
+  'currentPrice',
+  'buyNowPrice',
+  'minimumIncrement',
+  'status',
+  'endTime',
+  'winnerUserId',
+  'closedAt',
+  'version',
+  'lastExtendedAt',
+  'extendCount',
+  'sellerUserId',
+  'relistedFromAuctionId',
+]);
+const BID_UPDATE_WHITELIST = new Set([
+  'auctionId',
+  'userId',
+  'bidPrice',
+  'sourceType',
+  'strategyType',
+  'disqualifiedAt',
+]);
+const ORDER_UPDATE_WHITELIST = new Set([
+  'auctionId',
+  'buyerUserId',
+  'finalPrice',
+  'status',
+  'failureReason',
+  'paidAt',
+]);
+
+function filterUpdateData(
+  data: Record<string, unknown>,
+  whitelist: Set<string>,
+  tableName: string,
+): [string, unknown][] {
+  const entries: [string, unknown][] = [];
+  for (const [k, v] of Object.entries(data)) {
+    if (v === undefined) continue;
+    if (!whitelist.has(k)) {
+      throw new Error(
+        `[TxClient] Invalid column "${k}" for ${tableName} update. Allowed: ${[...whitelist].join(', ')}`,
+      );
+    }
+    entries.push([k, v]);
+  }
+  return entries;
+}
+
 /** Transaction client - Prisma-like API for use within transactions */
 export interface TxClient {
   user: {
@@ -172,7 +238,7 @@ export function createTxClient(client: PoolClient): TxClient {
     },
     sneaker: {
       async create(args) {
-        const d = args.data as Record<string, unknown>;
+        const d = args.data;
         const id = (d.id as string) ?? uuid();
         await client.query(
           `INSERT INTO "Sneaker" (id, "modelName", brand, colorway, description, "imageUrl", "popularityScore", "styleCode", "releaseYear", condition, origin, "boxIncluded", "createdAt", "updatedAt")
@@ -192,21 +258,22 @@ export function createTxClient(client: PoolClient): TxClient {
             d.boxIncluded ?? null,
           ],
         );
-        const r = await client.query(
-          'SELECT * FROM "Sneaker" WHERE id = $1',
-          [id],
-        );
-        return r.rows[0] as Awaited<
-          ReturnType<TxClient['sneaker']['create']>
-        >;
+        const r = await client.query('SELECT * FROM "Sneaker" WHERE id = $1', [
+          id,
+        ]);
+        return r.rows[0] as Awaited<ReturnType<TxClient['sneaker']['create']>>;
       },
       async update(args) {
-        const d = args.data as Record<string, unknown>;
+        const d = args.data;
+        const entries = filterUpdateData(
+          d,
+          SNEAKER_UPDATE_WHITELIST,
+          'Sneaker',
+        );
         const sets: string[] = [];
         const vals: unknown[] = [];
         let i = 1;
-        for (const [k, v] of Object.entries(d)) {
-          if (v === undefined) continue;
+        for (const [k, v] of entries) {
           sets.push(`"${k}" = $${i++}`);
           vals.push(v);
         }
@@ -221,10 +288,9 @@ export function createTxClient(client: PoolClient): TxClient {
     },
     auction: {
       async findUnique(args) {
-        const r = await client.query(
-          'SELECT * FROM "Auction" WHERE id = $1',
-          [args.where.id],
-        );
+        const r = await client.query('SELECT * FROM "Auction" WHERE id = $1', [
+          args.where.id,
+        ]);
         const row = r.rows[0] as AuctionRow | undefined;
         if (!row) return null;
         if (args.include?.bids) {
@@ -235,7 +301,7 @@ export function createTxClient(client: PoolClient): TxClient {
           row.bids = bidsR.rows as BidRow[];
         }
         if (args.include?.sneaker) {
-          const sneakerId = row.sneakerId as string;
+          const sneakerId = row.sneakerId;
           const snR = await client.query(
             'SELECT * FROM "Sneaker" WHERE id = $1',
             [sneakerId],
@@ -245,7 +311,7 @@ export function createTxClient(client: PoolClient): TxClient {
         return row;
       },
       async create(args) {
-        const d = args.data as Record<string, unknown>;
+        const d = args.data;
         const id = (d.id as string) ?? uuid();
         await client.query(
           `INSERT INTO "Auction" (id, "sneakerId", size, "startPrice", "currentPrice", "buyNowPrice", "minimumIncrement", status, "endTime", "winnerUserId", "closedAt", "sellerUserId", "relistedFromAuctionId", "createdAt", "updatedAt")
@@ -266,28 +332,31 @@ export function createTxClient(client: PoolClient): TxClient {
             d.relistedFromAuctionId ?? null,
           ],
         );
-        const r = await client.query(
-          'SELECT * FROM "Auction" WHERE id = $1',
-          [id],
-        );
+        const r = await client.query('SELECT * FROM "Auction" WHERE id = $1', [
+          id,
+        ]);
         const auction = r.rows[0] as AuctionWithSneaker | undefined;
         if (args.include?.sneaker && auction) {
-          const sneakerId = auction.sneakerId as string;
+          const sneakerId = auction.sneakerId;
           const snR = await client.query(
             'SELECT * FROM "Sneaker" WHERE id = $1',
             [sneakerId],
           );
           auction.sneaker = snR.rows[0] as AuctionWithSneaker['sneaker'];
         }
-        return auction as AuctionWithSneaker;
+        return auction;
       },
       async update(args) {
-        const d = args.data as Record<string, unknown>;
+        const d = args.data;
+        const entries = filterUpdateData(
+          d,
+          AUCTION_UPDATE_WHITELIST,
+          'Auction',
+        );
         const sets: string[] = [];
         const vals: unknown[] = [];
         let i = 1;
-        for (const [k, v] of Object.entries(d)) {
-          if (v === undefined) continue;
+        for (const [k, v] of entries) {
           sets.push(`"${k}" = $${i++}`);
           vals.push(v instanceof Date ? v : v);
         }
@@ -303,7 +372,7 @@ export function createTxClient(client: PoolClient): TxClient {
     },
     bid: {
       async create(args) {
-        const d = args.data as Record<string, unknown>;
+        const d = args.data;
         const id = (d.id as string) ?? uuid();
         await client.query(
           `INSERT INTO "Bid" (id, "auctionId", "userId", "bidPrice", "sourceType", "strategyType", "createdAt")
@@ -317,19 +386,16 @@ export function createTxClient(client: PoolClient): TxClient {
             d.strategyType ?? null,
           ],
         );
-        const r = await client.query(
-          'SELECT * FROM "Bid" WHERE id = $1',
-          [id],
-        );
+        const r = await client.query('SELECT * FROM "Bid" WHERE id = $1', [id]);
         return r.rows[0] as BidRow;
       },
       async update(args) {
-        const d = args.data as Record<string, unknown>;
+        const d = args.data;
+        const entries = filterUpdateData(d, BID_UPDATE_WHITELIST, 'Bid');
         const sets: string[] = [];
         const vals: unknown[] = [];
         let i = 1;
-        for (const [k, v] of Object.entries(d)) {
-          if (v === undefined) continue;
+        for (const [k, v] of entries) {
           sets.push(`"${k}" = $${i++}`);
           vals.push(v instanceof Date ? v : v);
         }
@@ -343,7 +409,7 @@ export function createTxClient(client: PoolClient): TxClient {
     },
     order: {
       async create(args) {
-        const d = args.data as Record<string, unknown>;
+        const d = args.data;
         const id = (d.id as string) ?? uuid();
         await client.query(
           `INSERT INTO "Order" (id, "auctionId", "buyerUserId", "finalPrice", status, "failureReason", "createdAt", "paidAt")
@@ -358,19 +424,18 @@ export function createTxClient(client: PoolClient): TxClient {
             d.paidAt ?? null,
           ],
         );
-        const r = await client.query(
-          'SELECT * FROM "Order" WHERE id = $1',
-          [id],
-        );
+        const r = await client.query('SELECT * FROM "Order" WHERE id = $1', [
+          id,
+        ]);
         return r.rows[0] as OrderRow;
       },
       async updateMany(args) {
-        const d = args.data as Record<string, unknown>;
+        const d = args.data;
+        const entries = filterUpdateData(d, ORDER_UPDATE_WHITELIST, 'Order');
         const sets: string[] = [];
         const vals: unknown[] = [];
         let i = 1;
-        for (const [k, v] of Object.entries(d)) {
-          if (v === undefined) continue;
+        for (const [k, v] of entries) {
           sets.push(`"${k}" = $${i++}`);
           vals.push(v instanceof Date ? v : v);
         }
@@ -388,13 +453,12 @@ export function createTxClient(client: PoolClient): TxClient {
         return { count: r.rowCount ?? 0 };
       },
       async findUniqueOrThrow(args) {
-        const r = await client.query(
-          'SELECT * FROM "Order" WHERE id = $1',
-          [args.where.id],
-        );
-        const row = r.rows[0];
+        const r = await client.query('SELECT * FROM "Order" WHERE id = $1', [
+          args.where.id,
+        ]);
+        const row = r.rows[0] as OrderRow | undefined;
         if (!row) throw new Error('Order not found');
-        return row as OrderRow;
+        return row;
       },
     },
     walletTransaction: {

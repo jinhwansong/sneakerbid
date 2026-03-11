@@ -317,6 +317,25 @@ export class OrdersService {
           if (!paid) {
             throw new BadRequestException('잔액이 부족합니다.');
           }
+
+          const auction = await tx.auction.findUnique({
+            where: { id: order.auctionId },
+            include: { bids: { where: { disqualifiedAt: null }, orderBy: { bidPrice: 'desc' } } },
+          });
+          const bids = auction?.bids ?? [];
+          const nowPerOrder = new Date();
+          for (const bid of bids) {
+            await tx.bid.update({
+              where: { id: bid.id },
+              data: { disqualifiedAt: nowPerOrder },
+            });
+            await this.walletService.releaseBidHold(
+              tx,
+              bid.userId,
+              bid.bidPrice,
+              bid.id,
+            );
+          }
         }
 
         await this.walletService.settleSeller(

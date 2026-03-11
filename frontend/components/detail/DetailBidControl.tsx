@@ -109,7 +109,7 @@ export default function DetailBidControl({
               const options = [
                 { value: minBid, label: `최소` },
                 { value: minBid + step, label: `+${formatStep(step)}` },
-                { value: minBid + step * 4, label: `+${formatStep(step * 5)}` },
+                { value: minBid + step * 5, label: `+${formatStep(step * 5)}` },
               ];
               return options.map(({ value, label }) => (
                 <button

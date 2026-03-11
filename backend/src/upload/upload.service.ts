@@ -112,7 +112,9 @@ export class UploadService {
     return `${this.localBaseUrl}/${filename}`;
   }
 
-  private validateImage(file: Pick<UploadFile, 'size'> | undefined): void {
+  private validateImage(
+    file: UploadFile | undefined,
+  ): asserts file is UploadFile {
     if (!file) {
       throw new BadRequestException('이미지 파일이 필요합니다.');
     }

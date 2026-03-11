@@ -47,7 +47,6 @@ export default function AuctionDetailClient({
   const { data, isLoading, error } = useAuctionDetail(auctionId);
   const item = data?.auction;
 
-  if (isLoading || !item) return <DetailSkeleton />;
   if (error) {
     return (
       <div className="text-center py-16 text-destructive">
@@ -55,6 +54,7 @@ export default function AuctionDetailClient({
       </div>
     );
   }
+  if (isLoading || !item) return <DetailSkeleton />;
 
   return (
     <AuctionDetailContent auctionId={auctionId} item={item} data={data!} />

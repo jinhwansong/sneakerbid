@@ -13,7 +13,8 @@ import AuctionNotFound from '@/components/me/AuctionNotFound';
 import LoginRequiredPrompt from '@/components/me/LoginRequiredPrompt';
 import { api } from '@/lib/api';
 import { useToastStore } from '@/store/useToastStore';
-import type { GetAuctionResponse, UpdateAuctionDto } from '@/types/auction';
+import { toFormInitialData } from '@/lib/auction/auctionToFormData';
+import type { UpdateAuctionDto } from '@/types/auction';
 
 export default function EditAuctionPage() {
   const params = useParams();
@@ -52,7 +53,8 @@ export default function EditAuctionPage() {
     return <AuctionEditPageSkeleton />;
   }
 
-  if (!detail?.auction) {
+  const formData = toFormInitialData(detail?.auction);
+  if (!formData) {
     return <AuctionNotFound />;
   }
 
@@ -68,7 +70,7 @@ export default function EditAuctionPage() {
         </Link>
       </div>
       <AuctionForm
-        initialData={detail.auction as GetAuctionResponse}
+        initialData={formData}
         auctionId={id}
         onSubmit={handleSubmit}
         submitLabel="수정 완료"
