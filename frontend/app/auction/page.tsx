@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import AuctionCard from '@/components/auction/AuctionCard';
 import { Button } from '@/components/common/Button';
 import Dropdown from '@/components/common/Dropdown';
@@ -58,6 +58,16 @@ export default function AuctionListPage() {
     setSelectedBrand(null);
     setSelectedSize(null);
   };
+
+  useEffect(() => {
+    if (!isFilterOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsFilterOpen(false);
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isFilterOpen]);
+
   return (
     <>
       <main className="max-w-7xl mx-auto px-5 py-8 md:py-12">
@@ -179,17 +189,25 @@ export default function AuctionListPage() {
       </main>
 
       {isFilterOpen && (
-        <div className="fixed inset-0 z-100 lg:hidden">
+        <div
+          className="fixed inset-0 z-100 lg:hidden"
+          role="dialog"
+          aria-modal="true"
+          aria-label="필터"
+        >
           <div
             className="fixed inset-0 bg-black/40 backdrop-blur-sm"
             onClick={() => setIsFilterOpen(false)}
+            aria-hidden="true"
           />
           <div className="absolute bottom-0 left-0 right-0 bg-bg-main rounded-t-[24px] sm:rounded-t-[32px] p-6 sm:p-8 flex flex-col gap-6 sm:gap-8 shadow-2xl max-h-[90vh] overflow-y-auto animate-in slide-in-from-bottom duration-300">
             <div className="flex items-center justify-between mb-2">
               <h2 className="text-lg sm:text-xl font-black text-text-main">필터</h2>
               <button
+                type="button"
                 onClick={() => setIsFilterOpen(false)}
                 className="p-2 -mr-2 text-text-sub"
+                aria-label="필터 닫기"
               >
                 <X size={24} />
               </button>

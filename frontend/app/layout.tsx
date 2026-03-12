@@ -10,10 +10,14 @@ import GlobalLoadingIndicator from '@/components/common/GlobalLoadingIndicator';
 import RootErrorBoundary from '@/components/common/RootErrorBoundary';
 import QueryProvider from '@/components/providers/QueryProvider';
 import { pretendard } from '@/lib/fonts';
+import { createMetadata } from '@/lib/constants/metadata';
 
 export const metadata: Metadata = {
-  title: 'LaceUp | 실시간 스니커즈 경매',
-  description: 'Toss/KREAM 스타일의 실시간 스니커즈 경매 플랫폼',
+  ...createMetadata({
+    title: '실시간 스니커즈 경매',
+    description: 'Toss/KREAM 스타일의 실시간 스니커즈 경매 플랫폼. 지금 바로 입찰에 참여하세요.',
+  }),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://laceup.example.com'),
 };
 
 export default function RootLayout({
@@ -56,8 +60,16 @@ export default function RootLayout({
             <GlobalLoadingIndicator />
             <RootErrorBoundary>
               <div className="bg-bg-main">
+                <a
+                  href="#main-content"
+                  className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:rounded-lg focus:bg-brand-primary focus:text-text-inverse focus:outline-none focus:ring-2 focus:ring-brand-primary/50"
+                >
+                  본문으로 건너뛰기
+                </a>
                 <Header />
+                <div id="main-content" tabIndex={-1}>
                 {children}
+                </div>
                 <Footer />
               </div>
             </RootErrorBoundary>
