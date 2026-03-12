@@ -27,7 +27,11 @@ describe('GlobalLoadingIndicator', () => {
         queries: { retry: false },
       },
     });
-    queryClient.fetchQuery({ queryKey: ['test'], queryFn: () => new Promise(() => {}) });
+    const resolveQuery = queryClient.fetchQuery({
+      queryKey: ['test'],
+      queryFn: () =>
+        new Promise<number>((resolve) => setTimeout(() => resolve(1), 50)),
+    });
 
     const { container } = render(<GlobalLoadingIndicator />, {
       wrapper: function Wrapper({ children }: { children: ReactNode }) {
@@ -42,5 +46,8 @@ describe('GlobalLoadingIndicator', () => {
     await waitFor(() => {
       expect(container.querySelector('.global-loading-bar')).toBeInTheDocument();
     });
+
+    await resolveQuery;
+    queryClient.clear();
   });
 });

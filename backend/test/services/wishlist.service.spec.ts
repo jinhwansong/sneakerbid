@@ -50,12 +50,14 @@ describe('WishlistService', () => {
         }),
       });
 
-      await expect(service.toggle('auction-1', mockUser)).rejects.toThrow(
-        NotFoundException,
-      );
-      await expect(service.toggle('auction-1', mockUser)).rejects.toThrow(
-        '경매를 찾을 수 없습니다.',
-      );
+      let thrown: unknown;
+      try {
+        await service.toggle('auction-1', mockUser);
+      } catch (e) {
+        thrown = e;
+      }
+      expect(thrown).toBeInstanceOf(NotFoundException);
+      expect((thrown as Error).message).toBe('경매를 찾을 수 없습니다.');
     });
 
     it('삭제 후 isWishlisted false', async () => {

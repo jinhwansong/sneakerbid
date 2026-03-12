@@ -8,10 +8,8 @@ describe('env.validation', () => {
     SUPABASE_URL: 'https://test.supabase.co',
     SUPABASE_SERVICE_ROLE_KEY: 'test-service-key',
     DATABASE_URL: 'postgresql://localhost:5432/test',
-    JWT_PRIVATE_KEY:
-      '-----BEGIN TEST PRIVATE KEY-----\ntest\n-----END TEST PRIVATE KEY-----',
-    JWT_PUBLIC_KEY:
-      '-----BEGIN TEST PUBLIC KEY-----\ntest\n-----END TEST PUBLIC KEY-----',
+    JWT_PRIVATE_KEY: 'test-private-key',
+    JWT_PUBLIC_KEY: 'test-public-key',
     THROTTLE_TTL: '60',
     THROTTLE_LIMIT: '100',
   };

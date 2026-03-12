@@ -41,14 +41,6 @@ describe('useInfiniteScroll', () => {
     });
     expect(result.current.items).toEqual([1, 2, 3, 4]);
     expect(result.current.isLoading).toBe(false);
-
-    act(() => {
-      result.current.loadMore();
-    });
-    act(() => {
-      vi.advanceTimersByTime(100);
-    });
-    expect(result.current.items).toEqual([1, 2, 3, 4]);
     expect(result.current.hasMore).toBe(false);
   });
 
@@ -74,7 +66,28 @@ describe('useInfiniteScroll', () => {
     expect(result.current.isLoading).toBe(false);
   });
 
-  it('isLoading이거나 hasMore가 false면 loadMore는 무시된다', () => {
+  it('reset 호출 시 pending loadMore를 취소한다', () => {
+    const data = [1, 2, 3, 4, 5];
+    const { result } = renderHook(() =>
+      useInfiniteScroll({ data, pageSize: 2, delayMs: 100 })
+    );
+
+    act(() => {
+      result.current.loadMore();
+    });
+    expect(result.current.isLoading).toBe(true);
+
+    act(() => {
+      result.current.reset();
+    });
+    act(() => {
+      vi.advanceTimersByTime(100);
+    });
+    expect(result.current.items).toEqual([1, 2]);
+    expect(result.current.isLoading).toBe(false);
+  });
+
+  it('hasMore가 false면 loadMore는 무시된다', () => {
     const data = [1, 2];
     const { result } = renderHook(() =>
       useInfiniteScroll({ data, pageSize: 2, delayMs: 100 })
@@ -85,5 +98,25 @@ describe('useInfiniteScroll', () => {
       result.current.loadMore();
     });
     expect(result.current.items).toEqual([1, 2]);
+  });
+
+  it('isLoading이면 loadMore는 무시된다', () => {
+    const data = [1, 2, 3, 4];
+    const { result } = renderHook(() =>
+      useInfiniteScroll({ data, pageSize: 2, delayMs: 100 })
+    );
+
+    act(() => {
+      result.current.loadMore();
+    });
+    expect(result.current.isLoading).toBe(true);
+
+    act(() => {
+      result.current.loadMore();
+    });
+    act(() => {
+      vi.advanceTimersByTime(100);
+    });
+    expect(result.current.items).toEqual([1, 2, 3, 4]);
   });
 });

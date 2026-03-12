@@ -17,6 +17,7 @@ export const useInfiniteScroll = <T,>({
 
   const dataRef = useRef(data);
   const itemsRef = useRef(items);
+  const pendingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     dataRef.current = data;
@@ -24,6 +25,10 @@ export const useInfiniteScroll = <T,>({
   }, [data, items]);
 
   const reset = useCallback(() => {
+    if (pendingTimerRef.current !== null) {
+      clearTimeout(pendingTimerRef.current);
+      pendingTimerRef.current = null;
+    }
     const source = dataRef.current;
     setItems(source.slice(0, pageSize));
     setHasMore(source.length > pageSize);
@@ -34,13 +39,16 @@ export const useInfiniteScroll = <T,>({
     if (isLoading || !hasMore) return;
 
     setIsLoading(true);
-    setTimeout(() => {
+    pendingTimerRef.current = setTimeout(() => {
+      pendingTimerRef.current = null;
       const source = dataRef.current;
       const currentLength = itemsRef.current.length;
       const nextItems = source.slice(currentLength, currentLength + pageSize);
 
       if (nextItems.length > 0) {
+        const newTotal = currentLength + nextItems.length;
         setItems((prev) => [...prev, ...nextItems]);
+        setHasMore(newTotal < source.length);
       } else {
         setHasMore(false);
       }

@@ -12,7 +12,8 @@ export class TransformInterceptor implements NestInterceptor {
   intercept(context: ExecutionContext, next: CallHandler) {
     const request = context.switchToHttp().getRequest<Request>();
     const path = request?.path ?? request?.url ?? '';
-    if (String(path).startsWith('/events')) {
+    const p = String(path);
+    if (p === '/events' || p.startsWith('/events/')) {
       return next.handle();
     }
     return next.handle().pipe(

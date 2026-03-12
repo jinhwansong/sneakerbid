@@ -166,14 +166,12 @@
 - [x] Frontend: Vitest + React Testing Library 도입 *(완료: 유틸/훅/캐시/Query 훅/공통 컴포넌트)*
 
 ### 🔵 여유: 커버리지 확대
-- [ ] Backend: 남은 서비스 단위 테스트
-  - [ ] auth.service.spec.ts
-  - [ ] auctions.service.spec.ts
-  - [ ] orders.service.spec.ts
-  - [ ] upload.service.spec.ts
-  - [ ] bots.service.spec.ts
-  - [ ] events.service.spec.ts
+- [x] Backend: 서비스 단위 테스트 *(완료: auth, auctions, orders, upload, bots, events)*
 - [x] Frontend: 핵심 컴포넌트/훅 테스트 확대 *(완료)*
+- [ ] Backend: 남은 테스트 (선택)
+  - [ ] database.service.spec.ts
+  - [ ] redis.service.spec.ts
+  - [ ] Repository 단위 테스트 (auction, bid, order, wishlist, bot)
 - [ ] E2E 테스트 (Playwright 등) — *나중에*
 
 ---

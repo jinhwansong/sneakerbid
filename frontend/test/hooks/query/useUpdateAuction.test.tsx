@@ -30,7 +30,12 @@ describe('useUpdateAuction', () => {
   it('수정 성공 시 API를 호출하고 detail, mySelling 캐시를 무효화한다', async () => {
     vi.mocked(api.auctions.update).mockResolvedValue({ id: 'a1' });
 
-    const queryClient = new QueryClient();
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
     const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
 
     const { result } = renderHook(() => useUpdateAuction(), {

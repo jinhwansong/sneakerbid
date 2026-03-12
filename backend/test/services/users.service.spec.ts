@@ -128,5 +128,89 @@ describe('UsersService', () => {
         'Failed to fetch bid count',
       );
     });
+
+    it('Order count 에러 시 InternalServerErrorException', async () => {
+      mockDb.findUserById.mockResolvedValue(mockUser);
+
+      const fromMock = jest.fn((table: string) => {
+        if (table === 'Order') {
+          return {
+            select: jest.fn().mockReturnValue({
+              eq: jest.fn().mockReturnValue({
+                eq: jest.fn().mockResolvedValue({
+                  data: null,
+                  error: new Error('DB error'),
+                  count: null,
+                }),
+              }),
+            }),
+          };
+        }
+        return {
+          select: jest.fn().mockReturnValue({
+            eq:
+              table === 'Bid'
+                ? jest.fn().mockResolvedValue({
+                    data: [],
+                    error: null,
+                    count: 0,
+                  })
+                : jest.fn().mockReturnValue({
+                    eq: jest
+                      .fn()
+                      .mockResolvedValue({ data: [], error: null, count: 0 }),
+                  }),
+          }),
+        };
+      });
+
+      mockDb.getSupabase.mockReturnValue({ from: fromMock });
+
+      await expect(service.getMeWithStats('u1')).rejects.toThrow(
+        'Failed to fetch order count',
+      );
+    });
+
+    it('Auction count 에러 시 InternalServerErrorException', async () => {
+      mockDb.findUserById.mockResolvedValue(mockUser);
+
+      const fromMock = jest.fn((table: string) => {
+        if (table === 'Auction') {
+          return {
+            select: jest.fn().mockReturnValue({
+              eq: jest.fn().mockReturnValue({
+                eq: jest.fn().mockResolvedValue({
+                  data: null,
+                  error: new Error('DB error'),
+                  count: null,
+                }),
+              }),
+            }),
+          };
+        }
+        return {
+          select: jest.fn().mockReturnValue({
+            eq:
+              table === 'Bid'
+                ? jest.fn().mockResolvedValue({
+                    data: [],
+                    error: null,
+                    count: 0,
+                  })
+                : jest.fn().mockReturnValue({
+                    eq: jest
+                      .fn()
+                      .mockResolvedValue({ data: [], error: null, count: 0 }),
+                  }),
+          }),
+        };
+      });
+
+      mockDb.getSupabase.mockReturnValue({ from: fromMock });
+
+      await expect(service.getMeWithStats('u1')).rejects.toThrow(
+        'Failed to fetch auction count',
+      );
+    });
   });
 });
