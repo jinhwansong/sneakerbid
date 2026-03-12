@@ -46,6 +46,7 @@ export default class RootErrorBoundary extends Component<Props, State> {
             </button>
             <Link
               href="/"
+              onClick={() => this.setState({ hasError: false, error: null })}
               className="rounded-xl border border-border-main px-5 py-2.5 text-sm font-bold text-text-main hover:bg-bg-sub transition-colors"
             >
               홈으로

@@ -23,13 +23,19 @@ const TECHNICAL_MESSAGE_MAP: Record<string, string> = {
   'Network request failed': '네트워크 연결을 확인해 주세요.',
 };
 
+/** 긴 영문 메시지 중 기술적 패턴 (스택 트레이스, 에러 객체 등) */
+const TECHNICAL_LONG_PATTERN =
+  /\b(Error|Exception|at\s+\S+|Stack\s*trace|undefined|null\s+is\s+not|Cannot\s+read|TypeError|ReferenceError)\b/i;
+
 /** 한글 또는 사용자 친화적 메시지인지 판단 (간단 휴리스틱) */
 function isUserFriendlyMessage(msg: string): boolean {
   if (!msg || msg.length < 2) return false;
   // 한글이 포함되어 있으면 백엔드에서 온 친화적 메시지로 간주
   if (/[\uac00-\ud7af]/.test(msg)) return true;
-  // 짧은 영문 메시지(기술적)가 아니면 유지 (예: "Minimum bid is 50,000원")
-  if (msg.length > 40 && !TECHNICAL_MESSAGE_MAP[msg]) return true;
+  // 긴 영문 메시지: 기술적 패턴이 없을 때만 유지 (한글 없이 길면 대부분 기술적)
+  if (msg.length > 40 && !TECHNICAL_MESSAGE_MAP[msg] && !TECHNICAL_LONG_PATTERN.test(msg)) {
+    return true;
+  }
   return false;
 }
 
