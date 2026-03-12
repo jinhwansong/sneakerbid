@@ -1,6 +1,6 @@
 import React from 'react';
-import { Skeleton } from '../common/Skeleton';
-import AuctionFormSkeleton from './AuctionFormSkeleton';
+import { Skeleton } from '@/components/common/Skeleton';
+import AuctionFormSkeleton from '@/components/skeleton/AuctionFormSkeleton';
 
 export default function AuctionEditPageSkeleton() {
   return (

@@ -1,6 +1,6 @@
 import React from 'react';
 import { XCircle } from 'lucide-react';
-import { ButtonLink } from '../common/Button';
+import { ButtonLink } from '@/components/common/Button';
 
 export default function EmptyLost() {
   return (

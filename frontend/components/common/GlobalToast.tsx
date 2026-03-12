@@ -1,7 +1,7 @@
 'use client';
 
 import { useToastStore } from '@/store/useToastStore';
-import Toast from './Toast';
+import Toast from '@/components/common/Toast';
 
 export default function GlobalToast() {
   const { message, type, isVisible, hideToast } = useToastStore();

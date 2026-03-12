@@ -1,6 +1,6 @@
 import React from 'react';
 import { Gavel } from 'lucide-react';
-import { ButtonLink } from '../common/Button';
+import { ButtonLink } from '@/components/common/Button';
 
 export default function EmptyOngoing() {
   return (

@@ -13,16 +13,18 @@ import type { AuctionItem } from '@/types/auction';
 
 const TERMINAL_STATES = new Set<string>(['closed', 'failed', 'buy_now']);
 
+interface MyAuctionCardProps {
+  item: AuctionItem;
+  onDeleteClick?: (id: string) => void;
+  onEditClick?: (id: string) => void;
+}
+
 /** 판매자용 경매 카드 - 입찰 버튼 대신 상세/수정/삭제 액션 */
 export default function MyAuctionCard({
   item,
   onDeleteClick,
   onEditClick,
-}: {
-  item: AuctionItem;
-  onDeleteClick?: (id: string) => void;
-  onEditClick?: (id: string) => void;
-}) {
+}: MyAuctionCardProps) {
   const router = useRouter();
   const remainingTime = useRemainingTime(item.endTime);
   const [menuOpen, setMenuOpen] = useState(false);

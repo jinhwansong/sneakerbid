@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Heart, Users, Clock } from 'lucide-react';
 import { Button } from '@/components/common/Button';
-import Badge from '../common/Badge';
+import Badge from '@/components/common/Badge';
 import { WISHLIST_BUTTON_STYLE } from '@/components/detail/DetailProductImage';
 import { formatPrice } from '@/lib/util/format';
 import { cn } from '@/lib/util/cn';
