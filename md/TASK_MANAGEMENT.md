@@ -15,7 +15,6 @@
 | 메인 FeaturedAuction | SSE 실시간 갱신 | ✅ | ✅ 완료 |
 | 메인 MainAuctionSection | SSE 실시간 갱신 | ✅ | ✅ 완료 |
 | LiveStats | 실시간 지표 | ✅ 완료 | ✅ 완료 |
-| 이벤트 페이지 | 별도 페이지 | - | ❌ 없음 |
 | 관리자 페이지 | 전체 | ❌ | ❌ |
 | 경매 수정 | MyAuctionCard | ✅ API 있음 | ✅ 완료 |
 
@@ -224,9 +223,9 @@
 ## 🔵 여유 있을 때 (나중에)
 
 ### UX/성능
-- [ ] 경매 등록 후 useCreateAuction 훅 (mySelling 캐시 무효화)
-- [ ] 무한 스크롤/페이지네이션 로딩 UX 개선 (경매 목록)
-- [ ] 이미지 lazy loading / placeholder 최적화
+- [x] 경매 등록 후 useCreateAuction 훅 (mySelling 캐시 무효화) *(완료)*
+- [x] 무한 스크롤/페이지네이션 로딩 UX 개선 (경매 목록) *(완료: 스켈레톤, isFetchingNextPage)*
+- [x] 이미지 lazy loading / placeholder 최적화 *(완료: blur placeholder)*
 
 ### 관리자 페이지
 - [ ] 전체 상세: 🔧 관리자 페이지 (Admin) 섹션 참고

@@ -9,6 +9,7 @@ import { formatPrice } from '@/lib/util/format';
 import VirtualizedList from '@/components/common/VirtualizedList';
 import { useAuctionList, auctionListPagesToItems } from '@/hooks/query/useAuctionList';
 import RankingSkeleton from '@/components/skeleton/RankingSkeleton';
+import { BLUR_PLACEHOLDER } from '@/lib/constants/image';
 
 const TABS = [
   { id: 'popular', label: '인기 급상승', icon: Flame, sort: 'popular' as const },
@@ -20,7 +21,7 @@ export default function RankingPage() {
   const [activeTab, setActiveTab] = useState('popular');
   const sortBy = TABS.find((t) => t.id === activeTab)?.sort ?? 'popular';
 
-  const { data, isLoading, isError, fetchNextPage, hasNextPage } = useAuctionList({
+  const { data, isLoading, isFetchingNextPage, isError, fetchNextPage, hasNextPage } = useAuctionList({
     sort: sortBy,
   });
   const displayItems = auctionListPagesToItems(data);
@@ -69,7 +70,7 @@ export default function RankingPage() {
       {/* Virtualized Ranking List */}
       <VirtualizedList
         data={displayItems}
-        loading={isLoading}
+        loading={isLoading || isFetchingNextPage}
         hasMore={hasNextPage ?? false}
         loadMore={() => fetchNextPage()}
         error={isError ? '랭킹을 불러오지 못했습니다.' : undefined}
@@ -99,6 +100,8 @@ export default function RankingPage() {
                 alt={item.modelName}
                 width={96}
                 height={96}
+                placeholder="blur"
+                blurDataURL={BLUR_PLACEHOLDER}
                 className="object-contain p-2 mix-blend-multiply dark:mix-blend-normal group-hover:scale-110 transition-transform duration-500"
               />
             </div>

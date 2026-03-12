@@ -16,6 +16,7 @@ import { useMe } from '@/hooks/query/useMe';
 import { useWishlistToggle } from '@/hooks/query/useMyWishlist';
 import { usePlaceBid } from '@/hooks/query/useMainAuctions';
 import { AuctionItem } from '@/types/auction';
+import { BLUR_PLACEHOLDER } from '@/lib/constants/image';
 
 const DEFAULT_BID_STEP = 10000;
 
@@ -128,6 +129,9 @@ export default function AuctionCard({ item }: AuctionCardProps) {
             src={item.imageUrl}
             alt={item.modelName}
             fill
+            placeholder="blur"
+            blurDataURL={BLUR_PLACEHOLDER}
+            sizes="(max-width: 768px) 50vw, 33vw"
             className="object-contain p-6 group-hover:scale-105 transition-transform duration-500"
           />
         </div>

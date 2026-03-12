@@ -8,6 +8,7 @@ import { SlidersHorizontal, X } from 'lucide-react';
 import { cn } from '@/lib/util/cn';
 import { BRANDS, SIZES, SORT_OPTIONS, type SortBy } from '@/constants';
 import VirtualizedList from '@/components/common/VirtualizedList';
+import AuctionListSkeleton from '@/components/skeleton/AuctionListSkeleton';
 import {
   useAuctionList,
   auctionListPagesToItems,
@@ -166,6 +167,9 @@ export default function AuctionListPage() {
               </div>
             </div>
 
+            {isLoading && displayItems.length === 0 ? (
+              <AuctionListSkeleton />
+            ) : (
             <VirtualizedList
               data={itemRows}
               loading={isLoading || isFetchingNextPage}
@@ -182,6 +186,7 @@ export default function AuctionListPage() {
                 </div>
               )}
             />
+            )}
 
             
           </div>

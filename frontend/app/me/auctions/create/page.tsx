@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useMe } from '@/hooks/query/useMe';
 import AuctionForm from '@/components/auction/AuctionForm';
 import LoginRequiredPrompt from '@/components/me/LoginRequiredPrompt';
+import { useCreateAuction } from '@/hooks/query/useCreateAuction';
 import { api } from '@/lib/api';
 import { useToastStore } from '@/store/useToastStore';
 import type { CreateAuctionDto } from '@/types/auction';
@@ -15,7 +16,8 @@ export default function AuctionCreatePage() {
   const router = useRouter();
   const { data: profile, isLoading: isMeLoading } = useMe();
   const showToast = useToastStore((s) => s.showToast);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const createAuction = useCreateAuction();
+  const [isUploading, setIsUploading] = useState(false);
 
   const handleSubmit = async (
     dto: CreateAuctionDto | import('@/types/auction').UpdateAuctionDto,
@@ -26,13 +28,13 @@ export default function AuctionCreatePage() {
       return;
     }
 
-    setIsSubmitting(true);
     let uploadedUrl: string | undefined;
     try {
+      setIsUploading(true);
       const { url } = await api.uploadImage(imageFile);
       uploadedUrl = url;
       const payload = { ...dto, imageUrl: url } as CreateAuctionDto;
-      await api.auctions.create(payload);
+      await createAuction.mutateAsync(payload);
       showToast('경매가 등록되었습니다.');
       router.push('/me/auctions');
     } catch (err) {
@@ -46,7 +48,7 @@ export default function AuctionCreatePage() {
       const msg = err instanceof Error ? err.message : '경매 등록에 실패했습니다.';
       showToast(msg, 'error');
     } finally {
-      setIsSubmitting(false);
+      setIsUploading(false);
     }
   };
 
@@ -68,7 +70,7 @@ export default function AuctionCreatePage() {
       <AuctionForm
         onSubmit={handleSubmit}
         submitLabel="경매 등록하기"
-        isSubmitting={isSubmitting}
+        isSubmitting={isUploading || createAuction.isPending}
       />
     </main>
   );
