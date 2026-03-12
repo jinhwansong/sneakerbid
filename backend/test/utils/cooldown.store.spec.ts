@@ -1,14 +1,8 @@
-import { cooldownKey, auctionCooldownKey } from './cooldown.store';
+import { cooldownKey, auctionCooldownKey } from '@/bots/cooldown.store';
 
 describe('cooldown.store', () => {
   describe('cooldownKey', () => {
     it('should return bot:cooldown:{auctionId}:{botId} format', () => {
-      expect(cooldownKey('auction-1', 'bot-1')).toBe(
-        'bot:cooldown:auction-1:bot-1',
-      );
-    });
-
-    it('should use different auction and bot ids', () => {
       expect(cooldownKey('auction-abc', 'bot-xyz')).toBe(
         'bot:cooldown:auction-abc:bot-xyz',
       );
@@ -33,9 +27,7 @@ describe('cooldown.store', () => {
     });
 
     it('should use auction id', () => {
-      expect(auctionCooldownKey('auction-xyz')).toBe(
-        'bot:auction:auction-xyz',
-      );
+      expect(auctionCooldownKey('auction-xyz')).toBe('bot:auction:auction-xyz');
     });
 
     it('should produce different keys for different auctions', () => {

@@ -1,6 +1,6 @@
 import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { JwtAuthGuard } from './jwt.guard';
+import { JwtAuthGuard } from '@/common/guard/jwt.guard';
 
 describe('JwtAuthGuard', () => {
   let guard: JwtAuthGuard;
@@ -12,7 +12,7 @@ describe('JwtAuthGuard', () => {
   });
 
   describe('handleRequest', () => {
-    function createContext(optionalAuth?: boolean): ExecutionContext {
+    function createContext(): ExecutionContext {
       return {
         getHandler: () => ({}),
         getClass: () => ({}),
@@ -21,8 +21,8 @@ describe('JwtAuthGuard', () => {
 
     it('optionalAuth이고 err가 있으면 null 반환', () => {
       jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(true);
-      const ctx = createContext(true);
-      const result = guard.handleRequest(
+      const ctx = createContext();
+      const result: unknown = guard.handleRequest(
         new Error('jwt expired'),
         null,
         null,
@@ -33,44 +33,44 @@ describe('JwtAuthGuard', () => {
 
     it('optionalAuth이고 user가 있으면 user 반환', () => {
       jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(true);
-      const ctx = createContext(true);
+      const ctx = createContext();
       const user = { id: 'u1' };
-      const result = guard.handleRequest(null, user, null, ctx);
+      const result: unknown = guard.handleRequest(null, user, null, ctx);
       expect(result).toBe(user);
     });
 
     it('optionalAuth이고 user가 null이면 null 반환', () => {
       jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(true);
-      const ctx = createContext(true);
-      const result = guard.handleRequest(null, null, null, ctx);
+      const ctx = createContext();
+      const result: unknown = guard.handleRequest(null, null, null, ctx);
       expect(result).toBeNull();
     });
 
     it('optionalAuth 아니고 err가 있으면 err 던짐', () => {
       jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(false);
-      const ctx = createContext(false);
+      const ctx = createContext();
       const err = new Error('jwt invalid');
-      expect(() =>
-        guard.handleRequest(err, null, null, ctx),
-      ).toThrow(err);
+      expect(() => {
+        guard.handleRequest(err, null, null, ctx);
+      }).toThrow(err);
     });
 
     it('optionalAuth 아니고 user가 없으면 UnauthorizedException', () => {
       jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(false);
-      const ctx = createContext(false);
-      expect(() =>
-        guard.handleRequest(null, null, null, ctx),
-      ).toThrow(UnauthorizedException);
-      expect(() =>
-        guard.handleRequest(null, null, null, ctx),
-      ).toThrow('인증되지 않은 사용자입니다.');
+      const ctx = createContext();
+      expect(() => {
+        guard.handleRequest(null, null, null, ctx);
+      }).toThrow(UnauthorizedException);
+      expect(() => {
+        guard.handleRequest(null, null, null, ctx);
+      }).toThrow('인증되지 않은 사용자입니다.');
     });
 
     it('optionalAuth 아니고 user가 있으면 user 반환', () => {
       jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(false);
-      const ctx = createContext(false);
+      const ctx = createContext();
       const user = { id: 'u1' };
-      const result = guard.handleRequest(null, user, null, ctx);
+      const result: unknown = guard.handleRequest(null, user, null, ctx);
       expect(result).toBe(user);
     });
   });

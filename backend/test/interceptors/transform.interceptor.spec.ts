@@ -1,6 +1,6 @@
 import { ExecutionContext, CallHandler } from '@nestjs/common';
 import { of } from 'rxjs';
-import { TransformInterceptor } from './transform.interceptor';
+import { TransformInterceptor } from '@/common/interceptors/transform.interceptor';
 
 describe('TransformInterceptor', () => {
   let interceptor: TransformInterceptor;
@@ -54,7 +54,10 @@ describe('TransformInterceptor', () => {
   it('/events 경로는 그대로 반환', (done) => {
     const ctx = {
       switchToHttp: () => ({
-        getRequest: () => ({ path: '/events/auction/1', url: '/events/auction/1' }),
+        getRequest: () => ({
+          path: '/events/auction/1',
+          url: '/events/auction/1',
+        }),
       }),
     } as unknown as ExecutionContext;
     const data = { raw: true };

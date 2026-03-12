@@ -1,9 +1,13 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import SSEReconnectBanner from '@/components/common/SSEReconnectBanner';
 import { useSSEConnectionStore } from '@/store/useSSEConnectionStore';
 
 describe('SSEReconnectBanner', () => {
+  beforeEach(() => {
+    useSSEConnectionStore.setState({ reconnectingCount: 0 });
+  });
+
   it('reconnectingCount가 0이면 렌더링하지 않는다', () => {
     useSSEConnectionStore.setState({ reconnectingCount: 0 });
     const { container } = render(<SSEReconnectBanner />);

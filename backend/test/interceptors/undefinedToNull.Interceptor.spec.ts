@@ -1,6 +1,6 @@
 import { ExecutionContext, CallHandler } from '@nestjs/common';
 import { of } from 'rxjs';
-import { UndefinedToNullInterceptor } from './undefinedToNull.Interceptor';
+import { UndefinedToNullInterceptor } from '@/common/interceptors/undefinedToNull.Interceptor';
 
 describe('UndefinedToNullInterceptor', () => {
   let interceptor: UndefinedToNullInterceptor;
@@ -18,10 +18,11 @@ describe('UndefinedToNullInterceptor', () => {
 
     const result = interceptor.intercept(mockContext, mockHandler);
     const obs = result instanceof Promise ? null : result;
-    obs!.subscribe((r: unknown) => {
-      expect(r).toBeNull();
-      done();
-    });
+    if (obs)
+      obs.subscribe((r: unknown) => {
+        expect(r).toBeNull();
+        done();
+      });
   });
 
   it('null -> null', (done) => {
@@ -29,10 +30,11 @@ describe('UndefinedToNullInterceptor', () => {
 
     const result = interceptor.intercept(mockContext, mockHandler);
     const obs = result instanceof Promise ? null : result;
-    obs!.subscribe((r: unknown) => {
-      expect(r).toBeNull();
-      done();
-    });
+    if (obs)
+      obs.subscribe((r: unknown) => {
+        expect(r).toBeNull();
+        done();
+      });
   });
 
   it('다른 값은 그대로', (done) => {
@@ -41,9 +43,10 @@ describe('UndefinedToNullInterceptor', () => {
 
     const result = interceptor.intercept(mockContext, mockHandler);
     const obs = result instanceof Promise ? null : result;
-    obs!.subscribe((r: unknown) => {
-      expect(r).toEqual(data);
-      done();
-    });
+    if (obs)
+      obs.subscribe((r: unknown) => {
+        expect(r).toEqual(data);
+        done();
+      });
   });
 });

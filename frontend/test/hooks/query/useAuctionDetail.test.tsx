@@ -41,10 +41,12 @@ describe('useAuctionDetail', () => {
       modelName: 'Nike Dunk',
       brand: 'Nike',
       imageUrl: '',
+      startPrice: 50000,
       currentBid: 100000,
       endTime: '',
       participants: 5,
       status: 'ongoing' as const,
+      priceIncreasePercent: '0',
     };
     const bids = [
       { id: 'b1', user: 'u1', amount: 100000, time: '방금 전' },
@@ -69,6 +71,7 @@ describe('useAuctionDetail', () => {
       wrapper: createWrapper(),
     });
     expect(api.auctions.get).not.toHaveBeenCalled();
+    expect(api.auctions.getBids).not.toHaveBeenCalled();
   });
 
   it('auctionId가 빈 문자열이면 enabled가 false이다', () => {
@@ -76,6 +79,7 @@ describe('useAuctionDetail', () => {
       wrapper: createWrapper(),
     });
     expect(api.auctions.get).not.toHaveBeenCalled();
+    expect(api.auctions.getBids).not.toHaveBeenCalled();
   });
 });
 

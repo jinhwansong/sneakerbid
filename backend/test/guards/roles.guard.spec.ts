@@ -1,7 +1,7 @@
 import { ExecutionContext, ForbiddenException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { RolesGuard } from './roles.guard';
-import { UserRole } from '../enum/role.enum';
+import { RolesGuard } from '@/common/guard/roles.guard';
+import { UserRole } from '@/common/enum/role.enum';
 
 describe('RolesGuard', () => {
   let guard: RolesGuard;
@@ -40,7 +40,7 @@ describe('RolesGuard', () => {
     expect(result).toBe(true);
   });
 
-    it('user가 없으면 ForbiddenException', async () => {
+  it('user가 없으면 ForbiddenException', async () => {
     jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue([UserRole.USER]);
     const ctx = createContext({ user: undefined });
     try {
@@ -53,7 +53,9 @@ describe('RolesGuard', () => {
   });
 
   it('role이 목록에 없으면 ForbiddenException', async () => {
-    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue([UserRole.ADMIN]);
+    jest
+      .spyOn(reflector, 'getAllAndOverride')
+      .mockReturnValue([UserRole.ADMIN]);
     const ctx = createContext({ user: { role: UserRole.USER } });
     try {
       await guard.canActivate(ctx);
@@ -72,7 +74,9 @@ describe('RolesGuard', () => {
   });
 
   it('ADMIN이 ADMIN 라우트 접근 시 통과', async () => {
-    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue([UserRole.ADMIN]);
+    jest
+      .spyOn(reflector, 'getAllAndOverride')
+      .mockReturnValue([UserRole.ADMIN]);
     const ctx = createContext({ user: { role: UserRole.ADMIN } });
     const result = await guard.canActivate(ctx);
     expect(result).toBe(true);

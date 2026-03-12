@@ -1,4 +1,4 @@
-import { lockAuctionForUpdate } from './auction-lock.helper';
+import { lockAuctionForUpdate } from '@/auctions/auction-lock.helper';
 import type { TxClient } from '@/database/transaction-client';
 
 describe('auction-lock.helper', () => {

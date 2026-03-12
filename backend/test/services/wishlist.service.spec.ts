@@ -1,9 +1,9 @@
 import { NotFoundException } from '@nestjs/common';
-import { WishlistService } from './wishlist.service';
-import { DatabaseService } from '@/database/database.service';
-import { WishlistRepository } from '@/database/repositories/wishlist.repository';
-import type { RequestUser } from '@/common/decorator/user.decorator';
-import { UserRole } from '@/common/enum/role.enum';
+import { WishlistService } from '../../src/wishlist/wishlist.service';
+import { DatabaseService } from '../../src/database/database.service';
+import { WishlistRepository } from '../../src/database/repositories/wishlist.repository';
+import type { RequestUser } from '../../src/common/decorator/user.decorator';
+import { UserRole } from '../../src/common/enum/role.enum';
 
 describe('WishlistService', () => {
   let service: WishlistService;
@@ -68,12 +68,14 @@ describe('WishlistService', () => {
           }),
         }),
       });
-      mockDb.transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
-        const mockTx = {
-          $queryRaw: jest.fn().mockResolvedValue([{ action: 'deleted' }]),
-        };
-        return fn(mockTx);
-      });
+      mockDb.transaction.mockImplementation(
+        async (fn: (tx: unknown) => Promise<unknown>) => {
+          const mockTx = {
+            $queryRaw: jest.fn().mockResolvedValue([{ action: 'deleted' }]),
+          };
+          return fn(mockTx);
+        },
+      );
 
       const result = await service.toggle('auction-1', mockUser);
 
@@ -90,12 +92,14 @@ describe('WishlistService', () => {
           }),
         }),
       });
-      mockDb.transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
-        const mockTx = {
-          $queryRaw: jest.fn().mockResolvedValue([{ action: 'inserted' }]),
-        };
-        return fn(mockTx);
-      });
+      mockDb.transaction.mockImplementation(
+        async (fn: (tx: unknown) => Promise<unknown>) => {
+          const mockTx = {
+            $queryRaw: jest.fn().mockResolvedValue([{ action: 'inserted' }]),
+          };
+          return fn(mockTx);
+        },
+      );
 
       const result = await service.toggle('auction-1', mockUser);
 

@@ -5,6 +5,7 @@ import type { AuctionSummary } from '@/types/auction';
 describe('summaryToAuctionItem', () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    vi.setSystemTime(new Date('2024-12-01T00:00:00Z'));
   });
 
   afterEach(() => {

@@ -6,15 +6,6 @@ import { useMainCacheUpdater } from '@/hooks/query/useMainAuctions';
 import { queryKeys } from '@/hooks/query/queryKeys';
 import type { GetMainAuctionsResponse } from '@/types/auction';
 
-function createWrapper() {
-  const queryClient = new QueryClient();
-  return function Wrapper({ children }: { children: ReactNode }) {
-    return (
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-    );
-  };
-}
-
 describe('useMainCacheUpdater', () => {
   it('updateBid 호출 시 메인 캐시가 갱신된다', () => {
     const queryClient = new QueryClient();

@@ -34,7 +34,9 @@ describe('useWishlistToggle', () => {
       isWishlisted: true,
     });
 
-    const queryClient = new QueryClient();
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
     const initial: GetMainAuctionsResponse = {
       ongoing: [
         {
@@ -70,7 +72,9 @@ describe('useWishlistToggle', () => {
   it('토글 실패 시 롤백한다', async () => {
     vi.mocked(api.wishlist.toggle).mockRejectedValue(new Error('fail'));
 
-    const queryClient = new QueryClient();
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
     const initial: GetMainAuctionsResponse = {
       ongoing: [
         {

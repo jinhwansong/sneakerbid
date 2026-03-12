@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { useHistoryEvents } from '@/hooks/useHistoryEvents';
 
@@ -30,10 +30,11 @@ vi.mock('@/store/useSSEConnectionStore', () => ({
 
 describe('useHistoryEvents', () => {
   beforeEach(() => {
-    vi.stubGlobal('process', {
-      ...process,
-      env: { NEXT_PUBLIC_SITE_URL: 'https://example.com' },
-    });
+    vi.stubEnv('NEXT_PUBLIC_SITE_URL', 'https://example.com');
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
   it('newDeal 이벤트 시 onNewDeal이 호출된다', () => {

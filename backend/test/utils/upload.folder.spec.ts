@@ -1,5 +1,5 @@
 import fs from 'fs';
-import { getOrCreateUploadDir } from './upload.folder';
+import { getOrCreateUploadDir } from '../../src/common/util/upload.folder';
 
 jest.mock('fs');
 
@@ -31,10 +31,13 @@ describe('upload.folder', () => {
 
     it('should use basename only (strip parent path)', () => {
       getOrCreateUploadDir('/some/path/uploads');
-      expect(mockMkdirSync).toHaveBeenCalledWith(
-        expect.stringContaining('uploads'),
-        { recursive: true },
-      );
+      const calls = mockMkdirSync.mock.calls as [
+        string,
+        { recursive: boolean },
+      ][];
+      const callArg = calls[0][0];
+      expect(callArg).toContain('uploads');
+      expect(callArg).not.toContain('/some/path');
     });
 
     it('should fallback to "uploads" when basename is ".."', () => {
@@ -53,13 +56,6 @@ describe('upload.folder', () => {
         { recursive: true },
       );
       expect(result).toContain('uploads');
-    });
-
-    it('should call mkdirSync with recursive: true', () => {
-      getOrCreateUploadDir();
-      expect(mockMkdirSync).toHaveBeenCalledWith(expect.any(String), {
-        recursive: true,
-      });
     });
 
     it('should return full path joined with cwd', () => {

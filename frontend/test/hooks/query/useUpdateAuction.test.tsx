@@ -39,13 +39,13 @@ describe('useUpdateAuction', () => {
 
     result.current.mutate({
       id: 'a1',
-      dto: { modelName: 'Updated' },
+      dto: { name: 'Updated' },
     });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
     expect(api.auctions.update).toHaveBeenCalledWith('a1', {
-      modelName: 'Updated',
+      name: 'Updated',
     });
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: ['auctions', 'detail', 'a1'],

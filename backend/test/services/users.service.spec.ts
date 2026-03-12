@@ -1,4 +1,4 @@
-import { UsersService } from './users.service';
+import { UsersService } from '@/users/users.service';
 import { DatabaseService } from '@/database/database.service';
 import type { UserByIdResult } from '@/common/database/db.types';
 
@@ -69,10 +69,16 @@ describe('UsersService', () => {
         return {
           select: jest.fn().mockReturnValue(
             table === 'Bid'
-              ? { eq: jest.fn().mockResolvedValue({ data: [], error: null, count }) }
+              ? {
+                  eq: jest
+                    .fn()
+                    .mockResolvedValue({ data: [], error: null, count }),
+                }
               : {
                   eq: jest.fn().mockReturnValue({
-                    eq: jest.fn().mockResolvedValue({ data: [], error: null, count }),
+                    eq: jest
+                      .fn()
+                      .mockResolvedValue({ data: [], error: null, count }),
                   }),
                 },
           ),
@@ -108,7 +114,9 @@ describe('UsersService', () => {
         return {
           select: jest.fn().mockReturnValue({
             eq: jest.fn().mockReturnValue({
-              eq: jest.fn().mockResolvedValue({ data: [], error: null, count: 0 }),
+              eq: jest
+                .fn()
+                .mockResolvedValue({ data: [], error: null, count: 0 }),
             }),
           }),
         };

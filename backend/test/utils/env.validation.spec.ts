@@ -1,17 +1,19 @@
-import { validate } from './env.validation';
+import { validate } from '@/common/config/env.validation';
 
 describe('env.validation', () => {
   const validBaseConfig = {
     NODE_ENV: 'development',
-    PORT: 3000,
+    PORT: '3000',
     APP_NAME: 'test-app',
     SUPABASE_URL: 'https://test.supabase.co',
     SUPABASE_SERVICE_ROLE_KEY: 'test-service-key',
     DATABASE_URL: 'postgresql://localhost:5432/test',
-    JWT_PRIVATE_KEY: '-----BEGIN RSA PRIVATE KEY-----\ntest\n-----END RSA PRIVATE KEY-----',
-    JWT_PUBLIC_KEY: '-----BEGIN PUBLIC KEY-----\ntest\n-----END PUBLIC KEY-----',
-    THROTTLE_TTL: 60,
-    THROTTLE_LIMIT: 100,
+    JWT_PRIVATE_KEY:
+      '-----BEGIN TEST PRIVATE KEY-----\ntest\n-----END TEST PRIVATE KEY-----',
+    JWT_PUBLIC_KEY:
+      '-----BEGIN TEST PUBLIC KEY-----\ntest\n-----END TEST PUBLIC KEY-----',
+    THROTTLE_TTL: '60',
+    THROTTLE_LIMIT: '100',
   };
 
   describe('validate', () => {
@@ -52,14 +54,14 @@ describe('env.validation', () => {
       expect(() =>
         validate({
           ...validBaseConfig,
-          PORT: 0,
+          PORT: '0',
         }),
       ).toThrow();
 
       expect(() =>
         validate({
           ...validBaseConfig,
-          PORT: 70000,
+          PORT: '70000',
         }),
       ).toThrow();
     });
@@ -77,7 +79,7 @@ describe('env.validation', () => {
       expect(() =>
         validate({
           ...validBaseConfig,
-          THROTTLE_TTL: 0,
+          THROTTLE_TTL: '0',
         }),
       ).toThrow();
     });
@@ -86,7 +88,7 @@ describe('env.validation', () => {
       expect(() =>
         validate({
           ...validBaseConfig,
-          THROTTLE_LIMIT: 0,
+          THROTTLE_LIMIT: '0',
         }),
       ).toThrow();
     });

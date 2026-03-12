@@ -1,4 +1,4 @@
-import { DatabaseExceptionFilter } from './databaseException.filter';
+import { DatabaseExceptionFilter } from '@/common/filters/databaseException.filter';
 import { ArgumentsHost } from '@nestjs/common';
 
 describe('DatabaseExceptionFilter', () => {

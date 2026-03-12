@@ -1,4 +1,4 @@
-import { WalletService } from './wallet.service';
+import { WalletService } from '@/wallet/wallet.service';
 import type { TxClient } from '@/database/transaction-client';
 
 describe('WalletService', () => {
@@ -34,12 +34,7 @@ describe('WalletService', () => {
         balance: 100000,
       });
 
-      const result = await service.holdForBid(
-        mockTx,
-        'u1',
-        50000,
-        'bid-1',
-      );
+      const result = await service.holdForBid(mockTx, 'u1', 50000, 'bid-1');
 
       expect(result).toBe(true);
       expect(mockTx.user.update).toHaveBeenCalledWith({
@@ -63,12 +58,7 @@ describe('WalletService', () => {
         balance: 10000,
       });
 
-      const result = await service.holdForBid(
-        mockTx,
-        'u1',
-        50000,
-        'bid-1',
-      );
+      const result = await service.holdForBid(mockTx, 'u1', 50000, 'bid-1');
 
       expect(result).toBe(false);
       expect(mockTx.user.update).not.toHaveBeenCalled();
@@ -78,12 +68,7 @@ describe('WalletService', () => {
     it('유저가 없으면 false 반환', async () => {
       (mockTx.user.findUnique as jest.Mock).mockResolvedValue(null);
 
-      const result = await service.holdForBid(
-        mockTx,
-        'u1',
-        50000,
-        'bid-1',
-      );
+      const result = await service.holdForBid(mockTx, 'u1', 50000, 'bid-1');
 
       expect(result).toBe(false);
       expect(mockTx.user.update).not.toHaveBeenCalled();
