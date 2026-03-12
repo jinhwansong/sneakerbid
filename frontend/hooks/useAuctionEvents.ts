@@ -31,6 +31,10 @@ export function useAuctionEvents({
             amount: parsed.payload.amount,
             time: parsed.payload.time ?? '방금 전',
             isBot: parsed.payload.isBot,
+            participantCount:
+              typeof parsed.payload.participantCount === 'number'
+                ? parsed.payload.participantCount
+                : undefined,
           };
           onNewBid(bid);
         } else if (parsed?.type === 'auctionClosed' && parsed?.payload && onAuctionClosed) {

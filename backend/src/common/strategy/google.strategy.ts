@@ -2,9 +2,9 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { Strategy } from 'passport-google-oauth20';
-import { OAuthProvider } from '@prisma/client';
+import type { OAuthProvider } from '@/common/database/db.types';
 import { AuthService, OAuthProfile } from '../../auth/auth.service';
-import type { UserByIdResult } from '../../prisma/prisma.service';
+import type { UserByIdResult } from '@/common/database/db.types';
 
 @Injectable()
 export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
@@ -44,7 +44,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     };
 
     const user = await this.authService.findOrCreateUserByOAuth(
-      OAuthProvider.GOOGLE,
+      'GOOGLE' as OAuthProvider,
       profileData,
     );
 

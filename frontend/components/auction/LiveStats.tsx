@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion';
 import { Users, Gavel, BarChart3, Zap, Activity } from 'lucide-react';
 import { useLiveStats } from '@/hooks/query/useLiveStats';
+import type { LiveStatsResponse } from '@/types/auction';
 
 function formatVolume24h(volume: number): string {
   if (volume >= 100_000_000) {
@@ -20,8 +21,12 @@ function getVolumeUnit(volume: number): string {
   return '원';
 }
 
-export default function LiveStats() {
-  const { data, isLoading } = useLiveStats();
+export interface LiveStatsProps {
+  initialStats?: LiveStatsResponse;
+}
+
+export default function LiveStats({ initialStats }: LiveStatsProps) {
+  const { data, isLoading } = useLiveStats(initialStats);
 
   const stats = [
     {
@@ -52,7 +57,7 @@ export default function LiveStats() {
     },
   ];
 
-  if (isLoading) {
+  if (isLoading && !initialStats) {
     return (
       <div className="w-full bg-bg-main border border-border-main rounded-lg overflow-hidden shadow-sm">
         <div className="flex flex-col md:flex-row items-center divide-y md:divide-y-0 md:divide-x divide-border-main/50">

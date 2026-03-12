@@ -1,7 +1,9 @@
 import { plainToInstance } from 'class-transformer';
 import {
   IsEnum,
+  IsNotEmpty,
   IsNumber,
+  IsOptional,
   IsString,
   validateSync,
   Min,
@@ -29,9 +31,11 @@ class EnvironmentVariables {
   @IsString()
   APP_VERSION: string = '1.0.0';
 
-  // CORS
+  // CORS (blank string fails; missing is allowed via fallback)
+  @IsOptional()
   @IsString()
-  CORS_ORIGIN: string = process.env.FRONTEND_URL;
+  @IsNotEmpty()
+  CORS_ORIGIN?: string;
 
   // Rate Limiting
   @IsNumber()
@@ -41,9 +45,34 @@ class EnvironmentVariables {
   @IsNumber()
   @Min(1)
   THROTTLE_LIMIT: number = 100;
+
+  // Database (Supabase)
+  @IsString()
+  @IsNotEmpty()
+  SUPABASE_URL: string = process.env.SUPABASE_URL;
+
+  @IsString()
+  @IsNotEmpty()
+  SUPABASE_SERVICE_ROLE_KEY: string = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  @IsString()
+  @IsNotEmpty()
+  DATABASE_URL: string = process.env.DATABASE_URL;
+}
+
+function trimOrUndefined(s: unknown): string | undefined {
+  if (typeof s !== 'string') return undefined;
+  const t = s.trim();
+  return t.length > 0 ? t : undefined;
 }
 
 export function validate(config: Record<string, unknown>) {
+  // CORS_ORIGIN이 없으면 FRONTEND_URL 사용 (env 키 불일치 대응). 빈 문자열/공백만 있는 값은 제외
+  const corsOrigin =
+    trimOrUndefined(config.CORS_ORIGIN) ??
+    trimOrUndefined(config.FRONTEND_URL) ??
+    trimOrUndefined(process.env.FRONTEND_URL);
+  config = { ...config, CORS_ORIGIN: corsOrigin };
   const validatedConfig = plainToInstance(EnvironmentVariables, config, {
     enableImplicitConversion: true,
   });

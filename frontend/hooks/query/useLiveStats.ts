@@ -5,12 +5,14 @@ import { withQueryDefaults } from '@/hooks/withQueryDefaults';
 import { queryKeys } from './queryKeys';
 import { DEFAULT_STATS } from '@/lib/constants/auction';
 
-export function useLiveStats() {
+export function useLiveStats(initialData?: LiveStatsResponse) {
   return useQuery(
     withQueryDefaults<LiveStatsResponse>({
       queryKey: queryKeys.auctions.stats,
       queryFn: async () => (await api.auctions.getStats()) ?? DEFAULT_STATS,
-      refetchInterval: 30_000, // 30초마다 갱신
+      initialData,
+      initialDataUpdatedAt: initialData ? Date.now() : undefined,
+      refetchInterval: 30_000,
     }),
   );
 }

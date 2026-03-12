@@ -74,7 +74,13 @@ export function useWishlistToggle() {
     mutationKey: ['wishlist', 'toggle'],
     mutationFn: (auctionId: string) => api.wishlist.toggle(auctionId),
 
-    onMutate: (auctionId: string): WishlistToggleContext => {
+    onMutate: async (auctionId: string): Promise<WishlistToggleContext> => {
+      await Promise.all([
+        queryClient.cancelQueries({ queryKey: queryKeys.wishlist.my }),
+        queryClient.cancelQueries({ queryKey: queryKeys.auctions.main }),
+        queryClient.cancelQueries({ queryKey: ['auctions', 'list'] }),
+      ]);
+
       // 현재 main 캐시 스냅샷 (rollback 용)
       const previousMain = queryClient.getQueryData<GetMainAuctionsResponse>(
         queryKeys.auctions.main,
@@ -86,10 +92,10 @@ export function useWishlistToggle() {
       );
       const inWishlist =
         wishlistData?.some((item) => item.id === auctionId) ?? false;
-      const findItem = (arr: AuctionSummary[] = []) =>
-        arr.find((a) => a.auctionId === auctionId);
-      const current =
-        findItem(previousMain?.ongoing) ?? findItem(previousMain?.closed);
+      const allMainItems = previousMain
+        ? (Object.values(previousMain).flat() as AuctionSummary[])
+        : [];
+      const current = allMainItems.find((a) => a.auctionId === auctionId);
       const previousIsWishlisted =
         inWishlist || (current?.isWishlisted ?? false);
 

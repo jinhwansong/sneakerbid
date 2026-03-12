@@ -9,6 +9,7 @@ export const queryKeys = {
   auctions: {
     main: ['auctions', 'main'] as const,
     stats: ['auctions', 'stats'] as const,
+    detail: (id: string) => ['auctions', 'detail', id] as const,
     myBidding: ['auctions', 'myBidding'] as const,
     mySelling: (status?: string) =>
       ['auctions', 'mySelling', status] as const,

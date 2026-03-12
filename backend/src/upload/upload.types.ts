@@ -7,3 +7,11 @@ export interface MemoryMulterFile {
   size: number;
   buffer: Buffer;
 }
+
+/** upload.service 전용 - upload.types와 동일 구조  */
+export interface UploadFile {
+  buffer: Buffer;
+  mimetype: string;
+  size: number;
+  originalname: string;
+}

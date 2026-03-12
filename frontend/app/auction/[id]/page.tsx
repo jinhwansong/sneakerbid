@@ -1,31 +1,60 @@
 import { notFound } from 'next/navigation';
+import { headers } from 'next/headers';
+import { dehydrate, HydrationBoundary, QueryClient } from '@tanstack/react-query';
 import AuctionDetailClient from '@/components/detail/AuctionDetailClient';
 import { api } from '@/lib/api';
-import type { AuctionItem, BidLogItem } from '@/types/auction';
+import { queryKeys } from '@/hooks/query/queryKeys';
+import { queryDefaults } from '@/hooks/withQueryDefaults';
 
 interface AuctionDetailPageProps {
-  params: Promise<{
-    id: string;
-  }>;
+  params: Promise<{ id: string }>;
+}
+
+async function prefetchAuctionDetail(id: string) {
+  const headersList = await headers();
+  const cookie = headersList.get('cookie') ?? '';
+  const init = cookie ? { headers: { Cookie: cookie } as HeadersInit } : undefined;
+
+  let auction: Awaited<ReturnType<typeof api.auctions.get>>;
+  try {
+    auction = await api.auctions.get(id, init);
+  } catch (err) {
+    const status =
+      err && typeof err === 'object' && 'status' in err
+        ? (err as { status: number }).status
+        : undefined;
+    if (status === 404) notFound();
+    throw err;
+  }
+
+  let bids: Awaited<ReturnType<typeof api.auctions.getBids>> = [];
+  try {
+    const b = await api.auctions.getBids(id, init);
+    bids = Array.isArray(b) ? b : [];
+  } catch {
+    bids = [];
+  }
+
+  return { auction, bids };
 }
 
 export default async function AuctionDetailPage({ params }: AuctionDetailPageProps) {
   const { id } = await params;
-  let item: AuctionItem & { initialBids?: BidLogItem[] };
-  try {
-    const [auctionData, bidsData] = await Promise.all([
-      api.auctions.get(id),
-      api.auctions.getBids(id).catch(() => []),
-    ]);
-    item = auctionData as AuctionItem;
-    item.initialBids = bidsData;
-  } catch {
-    notFound();
-  }
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: queryDefaults },
+  });
+
+  const data = await queryClient.fetchQuery({
+    queryKey: queryKeys.auctions.detail(id),
+    queryFn: () => prefetchAuctionDetail(id),
+  });
+  if (!data?.auction) notFound();
 
   return (
-    <main className="max-w-7xl mx-auto px-5 py-10 md:py-14">
-      <AuctionDetailClient item={item} auctionId={id} />
-    </main>
+    <HydrationBoundary state={dehydrate(queryClient)}>
+      <main className="max-w-7xl mx-auto px-5 py-10 md:py-14">
+        <AuctionDetailClient auctionId={id} />
+      </main>
+    </HydrationBoundary>
   );
 }

@@ -19,7 +19,7 @@ export default function AuctionCreatePage() {
 
   const handleSubmit = async (
     dto: CreateAuctionDto | import('@/types/auction').UpdateAuctionDto,
-    imageFile: File | null,
+    imageFile?: File | null,
   ) => {
     if (!imageFile) {
       showToast('상품 이미지를 등록해주세요.', 'error');
@@ -27,13 +27,22 @@ export default function AuctionCreatePage() {
     }
 
     setIsSubmitting(true);
+    let uploadedUrl: string | undefined;
     try {
       const { url } = await api.uploadImage(imageFile);
+      uploadedUrl = url;
       const payload = { ...dto, imageUrl: url } as CreateAuctionDto;
       await api.auctions.create(payload);
       showToast('경매가 등록되었습니다.');
       router.push('/me/auctions');
     } catch (err) {
+      if (uploadedUrl) {
+        try {
+          await api.deleteImage(uploadedUrl);
+        } catch {
+          // orphan 정리 실패는 로그만
+        }
+      }
       const msg = err instanceof Error ? err.message : '경매 등록에 실패했습니다.';
       showToast(msg, 'error');
     } finally {

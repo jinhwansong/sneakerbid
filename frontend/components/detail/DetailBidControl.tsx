@@ -97,22 +97,31 @@ export default function DetailBidControl({
             </div>
           </div>
 
+          <p className="text-[10px] text-text-muted font-bold">
+            최소 입찰 단위: {formatPrice(item.minimumIncrement ?? DEFAULT_BID_STEP)}원
+          </p>
+
           <div className="grid grid-cols-3 gap-2">
-            {[1000, 10000, 50000].map((amount) => (
-              <button
-                key={amount}
-                type="button"
-                onClick={() =>
-                  onBidAmountChange((bidAmount || minBid) + amount)
-                }
-                className="py-2.5 rounded-lg border border-border-main text-[10px] font-black hover:bg-bg-accent hover:text-text-inverse transition-all"
-              >
-                +
-                {amount >= 10000
-                  ? `${amount / 10000}만`
-                  : `${amount / 1000}천`}
-              </button>
-            ))}
+            {(() => {
+              const step = item.minimumIncrement ?? DEFAULT_BID_STEP;
+              const formatStep = (n: number) =>
+                n >= 10000 ? `${n / 10000}만` : n >= 1000 ? `${n / 1000}천` : String(n);
+              const options = [
+                { value: minBid, label: `최소` },
+                { value: minBid + step, label: `+${formatStep(step)}` },
+                { value: minBid + step * 5, label: `+${formatStep(step * 5)}` },
+              ];
+              return options.map(({ value, label }) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => onBidAmountChange(value)}
+                  className="py-2.5 rounded-lg border border-border-main text-[10px] font-black hover:bg-bg-accent hover:text-text-inverse transition-all"
+                >
+                  {label}
+                </button>
+              ));
+            })()}
           </div>
         </div>
 

@@ -8,6 +8,7 @@ import { Select } from '@/components/common/Select';
 import AuctionImageUpload from '@/components/auction/AuctionImageUpload';
 import { BRANDS, SIZES } from '@/constants';
 import type { CreateAuctionDto, UpdateAuctionDto, GetAuctionResponse } from '@/types/auction';
+import { useToastStore } from '@/store/useToastStore';
 
 export interface AuctionFormValues {
   modelName: string;
@@ -61,27 +62,38 @@ function auctionToFormValues(a: GetAuctionResponse): AuctionFormValues {
   };
 }
 
-export interface AuctionFormProps {
-  /** 생성 모드: 초기값 없음. 수정 모드: initialData 있음 */
-  initialData?: GetAuctionResponse | null;
-  auctionId?: string;
-  onSubmit: (dto: CreateAuctionDto | UpdateAuctionDto, imageFile: File | null) => Promise<void>;
+export interface CreateAuctionFormProps {
+  initialData?: null;
+  auctionId?: never;
+  onSubmit: (dto: CreateAuctionDto, imageFile?: File | null) => Promise<void>;
   submitLabel?: string;
   isSubmitting?: boolean;
 }
 
-export default function AuctionForm({
-  initialData,
-  auctionId,
-  onSubmit,
-  submitLabel = '경매 등록하기',
-  isSubmitting = false,
-}: AuctionFormProps) {
-  const isEdit = !!initialData && !!auctionId;
+export interface EditAuctionFormProps {
+  initialData: GetAuctionResponse;
+  auctionId: string;
+  onSubmit: (dto: UpdateAuctionDto, imageFile?: File | null) => Promise<void>;
+  submitLabel?: string;
+  isSubmitting?: boolean;
+}
+
+export type AuctionFormProps = CreateAuctionFormProps | EditAuctionFormProps;
+
+export default function AuctionForm(props: AuctionFormProps) {
+  const {
+    initialData,
+    auctionId,
+    onSubmit,
+    submitLabel = '경매 등록하기',
+    isSubmitting = false,
+  } = props;
+  const isEdit = 'auctionId' in props && !!props.auctionId && !!props.initialData;
   const [image, setImage] = useState<File | null>(null);
   const [formData, setFormData] = useState<AuctionFormValues>(
     initialData ? auctionToFormValues(initialData) : INITIAL_VALUES,
   );
+  const showToast = useToastStore((s) => s.showToast);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>,
@@ -98,15 +110,19 @@ export default function AuctionForm({
     e.preventDefault();
 
     if (!isEdit && !image) {
-      alert('상품 이미지를 등록해주세요.');
+      showToast('상품 이미지를 등록해주세요.', 'error');
+      return;
+    }
+    if (!formData.modelName || !formData.modelName.trim()) {
+      showToast('모델명을 입력해주세요.', 'error');
       return;
     }
     if (!formData.brand || !formData.brand.trim()) {
-      alert('브랜드를 선택해주세요.');
+      showToast('브랜드를 선택해주세요.', 'error');
       return;
     }
     if (formData.size === '' || formData.size == null) {
-      alert('사이즈를 선택해주세요.');
+      showToast('사이즈를 선택해주세요.', 'error');
       return;
     }
 
@@ -117,15 +133,15 @@ export default function AuctionForm({
     const minimumIncrement = parseInt(formData.minimumIncrement, 10);
 
     if (Number.isNaN(startPrice) || startPrice < 0) {
-      alert('시작 가격을 올바르게 입력해주세요.');
+      showToast('시작 가격을 올바르게 입력해주세요.', 'error');
       return;
     }
     if (Number.isNaN(minimumIncrement) || minimumIncrement < 1) {
-      alert('최소 입찰 단위를 선택해주세요.');
+      showToast('최소 입찰 단위를 선택해주세요.', 'error');
       return;
     }
     if (!formData.endTime) {
-      alert('경매 종료 일시를 입력해주세요.');
+      showToast('경매 종료 일시를 입력해주세요.', 'error');
       return;
     }
 
@@ -140,8 +156,9 @@ export default function AuctionForm({
         buyNowPrice: buyNowPrice ?? undefined,
         minimumIncrement,
         endTime: new Date(formData.endTime).toISOString(),
+        ...(image ? {} : { imageUrl: props.initialData.imageUrl }),
       };
-      await onSubmit(dto, image);
+      await props.onSubmit(dto, image);
     } else {
       const dto: CreateAuctionDto = {
         modelName: formData.modelName,
@@ -155,7 +172,7 @@ export default function AuctionForm({
         minimumIncrement,
         endTime: new Date(formData.endTime).toISOString(),
       };
-      await onSubmit(dto, image);
+      await props.onSubmit(dto, image);
     }
   };
 
@@ -218,7 +235,7 @@ export default function AuctionForm({
 
               <Input
                 label="컬러"
-                required
+                
                 name="color"
                 value={formData.color}
                 onChange={handleChange}
@@ -227,7 +244,7 @@ export default function AuctionForm({
 
               <TextArea
                 label="상세 설명"
-                required
+                
                 name="description"
                 value={formData.description}
                 onChange={handleChange}

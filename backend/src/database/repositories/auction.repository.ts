@@ -1,0 +1,327 @@
+import { Injectable } from '@nestjs/common';
+import { DatabaseService } from '@/database/database.service';
+import type { AuctionWithDetails } from '@/common/type/auction.type';
+
+export interface AuctionListRow {
+  id: string;
+  sneakerId: string;
+  size: string;
+  startPrice: number;
+  currentPrice: number;
+  buyNowPrice: number | null;
+  minimumIncrement: number;
+  status: string;
+  endTime: Date;
+  winnerUserId: string | null;
+  closedAt: Date | null;
+  sellerUserId: string;
+  sneaker_id: string;
+  sneaker_modelName: string;
+  sneaker_brand: string;
+  sneaker_imageUrl: string;
+  bid_count: number;
+}
+
+export interface AuctionDetailRow extends AuctionListRow {
+  sneaker_colorway: string | null;
+  sneaker_description: string | null;
+  sneaker_styleCode: string | null;
+  sneaker_releaseYear: number | null;
+  sneaker_condition: string | null;
+  sneaker_origin: string | null;
+  sneaker_boxIncluded: boolean | null;
+}
+
+export interface TradeHistoryRow {
+  id: string;
+  currentPrice: number;
+  closedAt: Date | null;
+  updatedAt: Date;
+  winnerUserId: string | null;
+  imageUrl: string;
+  brand: string;
+  modelName: string;
+}
+
+@Injectable()
+export class AuctionRepository {
+  constructor(private readonly db: DatabaseService) {}
+
+  /** 메인 경매 목록 (진행 중, 20건) */
+  async findMainAuctions(now: Date): Promise<AuctionListRow[]> {
+    return this.db.query<AuctionListRow>(
+      `SELECT a.*, s.id as "sneaker_id", s."modelName" as "sneaker_modelName", s.brand as "sneaker_brand", s."imageUrl" as "sneaker_imageUrl",
+         (SELECT COUNT(*) FROM "Bid" WHERE "auctionId" = a.id)::int as bid_count
+       FROM "Auction" a JOIN "Sneaker" s ON a."sneakerId" = s.id
+       WHERE a.status = 'OPEN' AND a."endTime" > $1 ORDER BY a."endTime" ASC LIMIT 20`,
+      [now],
+    );
+  }
+
+  /** 경매 상세 (sneaker 포함) */
+  async findByIdWithSneaker(
+    auctionId: string,
+  ): Promise<AuctionDetailRow | null> {
+    const rows = await this.db.query<AuctionDetailRow>(
+      `SELECT a.*, s.id as "sneaker_id", s."modelName" as "sneaker_modelName", s.brand as "sneaker_brand", s."imageUrl" as "sneaker_imageUrl",
+         s.colorway as "sneaker_colorway", s.description as "sneaker_description", s."styleCode" as "sneaker_styleCode",
+         s."releaseYear" as "sneaker_releaseYear", s.condition as "sneaker_condition", s.origin as "sneaker_origin", s."boxIncluded" as "sneaker_boxIncluded",
+         (SELECT COUNT(*) FROM "Bid" WHERE "auctionId" = a.id)::int as bid_count
+       FROM "Auction" a JOIN "Sneaker" s ON a."sneakerId" = s.id
+       WHERE a.id = $1`,
+      [auctionId],
+    );
+    return rows[0] ?? null;
+  }
+
+  /** 판매자별 경매 목록 */
+  async findMySelling(
+    sellerUserId: string,
+    statusFilter: 'all' | 'ongoing' | 'closed',
+    now: Date,
+  ): Promise<AuctionListRow[]> {
+    let sql = `SELECT a.*, s.id as "sneaker_id", s."modelName" as "sneaker_modelName", s.brand as "sneaker_brand", s."imageUrl" as "sneaker_imageUrl",
+       (SELECT COUNT(*) FROM "Bid" WHERE "auctionId" = a.id)::int as bid_count
+       FROM "Auction" a JOIN "Sneaker" s ON a."sneakerId" = s.id
+       WHERE a."sellerUserId" = $1`;
+    const params: unknown[] = [sellerUserId];
+    if (statusFilter === 'ongoing') {
+      sql += ' AND a.status = $2 AND a."endTime" > $3';
+      params.push('OPEN', now);
+    } else if (statusFilter === 'closed') {
+      sql += ' AND (a.status = $2 OR (a.status = $3 AND a."endTime" <= $4))';
+      params.push('CLOSED', 'OPEN', now);
+    }
+    sql += ' ORDER BY a."createdAt" DESC';
+    return this.db.query<AuctionListRow>(sql, params);
+  }
+
+  /** 입찰한 경매 목록 (auctionIds 기준) */
+  async findByIdsWithSneaker(
+    auctionIds: string[],
+    status: 'ongoing' | 'closed' | 'all',
+    now: Date,
+  ): Promise<AuctionListRow[]> {
+    if (auctionIds.length === 0) return [];
+    let sql = `SELECT a.*, s.id as "sneaker_id", s."modelName" as "sneaker_modelName", s.brand as "sneaker_brand", s."imageUrl" as "sneaker_imageUrl",
+       (SELECT COUNT(*) FROM "Bid" WHERE "auctionId" = a.id)::int as bid_count
+       FROM "Auction" a JOIN "Sneaker" s ON a."sneakerId" = s.id
+       WHERE a.id = ANY($1::text[])`;
+    const params: unknown[] = [auctionIds];
+    if (status === 'ongoing') {
+      sql += ' AND a.status = $2 AND a."endTime" > $3';
+      params.push('OPEN', now);
+    } else if (status === 'closed') {
+      sql += ' AND (a.status = $2 OR (a.status = $3 AND a."endTime" <= $4))';
+      params.push('CLOSED', 'OPEN', now);
+    }
+    sql +=
+      status === 'ongoing'
+        ? ' ORDER BY a."endTime" ASC'
+        : ' ORDER BY a."closedAt" DESC NULLS LAST, a."updatedAt" DESC';
+    return this.db.query<AuctionListRow>(sql, params);
+  }
+
+  /** 필터/정렬 경매 목록 (커서 페이지네이션) */
+  async listWithFilters(params: {
+    brand?: string;
+    size?: string;
+    sort: string;
+    afterId?: string;
+    limit: number;
+    now: Date;
+  }): Promise<AuctionListRow[]> {
+    const { brand, size, sort, afterId, limit, now } = params;
+    const orderMap: Record<string, string> = {
+      ending_soon: 'a."endTime" ASC, a.id ASC',
+      popular: 'a."currentPrice" DESC, a.id ASC',
+      price_low: 'a."currentPrice" ASC, a.id ASC',
+      bid_count: 'bid_count DESC, a.id ASC',
+      newest: 'a."createdAt" DESC, a.id ASC',
+    };
+    const orderClause = orderMap[sort] ?? orderMap.newest;
+
+    let sql = `SELECT a.*, s.id as "sneaker_id", s."modelName" as "sneaker_modelName", s.brand as "sneaker_brand", s."imageUrl" as "sneaker_imageUrl",
+       (SELECT COUNT(*) FROM "Bid" WHERE "auctionId" = a.id)::int as bid_count
+       FROM "Auction" a JOIN "Sneaker" s ON a."sneakerId" = s.id
+       WHERE a.status = $1 AND a."endTime" > $2`;
+    const queryParams: unknown[] = ['OPEN', now];
+    let pi = 3;
+    if (brand) {
+      sql += ` AND s.brand = $${pi++}`;
+      queryParams.push(brand);
+    }
+    if (size) {
+      sql += ` AND a.size = $${pi++}`;
+      queryParams.push(size);
+    }
+    if (afterId) {
+      if (sort === 'newest') {
+        sql += ` AND (a."createdAt", a.id) < (SELECT "createdAt", id FROM "Auction" WHERE id = $${pi})`;
+      } else if (sort === 'ending_soon') {
+        sql += ` AND (a."endTime", a.id) > (SELECT "endTime", id FROM "Auction" WHERE id = $${pi})`;
+      } else if (sort === 'popular') {
+        sql += ` AND (a."currentPrice", a.id) < (SELECT "currentPrice", id FROM "Auction" WHERE id = $${pi})`;
+      } else if (sort === 'price_low') {
+        sql += ` AND (a."currentPrice", a.id) > (SELECT "currentPrice", id FROM "Auction" WHERE id = $${pi})`;
+      } else if (sort === 'bid_count') {
+        sql += ` AND ((SELECT COUNT(*) FROM "Bid" WHERE "auctionId" = a.id), a.id) < ((SELECT COUNT(*) FROM "Bid" WHERE "auctionId" = $${pi}), $${pi + 1})`;
+        queryParams.push(afterId, afterId);
+        pi += 2;
+      } else {
+        sql += ` AND a.id < $${pi}`;
+      }
+      if (sort !== 'bid_count') {
+        queryParams.push(afterId);
+        pi++;
+      }
+    }
+    sql += ` ORDER BY ${orderClause} LIMIT $${pi}`;
+    queryParams.push(limit + 1);
+    return this.db.query<AuctionListRow>(sql, queryParams);
+  }
+
+  /** LiveStats: 진행 중 경매 수 */
+  async countOpen(now: Date): Promise<number> {
+    const result = await this.db.query<{ count: number }>(
+      `SELECT COUNT(*)::int as count FROM "Auction" WHERE status = 'OPEN' AND "endTime" > $1`,
+      [now],
+    );
+    return Number(result[0]?.count ?? 0);
+  }
+
+  /** LiveStats: 24h 거래량 */
+  async sumClosedVolume24h(dayAgo: Date): Promise<number> {
+    const rows = await this.db.query<{ sum: string }>(
+      `SELECT COALESCE(SUM("currentPrice"), 0)::text as sum FROM "Auction"
+       WHERE status = 'CLOSED' AND "closedAt" >= $1 AND "winnerUserId" IS NOT NULL`,
+      [dayAgo],
+    );
+    return parseInt(rows[0]?.sum ?? '0', 10);
+  }
+
+  /** 오늘 마감된 경매 (거래 내역 통계용) */
+  async findTodaysClosings(
+    todayStart: Date,
+  ): Promise<{ currentPrice: number }[]> {
+    return this.db.query<{ currentPrice: number }>(
+      `SELECT "currentPrice" FROM "Auction" WHERE status = 'CLOSED' AND "closedAt" >= $1`,
+      [todayStart],
+    );
+  }
+
+  /** 거래 내역 (기간/검색 필터) */
+  async findTradeHistory(params: {
+    periodStart?: Date;
+    search?: string;
+    limit: number;
+  }): Promise<TradeHistoryRow[]> {
+    const { periodStart, search, limit } = params;
+    let sql = `SELECT a.id, a."currentPrice", a."closedAt", a."updatedAt", a."winnerUserId", s."imageUrl", s.brand, s."modelName"
+      FROM "Auction" a JOIN "Sneaker" s ON a."sneakerId" = s.id
+      WHERE a.status = 'CLOSED' AND a."closedAt" IS NOT NULL`;
+    const queryParams: unknown[] = [];
+    let pi = 1;
+    if (periodStart) {
+      sql += ` AND a."closedAt" >= $${pi++}`;
+      queryParams.push(periodStart);
+    }
+    if (search) {
+      sql += ` AND (s.brand ILIKE $${pi} OR s."modelName" ILIKE $${pi})`;
+      queryParams.push(`%${search}%`);
+      pi++;
+    }
+    sql += ` ORDER BY a."closedAt" DESC LIMIT $${pi}`;
+    queryParams.push(limit);
+    return this.db.query<TradeHistoryRow>(sql, queryParams);
+  }
+
+  /** 단건 거래 내역 (SSE newDeal용) */
+  async findTradeHistoryItem(
+    auctionId: string,
+  ): Promise<TradeHistoryRow | null> {
+    const rows = await this.db.query<TradeHistoryRow>(
+      `SELECT a.id, a."currentPrice", a."closedAt", a."updatedAt", a."winnerUserId", s."imageUrl", s.brand, s."modelName"
+       FROM "Auction" a JOIN "Sneaker" s ON a."sneakerId" = s.id
+       WHERE a.id = $1 AND a.status = 'CLOSED'`,
+      [auctionId],
+    );
+    return rows[0] ?? null;
+  }
+
+  /** 만료된 경매 (종료 배치용) */
+  async findExpiredForClose(
+    now: Date,
+    limit: number,
+  ): Promise<{ id: string }[]> {
+    return this.db.query<{ id: string }>(
+      `SELECT id FROM "Auction" WHERE status = 'OPEN' AND "endTime" <= $1 ORDER BY "endTime" ASC LIMIT $2`,
+      [now, limit],
+    );
+  }
+
+  /** 봇 재등록 대상 (닫힌 경매, 봇 낙찰, 시간대) */
+  async findClosedForRelist(params: {
+    botUserIds: string[];
+    minClosed: Date;
+    maxClosed: Date;
+    excludeRelistedIds: string[];
+  }): Promise<
+    (AuctionListRow & {
+      sneaker_brand: string;
+      sneaker_modelName: string;
+    })[]
+  > {
+    const { botUserIds, minClosed, maxClosed, excludeRelistedIds } = params;
+    const excludeClause =
+      excludeRelistedIds.length > 0 ? 'AND a.id != ALL($4::text[])' : '';
+    const queryParams: unknown[] =
+      excludeRelistedIds.length > 0
+        ? [botUserIds, minClosed, maxClosed, excludeRelistedIds]
+        : [botUserIds, minClosed, maxClosed];
+    return this.db.query(
+      `SELECT a.*, s.brand as "sneaker_brand", s."modelName" as "sneaker_modelName"
+       FROM "Auction" a JOIN "Sneaker" s ON a."sneakerId" = s.id
+       WHERE a.status = 'CLOSED' AND a."winnerUserId" = ANY($1::text[])
+         AND a."closedAt" >= $2 AND a."closedAt" <= $3 ${excludeClause}`,
+      queryParams,
+    );
+  }
+
+  /** row → AuctionWithDetails 변환 */
+  rowToAuctionWithDetails(
+    row: AuctionDetailRow | AuctionListRow,
+  ): AuctionWithDetails {
+    return {
+      id: row.id,
+      sneakerId: row.sneakerId,
+      size: row.size,
+      startPrice: row.startPrice,
+      currentPrice: row.currentPrice,
+      buyNowPrice: row.buyNowPrice,
+      minimumIncrement: row.minimumIncrement,
+      status: row.status,
+      endTime: row.endTime,
+      winnerUserId: row.winnerUserId,
+      closedAt: row.closedAt,
+      sellerUserId: row.sellerUserId,
+      sneaker: {
+        id: row.sneaker_id,
+        modelName: row.sneaker_modelName,
+        brand: row.sneaker_brand,
+        imageUrl: row.sneaker_imageUrl,
+        colorway: 'sneaker_colorway' in row ? row.sneaker_colorway : null,
+        description:
+          'sneaker_description' in row ? row.sneaker_description : null,
+        styleCode: 'sneaker_styleCode' in row ? row.sneaker_styleCode : null,
+        releaseYear:
+          'sneaker_releaseYear' in row ? row.sneaker_releaseYear : null,
+        condition: 'sneaker_condition' in row ? row.sneaker_condition : null,
+        origin: 'sneaker_origin' in row ? row.sneaker_origin : null,
+        boxIncluded:
+          'sneaker_boxIncluded' in row ? row.sneaker_boxIncluded : null,
+      },
+      _count: { bids: row.bid_count ?? 0 },
+    } as AuctionWithDetails;
+  }
+}

@@ -1,5 +1,6 @@
-import type { Auction, Prisma } from '@prisma/client';
-import { PrismaService } from '@/prisma/prisma.service';
+import { DatabaseService } from '@/database/database.service';
+import { AuctionRepository } from '@/database/repositories/auction.repository';
+import { BidRepository } from '@/database/repositories/bid.repository';
 import {
   BadRequestException,
   ForbiddenException,
@@ -42,7 +43,9 @@ export class AuctionsService {
   private readonly logger = new Logger(AuctionsService.name);
 
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly db: DatabaseService,
+    private readonly auctionRepo: AuctionRepository,
+    private readonly bidRepo: BidRepository,
     private readonly eventsService: EventsService,
     private readonly walletService: WalletService,
     private readonly wishlistService: WishlistService,
@@ -105,7 +108,7 @@ export class AuctionsService {
       );
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    return this.db.transaction(async (tx) => {
       const user = await tx.user.findUnique({ where: { id: userId } });
       if (!user) {
         throw new BadRequestException('등록된 유저가 아닙니다.');
@@ -136,8 +139,6 @@ export class AuctionsService {
         },
         include: { sneaker: true },
       });
-      // 입찰/수정 시 lockAuctionForUpdate + 동일 검증 패턴 사용
-
       return auction;
     });
   }
@@ -152,42 +153,21 @@ export class AuctionsService {
     const now = new Date();
     const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
-    const [activeBidders, activeAuctions, volume24h, recentBids] =
+    const [activeBiddersRows, activeAuctions, volume24h, recentBids] =
       await Promise.all([
-        this.prisma.bid
-          .findMany({
-            where: {
-              auction: { status: 'OPEN', endTime: { gt: now } },
-              disqualifiedAt: null,
-            },
-            select: { userId: true },
-            distinct: ['userId'],
-          })
-          .then((rows) => rows.length),
-        this.prisma.auction.count({
-          where: { status: 'OPEN', endTime: { gt: now } },
-        }),
-        this.prisma.auction
-          .aggregate({
-            where: {
-              status: 'CLOSED',
-              closedAt: { gte: dayAgo },
-              winnerUserId: { not: null },
-            },
-            _sum: { currentPrice: true },
-          })
-          .then((r) => r._sum.currentPrice ?? 0),
-        this.prisma.bid.findMany({
-          where: { disqualifiedAt: null },
-          select: { createdAt: true },
-          orderBy: { createdAt: 'desc' },
-          take: 100,
-        }),
+        this.bidRepo.findDistinctUserIds(now),
+        this.auctionRepo.countOpen(now),
+        this.auctionRepo.sumClosedVolume24h(dayAgo),
+        this.bidRepo.findRecentCreatedAt(100),
       ]);
+
+    const activeBidders = activeBiddersRows.length;
 
     let avgBidSpeedSeconds = 0.8;
     if (recentBids.length >= 2) {
-      const times = recentBids.map((b) => b.createdAt.getTime()).reverse();
+      const times = recentBids
+        .map((b) => new Date(b.createdAt).getTime())
+        .reverse();
       const diffs: number[] = [];
       for (let i = 1; i < times.length; i++) {
         diffs.push((times[i] - times[i - 1]) / 1000);
@@ -208,34 +188,23 @@ export class AuctionsService {
   /** 메인 물건 리스트 */
   async getMainAuctions(user?: RequestUser): Promise<{
     ongoing: AuctionSummary[];
-    closed: AuctionSummary[];
   }> {
     const now = new Date();
-    const [ongoing, closed] = await Promise.all([
-      this.prisma.auction.findMany({
-        where: { status: 'OPEN', endTime: { gt: now } },
-        include: { sneaker: true },
-        orderBy: { endTime: 'asc' },
-        take: 20,
-      }),
-      this.prisma.auction.findMany({
-        where: { status: 'CLOSED' },
-        include: { sneaker: true },
-        orderBy: { closedAt: 'desc' },
-        take: 20,
-      }),
-    ]);
+    const rows = await this.auctionRepo.findMainAuctions(now);
+    const ongoing = rows.map((row) =>
+      this.auctionRepo.rowToAuctionWithDetails(row),
+    );
 
-    const allIds = [...ongoing.map((a) => a.id), ...closed.map((a) => a.id)];
-    const wishlistedMap = user
-      ? await this.wishlistService.getWishlistedMap(user.id, allIds)
-      : {};
+    const wishlistedMap =
+      user && ongoing.length > 0
+        ? await this.wishlistService.getWishlistedMap(
+            user.id,
+            ongoing.map((a) => a.id),
+          )
+        : {};
 
     return {
       ongoing: ongoing.map((item) =>
-        this.toSummary(item, wishlistedMap[item.id] ?? false),
-      ),
-      closed: closed.map((item) =>
         this.toSummary(item, wishlistedMap[item.id] ?? false),
       ),
     };
@@ -247,70 +216,32 @@ export class AuctionsService {
     statusFilter: 'all' | 'ongoing' | 'closed' = 'all',
   ): Promise<AuctionSummary[]> {
     const now = new Date();
-    const where: Prisma.AuctionWhereInput = {
-      sellerUserId: user.id,
-      ...(statusFilter === 'ongoing' && {
-        status: 'OPEN',
-        endTime: { gt: now },
-      }),
-      ...(statusFilter === 'closed' && {
-        OR: [{ status: 'CLOSED' }, { status: 'OPEN', endTime: { lte: now } }],
-      }),
-    };
-
-    const auctions = await this.prisma.auction.findMany({
-      where,
-      include: {
-        sneaker: true,
-        _count: { select: { bids: true } },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-    return auctions.map((a) => this.toSummary(a));
+    const rows = await this.auctionRepo.findMySelling(
+      user.id,
+      statusFilter,
+      now,
+    );
+    return rows.map((row) =>
+      this.toSummary(this.auctionRepo.rowToAuctionWithDetails(row)),
+    );
   }
 
-  /** 내가 입찰한 경매 목록 (status: ongoing | closed | all) */
+  /** 내가 입찰한 경매 목록 */
   async getMyBiddingAuctions(
     user: RequestUser,
     status: 'ongoing' | 'closed' | 'all' = 'ongoing',
   ): Promise<AuctionSummary[]> {
     const now = new Date();
-    const baseWhere: Prisma.AuctionWhereInput = {
-      bids: {
-        some: {
-          userId: user.id,
-          disqualifiedAt: null,
-        },
-      },
-    };
+    const ids = await this.bidRepo.findAuctionIdsByUserId(user.id);
+    if (ids.length === 0) return [];
 
-    const statusWhere: Prisma.AuctionWhereInput =
-      status === 'ongoing'
-        ? { status: 'OPEN', endTime: { gt: now } }
-        : status === 'closed'
-          ? {
-              OR: [
-                { status: 'CLOSED' },
-                { status: 'OPEN', endTime: { lte: now } },
-              ],
-            }
-          : {};
-
-    const auctions = await this.prisma.auction.findMany({
-      where: { ...baseWhere, ...statusWhere },
-      include: {
-        sneaker: true,
-        _count: { select: { bids: true } },
-      },
-      orderBy:
-        status === 'ongoing'
-          ? { endTime: 'asc' }
-          : [{ closedAt: 'desc' }, { updatedAt: 'desc' }],
-    });
-    return auctions.map((a) => this.toSummary(a));
+    const rows = await this.auctionRepo.findByIdsWithSneaker(ids, status, now);
+    return rows.map((row) =>
+      this.toSummary(this.auctionRepo.rowToAuctionWithDetails(row)),
+    );
   }
 
-  /** 경매 리스트  */
+  /** 경매 리스트 */
   async listAuctions(
     query: AuctionListQueryDto,
     user?: RequestUser,
@@ -321,60 +252,30 @@ export class AuctionsService {
   }> {
     const { brand, size, sort = 'newest', afterId, limit = 20 } = query;
     const now = new Date();
-    const where: Prisma.AuctionWhereInput = {
-      status: 'OPEN',
-      endTime: { gt: now },
-      ...(brand && { sneaker: { brand } }),
-      ...(size && { size }),
-    };
 
-    let orderBy:
-      | Prisma.AuctionOrderByWithAggregationInput
-      | Prisma.AuctionOrderByWithRelationInput
-      | Prisma.AuctionOrderByWithRelationInput[];
-    switch (sort) {
-      case 'ending_soon':
-        orderBy = { endTime: 'asc' };
-        break;
-      case 'popular':
-        orderBy = { currentPrice: 'desc' };
-        break;
-      case 'price_low':
-        orderBy = { currentPrice: 'asc' };
-        break;
-      case 'bid_count':
-        orderBy = [{ bids: { _count: 'desc' } }, { id: 'asc' }];
-        break;
-      case 'newest':
-      default:
-        orderBy = { createdAt: 'desc' };
-    }
-
-    const cursorOptions = afterId
-      ? { cursor: { id: afterId }, skip: 1 }
-      : undefined;
-
-    const items = await this.prisma.auction.findMany({
-      where,
-      include: {
-        sneaker: true,
-        _count: { select: { bids: true } },
-      },
-      orderBy,
-      take: limit + 1,
-      ...cursorOptions,
+    const rows = await this.auctionRepo.listWithFilters({
+      brand,
+      size,
+      sort,
+      afterId,
+      limit,
+      now,
     });
-    const hasMore = items.length > limit;
-    const sliced = hasMore ? items.slice(0, limit) : items;
-    const nextCursor = hasMore ? sliced[sliced.length - 1].id : null;
+    const hasMore = rows.length > limit;
+    const sliced = hasMore ? rows.slice(0, limit) : rows;
+    const nextCursor = hasMore ? (sliced[sliced.length - 1]?.id ?? null) : null;
 
-    const auctionIds = sliced.map((a) => a.id);
+    const items: AuctionWithDetails[] = sliced.map((row) =>
+      this.auctionRepo.rowToAuctionWithDetails(row),
+    );
+
+    const auctionIds = items.map((a) => a.id);
     const wishlistedMap = user
       ? await this.wishlistService.getWishlistedMap(user.id, auctionIds)
       : {};
 
     return {
-      items: sliced.map((item) =>
+      items: items.map((item) =>
         this.toSummary(item, wishlistedMap[item.id] ?? false),
       ),
       nextCursor,
@@ -382,23 +283,24 @@ export class AuctionsService {
     };
   }
 
-  /** 경매 상세 */
+  /** 경매 상세 raw 조회 (sneaker 포함, 내부/외부 서비스용) */
+  async getAuctionByIdRaw(
+    auctionId: string,
+  ): Promise<AuctionWithDetails | null> {
+    const row = await this.auctionRepo.findByIdWithSneaker(auctionId);
+    if (!row) return null;
+    return this.auctionRepo.rowToAuctionWithDetails(row);
+  }
+
+  /** 경매 상세 (raw SQL - Supabase relation 'sneaker' 스키마 이슈 회피) */
   async getAuctionById(
     auctionId: string,
     user?: RequestUser,
   ): Promise<AuctionDetail> {
-    const auction = await this.prisma.auction.findUnique({
-      where: { id: auctionId },
-      include: {
-        sneaker: true,
-        _count: { select: { bids: true } },
-      },
-    });
-
+    const auction = await this.getAuctionByIdRaw(auctionId);
     if (!auction) {
       throw new NotFoundException('경매를 찾을 수 없습니다.');
     }
-
     let isWishlisted = false;
     if (user) {
       const map = await this.wishlistService.getWishlistedMap(user.id, [
@@ -411,24 +313,19 @@ export class AuctionsService {
 
   /** 입찰 목록 (상세 페이지용) */
   async getBids(auctionId: string, limit = 20): Promise<BidLogItem[]> {
-    const bids = await this.prisma.bid.findMany({
-      where: { auctionId },
-      include: { user: true },
-      orderBy: { bidPrice: 'desc' },
-      take: limit,
-    });
+    const rows = await this.bidRepo.findBidsForAuction(auctionId, limit);
 
     const formatTime = (d: Date) => {
-      const sec = Math.floor((Date.now() - d.getTime()) / 1000);
+      const sec = Math.floor((Date.now() - new Date(d).getTime()) / 1000);
       if (sec < 60) return '방금 전';
       if (sec < 3600) return `${Math.floor(sec / 60)}분 전`;
       if (sec < 86400) return `${Math.floor(sec / 3600)}시간 전`;
       return `${Math.floor(sec / 86400)}일 전`;
     };
 
-    return bids.map((b) => ({
+    return rows.map((b) => ({
       id: b.id,
-      user: b.user.nickname,
+      user: b.user_nickname ?? '',
       amount: b.bidPrice,
       time: formatTime(b.createdAt),
       isBot: b.sourceType === 'BOT',
@@ -442,7 +339,7 @@ export class AuctionsService {
     user: RequestUser,
   ): Promise<{ bidId: string; currentPrice: number }> {
     const now = new Date();
-    const result = await this.prisma.$transaction(async (tx) => {
+    const result = await this.db.transaction(async (tx) => {
       const locked = await lockAuctionForUpdate(tx, auctionId, {
         status: 'OPEN',
         endTimeGt: now,
@@ -453,6 +350,12 @@ export class AuctionsService {
       }
       const auction = await tx.auction.findUnique({
         where: { id: auctionId },
+        include: {
+          bids: {
+            where: { disqualifiedAt: null },
+            orderBy: { bidPrice: 'desc' },
+          },
+        },
       });
 
       if (!auction) {
@@ -463,16 +366,19 @@ export class AuctionsService {
           '본인이 등록한 경매에는 입찰할 수 없습니다.',
         );
       }
+      const leadingBid = (
+        auction.bids as { userId: string }[] | undefined
+      )?.[0];
+      if (leadingBid?.userId === user.id) {
+        throw new BadRequestException(
+          '이미 최고 입찰자입니다. 다른 사용자의 입찰을 기다려 주세요.',
+        );
+      }
       if (auction.status !== 'OPEN') {
         throw new BadRequestException('종료된 경매에는 입찰할 수 없습니다.');
       }
       if (new Date(auction.endTime) <= now) {
         throw new BadRequestException('이미 종료된 경매입니다.');
-      }
-      if (auction.sellerUserId === user.id) {
-        throw new ForbiddenException(
-          '판매자는 본인 경매에 입찰할 수 없습니다.',
-        );
       }
 
       const minBid = auction.currentPrice + auction.minimumIncrement;
@@ -501,32 +407,31 @@ export class AuctionsService {
         throw new BadRequestException('잔액이 부족합니다.');
       }
 
-      const auctionWithExtend = auction as Auction & {
-        extendCount?: number;
+      const auctionForUpdate = {
+        endTime: new Date(auction.endTime),
+        extendCount: auction.extendCount ?? 0,
       };
-      const auctionForUpdate: { endTime: Date; extendCount: number } = {
-        endTime: new Date(auctionWithExtend.endTime),
-        extendCount: auctionWithExtend.extendCount ?? 0,
-      };
-      const updateData: BidUpdateData = this.buildBidUpdateData(
+      const updateData = this.buildBidUpdateData(
         auctionForUpdate,
         now,
         dto.bidPrice,
       );
       await tx.auction.update({
         where: { id: auctionId },
-        data: updateData as Prisma.AuctionUpdateInput,
+        data: updateData,
       });
 
       return { bid };
     });
 
+    const participantCount = await this.bidRepo.countByAuctionId(auctionId);
     this.eventsService.emitNewBid(auctionId, {
       id: result.bid.id,
       user: user.nickname,
       amount: dto.bidPrice,
       time: '방금 전',
       isBot: false,
+      participantCount,
     });
 
     return {
@@ -535,7 +440,7 @@ export class AuctionsService {
     };
   }
 
-  /** 봇 입찰 (내부 호출용, SELECT FOR UPDATE + wallet + soft-close 공통 경로) */
+  /** 봇 입찰 */
   async placeBidAsBot(
     auctionId: string,
     bidPrice: number,
@@ -544,16 +449,29 @@ export class AuctionsService {
   ): Promise<{ bidId: string; currentPrice: number } | null> {
     const now = new Date();
 
-    const result = await this.prisma.$transaction(async (tx) => {
+    const result = await this.db.transaction(async (tx) => {
       const locked = await lockAuctionForUpdate(tx, auctionId, {
         status: 'OPEN',
         endTimeGt: now,
       });
       if (!locked) return null;
 
-      const auction = await tx.auction.findUnique({ where: { id: auctionId } });
+      const auction = await tx.auction.findUnique({
+        where: { id: auctionId },
+        include: {
+          bids: {
+            where: { disqualifiedAt: null },
+            orderBy: { bidPrice: 'desc' },
+          },
+        },
+      });
       if (!auction || auction.status !== 'OPEN') return null;
+      if (new Date(auction.endTime) <= now) return null;
       if (auction.sellerUserId === botUser.id) return null;
+      const leadingBid = (
+        auction.bids as { userId: string }[] | undefined
+      )?.[0];
+      if (leadingBid?.userId === botUser.id) return null;
 
       const minBid = auction.currentPrice + auction.minimumIncrement;
       if (bidPrice < minBid) return null;
@@ -576,21 +494,18 @@ export class AuctionsService {
       );
       if (!held) return null;
 
-      const auctionWithExtend = auction as Auction & {
-        extendCount?: number;
+      const auctionForUpdate = {
+        endTime: new Date(auction.endTime),
+        extendCount: auction.extendCount ?? 0,
       };
-      const auctionForUpdate: { endTime: Date; extendCount: number } = {
-        endTime: new Date(auctionWithExtend.endTime),
-        extendCount: auctionWithExtend.extendCount ?? 0,
-      };
-      const updateData: BidUpdateData = this.buildBidUpdateData(
+      const updateData = this.buildBidUpdateData(
         auctionForUpdate,
         now,
         bidPrice,
       );
       await tx.auction.update({
         where: { id: auctionId },
-        data: updateData as Prisma.AuctionUpdateInput,
+        data: updateData,
       });
 
       return { bid };
@@ -598,12 +513,14 @@ export class AuctionsService {
 
     if (!result) return null;
 
+    const participantCount = await this.bidRepo.countByAuctionId(auctionId);
     this.eventsService.emitNewBid(auctionId, {
       id: result.bid.id,
       user: botUser.nickname,
       amount: bidPrice,
       time: '방금 전',
       isBot: true,
+      participantCount,
     });
 
     return {
@@ -622,13 +539,8 @@ export class AuctionsService {
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
 
-    const todaysClosings = await this.prisma.auction.findMany({
-      where: {
-        status: 'CLOSED',
-        closedAt: { gte: todayStart },
-      },
-      select: { currentPrice: true },
-    });
+    const todaysClosings =
+      await this.auctionRepo.findTodaysClosings(todayStart);
     const tradesToday = todaysClosings.length;
     const todayPrices = todaysClosings.map((item) => item.currentPrice);
     const sumPrice = todayPrices.reduce((sum, price) => sum + price, 0);
@@ -637,36 +549,39 @@ export class AuctionsService {
       : null;
     const maxPriceToday = tradesToday > 0 ? Math.max(...todayPrices) : null;
 
-    const historyWhere = this.buildHistoryWhere(normalizedSearch, period);
+    const periodStart = this.getHistoryPeriodStart(period);
 
-    const historyItems = await this.prisma.auction.findMany({
-      where: historyWhere,
-      include: {
-        sneaker: true,
-        _count: { select: { bids: true } },
-      },
-      orderBy: { closedAt: 'desc' },
-      take: limit,
+    const historyRows = await this.auctionRepo.findTradeHistory({
+      periodStart: periodStart ?? undefined,
+      search: normalizedSearch ?? undefined,
+      limit,
     });
+
+    const bidCounts = await Promise.all(
+      historyRows.map((r) =>
+        this.bidRepo
+          .countByAuctionId(r.id)
+          .then((count) => [{ count: String(count) }]),
+      ),
+    );
 
     const formatDate = (value?: Date | null) => {
       if (!value) return '';
       const date = new Date(value);
-      return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}.${String(
-        date.getDate(),
-      ).padStart(2, '0')}`;
+      return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')}`;
     };
 
-    const items: AuctionHistoryItem[] = historyItems.map((auction) => ({
+    const items: AuctionHistoryItem[] = historyRows.map((auction, i) => ({
       auctionId: auction.id,
-      imageUrl: auction.sneaker.imageUrl,
-      brand: auction.sneaker.brand,
-      modelName: auction.sneaker.modelName,
-      participants: auction._count?.bids ?? 0,
+      imageUrl: auction.imageUrl,
+      brand: auction.brand,
+      modelName: auction.modelName,
+      participants: parseInt(bidCounts[i][0]?.count ?? '0', 10),
       finalPrice: auction.currentPrice,
       date: formatDate(auction.closedAt ?? auction.updatedAt),
       status: auction.winnerUserId ? 'completed' : 'cancelled',
     }));
+
     return {
       stats: {
         tradesToday,
@@ -681,14 +596,10 @@ export class AuctionsService {
   async getTradeHistoryItem(
     auctionId: string,
   ): Promise<AuctionHistoryItem | null> {
-    const auction = await this.prisma.auction.findFirst({
-      where: { id: auctionId, status: 'CLOSED' },
-      include: {
-        sneaker: true,
-        _count: { select: { bids: true } },
-      },
-    });
+    const auction = await this.auctionRepo.findTradeHistoryItem(auctionId);
     if (!auction) return null;
+
+    const bidCount = await this.bidRepo.countByAuctionId(auctionId);
     const formatDate = (value?: Date | null) => {
       if (!value) return '';
       const date = new Date(value);
@@ -696,10 +607,10 @@ export class AuctionsService {
     };
     return {
       auctionId: auction.id,
-      imageUrl: auction.sneaker.imageUrl,
-      brand: auction.sneaker.brand,
-      modelName: auction.sneaker.modelName,
-      participants: auction._count?.bids ?? 0,
+      imageUrl: auction.imageUrl,
+      brand: auction.brand,
+      modelName: auction.modelName,
+      participants: bidCount,
       finalPrice: auction.currentPrice,
       date: formatDate(auction.closedAt ?? auction.updatedAt),
       status: auction.winnerUserId ? 'completed' : 'cancelled',
@@ -712,11 +623,7 @@ export class AuctionsService {
     updateDto: UpdateAuctionDto,
     user: RequestUser,
   ): Promise<AuctionSummary> {
-    const auction = await this.prisma.auction.findUnique({
-      where: { id: auctionId },
-      include: { sneaker: true },
-    });
-
+    const auction = await this.getAuctionByIdRaw(auctionId);
     if (!auction) {
       throw new NotFoundException('경매를 찾을 수 없습니다.');
     }
@@ -725,59 +632,47 @@ export class AuctionsService {
       throw new ForbiddenException('수정 권한이 없습니다.');
     }
 
+    const now = new Date();
     if (auction.status !== 'OPEN') {
       throw new BadRequestException('진행 중인 경매만 수정할 수 있습니다.');
     }
-
-    const sneakerUpdates: Prisma.SneakerUpdateInput = {};
-    const auctionUpdates: Prisma.AuctionUpdateInput = {};
-
-    if (updateDto.name) {
-      sneakerUpdates.modelName = updateDto.name;
+    if (new Date(auction.endTime) <= now) {
+      throw new BadRequestException('이미 종료된 경매는 수정할 수 없습니다.');
     }
 
+    const sneakerUpdates: Record<string, unknown> = {};
+    const auctionUpdates: Record<string, unknown> = {};
+
+    if (updateDto.name) sneakerUpdates.modelName = updateDto.name;
     if (updateDto.brand) {
       if (!AUCTION_BRANDS.includes(updateDto.brand)) {
         throw new BadRequestException('허용된 브랜드가 아닙니다.');
       }
       sneakerUpdates.brand = updateDto.brand;
     }
-
     if (updateDto.size) {
       if (!AUCTION_SIZES.includes(updateDto.size)) {
         throw new BadRequestException('허용된 사이즈가 아닙니다.');
       }
       auctionUpdates.size = updateDto.size;
     }
-
-    if (updateDto.color) {
-      sneakerUpdates.colorway = updateDto.color;
-    }
-
-    if (updateDto.description) {
+    if (updateDto.color) sneakerUpdates.colorway = updateDto.color;
+    if (updateDto.description)
       sneakerUpdates.description = updateDto.description;
-    }
-
-    if (updateDto.imageUrl) {
-      sneakerUpdates.imageUrl = updateDto.imageUrl;
-    }
-
+    if (updateDto.imageUrl) sneakerUpdates.imageUrl = updateDto.imageUrl;
     if (typeof updateDto.startPrice === 'number') {
       auctionUpdates.startPrice = updateDto.startPrice;
       auctionUpdates.currentPrice = updateDto.startPrice;
     }
-
     if (typeof updateDto.buyNowPrice === 'number') {
       auctionUpdates.buyNowPrice = updateDto.buyNowPrice;
     }
-
     if (typeof updateDto.minimumIncrement === 'number') {
       if (updateDto.minimumIncrement <= 0) {
         throw new BadRequestException('최소 단위는 1 이상이어야 합니다.');
       }
       auctionUpdates.minimumIncrement = updateDto.minimumIncrement;
     }
-
     if (updateDto.endTime) {
       const newEndTime = new Date(updateDto.endTime);
       if (Number.isNaN(newEndTime.getTime()) || newEndTime <= new Date()) {
@@ -786,11 +681,11 @@ export class AuctionsService {
       auctionUpdates.endTime = newEndTime;
     }
 
-    const finalStart =
+    const finalStart: number =
       typeof updateDto.startPrice === 'number'
         ? updateDto.startPrice
         : auction.startPrice;
-    const finalBuyNow =
+    const finalBuyNow: number | null =
       typeof updateDto.buyNowPrice === 'number'
         ? updateDto.buyNowPrice
         : auction.buyNowPrice;
@@ -801,14 +696,35 @@ export class AuctionsService {
       );
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    return this.db.transaction(async (tx) => {
       const locked = await lockAuctionForUpdate(tx, auctionId, {
         status: 'OPEN',
+        endTimeGt: now,
       });
       if (!locked) {
         throw new BadRequestException(
           '경매가 종료되었거나 수정할 수 없는 상태입니다.',
         );
+      }
+
+      const bidRows = await tx.$queryRaw<{ count: string }>(
+        'SELECT COUNT(*)::text as count FROM "Bid" WHERE "auctionId" = $1',
+        [auctionId],
+      );
+      const bidCount = parseInt(bidRows[0]?.count ?? '0', 10);
+      const hasBids = bidCount > 0;
+
+      if (hasBids) {
+        if (typeof updateDto.startPrice === 'number') {
+          throw new BadRequestException(
+            '입찰이 있는 경매는 시작 가격을 변경할 수 없습니다.',
+          );
+        }
+        if (typeof updateDto.buyNowPrice === 'number') {
+          throw new BadRequestException(
+            '입찰이 있는 경매는 즉시 구매 가격을 변경할 수 없습니다.',
+          );
+        }
       }
 
       if (Object.keys(sneakerUpdates).length) {
@@ -821,64 +737,72 @@ export class AuctionsService {
       const updated = await tx.auction.update({
         where: { id: auction.id },
         data: auctionUpdates,
-        include: {
-          sneaker: true,
-          _count: { select: { bids: true } },
-        },
       });
 
-      return this.toSummary(updated);
+      const count = await this.bidRepo.countByAuctionId(auction.id);
+      const sneakerData =
+        Object.keys(sneakerUpdates).length > 0
+          ? { ...auction.sneaker, ...sneakerUpdates }
+          : auction.sneaker;
+      const withCount: AuctionWithDetails = {
+        ...updated,
+        sneaker: sneakerData,
+        _count: { bids: count },
+      };
+      return this.toSummary(withCount);
     });
   }
 
-  /** 물건 삭제 */
+  /** 물건 삭제 (단일 트랜잭션으로 원자적 처리) */
   async deleteAuction(auctionId: string, user: RequestUser) {
-    const auction = await this.prisma.auction.findUnique({
-      where: { id: auctionId },
+    await this.db.transaction(async (tx) => {
+      const auctionRows = await tx.$queryRaw<{
+        id: string;
+        sellerUserId: string;
+        sneakerId: string;
+      }>(
+        'SELECT id, "sellerUserId", "sneakerId" FROM "Auction" WHERE id = $1 FOR UPDATE',
+        [auctionId],
+      );
+      const auction = auctionRows[0];
+      if (!auction) {
+        throw new NotFoundException('경매를 찾을 수 없습니다.');
+      }
+
+      if (user.role !== UserRole.ADMIN && auction.sellerUserId !== user.id) {
+        throw new ForbiddenException('삭제 권한이 없습니다.');
+      }
+
+      const bidRows = await tx.$queryRaw<{ count: string }>(
+        'SELECT COUNT(*)::text as count FROM "Bid" WHERE "auctionId" = $1',
+        [auctionId],
+      );
+      const bidCount = parseInt(bidRows[0]?.count ?? '0', 10);
+      if (bidCount > 0) {
+        throw new BadRequestException(
+          '입찰이 있는 경매는 삭제할 수 없습니다. 입찰을 취소한 후 다시 시도해 주세요.',
+        );
+      }
+
+      const orderRows = await tx.$queryRaw<{ count: string }>(
+        `SELECT COUNT(*)::text as count FROM "Order" WHERE "auctionId" = $1 AND status IN ('PENDING', 'PAID', 'FAILED')`,
+        [auctionId],
+      );
+      const activeOrderCount = parseInt(orderRows[0]?.count ?? '0', 10);
+      if (activeOrderCount > 0) {
+        throw new BadRequestException(
+          '결제 대기 중이거나 완료된 주문이 있는 경매는 삭제할 수 없습니다.',
+        );
+      }
+
+      await tx.$queryRaw('DELETE FROM "Order" WHERE "auctionId" = $1', [
+        auctionId,
+      ]);
+      await tx.$queryRaw('DELETE FROM "Auction" WHERE id = $1', [auctionId]);
+      await tx.$queryRaw('DELETE FROM "Sneaker" WHERE id = $1', [
+        auction.sneakerId,
+      ]);
     });
-
-    if (!auction) {
-      throw new NotFoundException('경매를 찾을 수 없습니다.');
-    }
-
-    if (user.role !== UserRole.ADMIN && auction.sellerUserId !== user.id) {
-      throw new ForbiddenException('삭제 권한이 없습니다.');
-    }
-
-    await this.prisma.auction.delete({ where: { id: auctionId } });
-  }
-
-  /** 거래 내역 필터 조건 생성 */
-  private buildHistoryWhere(
-    search?: string,
-    period?: AuctionHistoryPeriod,
-  ): Prisma.AuctionWhereInput {
-    const periodStart = this.getHistoryPeriodStart(period);
-    const closedAtFilter = periodStart
-      ? { not: null, gte: periodStart }
-      : { not: null };
-
-    const where: Prisma.AuctionWhereInput = {
-      status: 'CLOSED',
-      closedAt: closedAtFilter,
-    };
-
-    if (search) {
-      where.AND = [
-        {
-          OR: [
-            { sneaker: { brand: { contains: search, mode: 'insensitive' } } },
-            {
-              sneaker: {
-                modelName: { contains: search, mode: 'insensitive' },
-              },
-            },
-          ],
-        },
-      ];
-    }
-
-    return where;
   }
 
   /** 거래 내역 기간 시작 날짜 반환 */
@@ -933,23 +857,28 @@ export class AuctionsService {
         ? '0'
         : (((currentPrice - startPrice) / startPrice) * 100).toFixed(1);
 
+    const sneaker = auction.sneaker;
+
     return {
       id: auction.id,
-      modelName: auction.sneaker.modelName,
-      brand: auction.sneaker.brand,
-      colorway: auction.sneaker.colorway ?? undefined,
+      modelName: sneaker.modelName,
+      brand: sneaker.brand,
+      colorway: sneaker.colorway ?? undefined,
       size,
-      styleCode: auction.sneaker.styleCode ?? undefined,
-      releaseYear: auction.sneaker.releaseYear ?? undefined,
-      condition: auction.sneaker.condition ?? undefined,
-      origin: auction.sneaker.origin ?? undefined,
-      boxIncluded: auction.sneaker.boxIncluded ?? undefined,
-      description: auction.sneaker.description ?? undefined,
-      imageUrl: auction.sneaker.imageUrl,
+      styleCode: sneaker.styleCode ?? undefined,
+      releaseYear: sneaker.releaseYear ?? undefined,
+      condition: sneaker.condition ?? undefined,
+      origin: sneaker.origin ?? undefined,
+      boxIncluded: sneaker.boxIncluded ?? undefined,
+      description: sneaker.description ?? undefined,
+      imageUrl: sneaker.imageUrl,
       startPrice,
       currentBid: currentPrice,
       buyNowPrice: auction.buyNowPrice,
-      endTime: auction.endTime.toISOString(),
+      endTime:
+        auction.endTime instanceof Date
+          ? auction.endTime.toISOString()
+          : String(auction.endTime),
       participants: auction._count?.bids ?? 0,
       status,
       isWishlisted,
@@ -964,18 +893,26 @@ export class AuctionsService {
     isWishlisted?: boolean,
   ): AuctionSummary {
     const now = new Date();
-    const effectiveStatus =
-      auction.status === 'OPEN' && auction.endTime <= now
+    const sneaker = auction.sneaker as {
+      modelName: string;
+      brand: string;
+      imageUrl: string;
+    };
+    const effectiveStatus: 'OPEN' | 'CLOSED' =
+      auction.status === 'OPEN' && new Date(auction.endTime) <= now
         ? 'CLOSED'
-        : auction.status;
+        : (auction.status as 'OPEN' | 'CLOSED');
     return {
       auctionId: auction.id,
-      sneakerName: auction.sneaker.modelName,
-      brand: auction.sneaker.brand,
-      imageUrl: auction.sneaker.imageUrl,
+      sneakerName: sneaker.modelName,
+      brand: sneaker.brand,
+      imageUrl: sneaker.imageUrl,
       size: auction.size,
       currentPrice: auction.currentPrice,
-      endTime: auction.endTime,
+      endTime:
+        auction.endTime instanceof Date
+          ? auction.endTime
+          : new Date(auction.endTime),
       status: effectiveStatus,
       bidCount: auction._count?.bids ?? undefined,
       buyNowPrice: auction.buyNowPrice,

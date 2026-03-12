@@ -11,7 +11,7 @@ export interface DropdownOption {
 }
 
 interface DropdownProps {
-  options: DropdownOption[];
+  options: readonly DropdownOption[];
   value: string;
   onSelect: (value: string) => void;
   className?: string;

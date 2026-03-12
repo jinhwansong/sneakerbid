@@ -13,7 +13,9 @@
 ### Supabase Storage (이미지 업로드)
 - Supabase Dashboard → Storage → `uploads` 버킷 생성
 - 버킷을 **Public**으로 설정 (이미지 URL 직접 접근용)
+  - Storage → uploads → Configuration → Public bucket: ON
 - `.env`에 `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` 설정
+- **프로덕션**: Supabase Storage만 사용 (로컬 폴백 없음)
 
 ### Supabase Database (PostgreSQL)
 - Supabase Dashboard → Project Settings → Database → Connection string

@@ -18,4 +18,8 @@ export const api = {
     formData.append('file', file);
     return apiClient.postForm<{ url: string }>('/upload/image', formData);
   },
+
+  /** 이미지 삭제 (orphan 정리용). url은 uploadImage 반환값 */
+  deleteImage: (url: string) =>
+    apiClient.post<{ ok: boolean }>('/upload/delete', { url }),
 };

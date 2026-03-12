@@ -43,6 +43,8 @@ export interface BidLogItem {
   amount: number;
   time: string;
   isBot?: boolean;
+  /** 입찰 수 (SSE payload에 있으면 절대값으로 사용) */
+  participantCount?: number;
 }
 
 /** 찜하기: 유저별 경매 단위. API 응답/목록용 */
@@ -147,12 +149,13 @@ export interface AuctionSummary {
   closedAt?: string | null; // ISO string
   /** 최소 입찰 단위 (서버 검증용) */
   minimumIncrement?: number;
+  /** 로그인 시 찜 여부 */
+  isWishlisted?: boolean;
 }
 
 /** 메인 경매 목록 응답 */
 export interface GetMainAuctionsResponse {
   ongoing: AuctionSummary[];
-  closed: AuctionSummary[];
 }
 
 /** 경매 목록 조회 응답 (페이지네이션 포함) */

@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { AuctionItem, BidLogItem } from '@/types/auction';
+import { BidLogItem } from '@/types/auction';
+import type { AuctionItem } from '@/types/auction';
 import { useCountdown } from '@/hooks/useCountdown';
 import { useAuctionEvents } from '@/hooks/useAuctionEvents';
 import type { AuctionClosedPayload } from '@/types/events';
@@ -11,7 +12,10 @@ import { useQueryClient } from '@tanstack/react-query';
 import { formatPrice } from '@/lib/util/format';
 import { useToastStore } from '@/store/useToastStore';
 import { api } from '@/lib/api';
-import { queryKeys } from '@/hooks/query/queryKeys';
+import {
+  updateMainCacheAuctionBid,
+  updateListCacheAuctionBid,
+} from '@/lib/util/mainCacheUpdater';
 import { sortBidHistory } from '@/lib/util/bidHistory';
 import {
   DetailProductImage,
@@ -19,16 +23,16 @@ import {
   DetailBidControl,
   DetailBidHistory,
 } from '@/components/detail';
+import DetailSkeleton from '@/components/skeleton/DetailSkeleton';
 import PaymentFlowModal from '@/components/common/PaymentFlowModal';
-
-interface DetailPageItem extends AuctionItem {
-  startPrice?: number;
-  priceIncreasePercent?: string;
-  initialBids?: BidLogItem[];
-}
+import {
+  useAuctionDetail,
+  useAuctionClosedCacheInvalidation,
+} from '@/hooks/query/useAuctionDetail';
+import type { AuctionDetailData } from '@/hooks/query/useAuctionDetail';
+import { usePlaceBid } from '@/hooks/query/useMainAuctions';
 
 interface AuctionDetailClientProps {
-  item: DetailPageItem;
   auctionId: string;
 }
 
@@ -38,36 +42,79 @@ const DEFAULT_BID_STEP = 10000;
 type AuctionStatus = 'active' | 'closed';
 
 export default function AuctionDetailClient({
-  item,
   auctionId,
 }: AuctionDetailClientProps) {
+  const { data, isLoading, error } = useAuctionDetail(auctionId);
+  const item = data?.auction;
+
+  if (error) {
+    return (
+      <div className="text-center py-16 text-destructive">
+        경매 정보를 불러오지 못했습니다.
+      </div>
+    );
+  }
+  if (isLoading || !item) return <DetailSkeleton />;
+
+  return (
+    <AuctionDetailContent
+      key={auctionId}
+      auctionId={auctionId}
+      item={item}
+      data={data!}
+    />
+  );
+}
+
+interface AuctionDetailContentProps {
+  auctionId: string;
+  item: AuctionItem;
+  data: AuctionDetailData;
+}
+
+function AuctionDetailContent({
+  auctionId,
+  item,
+  data,
+}: AuctionDetailContentProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { data: user } = useMe();
   const showToast = useToastStore((s) => s.showToast);
+  const placeBid = usePlaceBid();
+  const invalidateOnClosed = useAuctionClosedCacheInvalidation();
 
-  const requireLogin = useCallback(() => {
-    showToast('로그인이 필요합니다.', 'error');
-    router.push('/login');
-  }, [router, showToast]);
-
+  const bidStep = item.minimumIncrement ?? DEFAULT_BID_STEP;
   const [currentPrice, setCurrentPrice] = useState(item.currentBid);
   const [participants, setParticipants] = useState(item.participants);
   const [bidHistory, setBidHistory] = useState<BidLogItem[]>(
-    () => item.initialBids ?? [],
+    () => data.bids ?? [],
   );
-  const bidStep = item.minimumIncrement ?? DEFAULT_BID_STEP;
-  const [bidAmount, setBidAmount] = useState(item.currentBid + bidStep);
+  const [bidAmount, setBidAmount] = useState(
+    item.currentBid + (item.minimumIncrement ?? DEFAULT_BID_STEP),
+  );
   const [bidError, setBidError] = useState('');
+
+  /** refetch 시 item/data 변경 시 로컬 상태 동기화 (비동기로 스케줄하여 cascading render 방지) */
+  useEffect(() => {
+    const nextPrice = item.currentBid;
+    const nextParticipants = item.participants;
+    const nextBids = data.bids ?? [];
+    const nextBidAmount = item.currentBid + bidStep;
+    queueMicrotask(() => {
+      setCurrentPrice(nextPrice);
+      setParticipants(nextParticipants);
+      setBidHistory(nextBids);
+      setBidAmount(nextBidAmount);
+    });
+  }, [item.currentBid, item.participants, data.bids, bidStep]);
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [closedPayload, setClosedPayload] = useState<AuctionClosedPayload | null>(
     null,
   );
 
-  /** 카운트다운을 관리하는 훅 */
   const { countdownLabel, isExpired } = useCountdown(item.endTime);
 
-  /** 상태 기반: 경매 종료 여부 (단일 소스) */
   const auctionStatus: AuctionStatus = useMemo(() => {
     if (item.status === 'closed' || item.status === 'failed' || item.status === 'buy_now')
       return 'closed';
@@ -78,22 +125,56 @@ export default function AuctionDetailClient({
 
   const isAuctionActive = auctionStatus === 'active';
 
-  /** 실시간 입찰 이벤트 처리 */
-  const handleNewBidFromSSE = useCallback((bid: BidLogItem) => {
-    setBidHistory((prev) => [bid, ...prev].slice(0, 5));
-    setCurrentPrice(bid.amount);
-    setParticipants((prev) => prev + 1);
-  }, []);
+  const requireLogin = useCallback(() => {
+    showToast('로그인이 필요합니다.', 'error');
+    router.push('/login');
+  }, [router, showToast]);
+
+  /** 실시간 입찰 이벤트 처리 (타인 입찰 시 메인/리스트 캐시도 갱신 → 뒤로가기 시 최신가 반영) */
+  const handleNewBidFromSSE = useCallback(
+    (bid: BidLogItem) => {
+      setBidHistory((prev) => [bid, ...prev].slice(0, 5));
+      setCurrentPrice(bid.amount);
+      const participantCount = bid.participantCount;
+      const hasCount = typeof participantCount === 'number';
+      if (hasCount) {
+        setParticipants(participantCount);
+      } else {
+        setParticipants((prev) => prev + 1);
+      }
+      if (hasCount) {
+        updateMainCacheAuctionBid(
+          queryClient,
+          auctionId,
+          bid.amount,
+          participantCount,
+          true,
+        );
+        updateListCacheAuctionBid(
+          queryClient,
+          auctionId,
+          bid.amount,
+          participantCount,
+          true,
+        );
+      } else {
+        updateMainCacheAuctionBid(queryClient, auctionId, bid.amount, 1);
+        updateListCacheAuctionBid(queryClient, auctionId, bid.amount, 1);
+      }
+    },
+    [auctionId, queryClient],
+  );
 
   /** auctionClosed 이벤트 처리 */
-  const handleAuctionClosed = useCallback((payload: AuctionClosedPayload) => {
-    setClosedPayload(payload);
-    setCurrentPrice(payload.finalPrice);
-    showToast('경매가 종료되었습니다.', 'success');
-    queryClient.invalidateQueries({ queryKey: queryKeys.me });
-    queryClient.invalidateQueries({ queryKey: queryKeys.orders.my });
-    queryClient.invalidateQueries({ queryKey: queryKeys.auctions.myBidding });
-  }, [showToast, queryClient]);
+  const handleAuctionClosed = useCallback(
+    (payload: AuctionClosedPayload) => {
+      setClosedPayload(payload);
+      setCurrentPrice(payload.finalPrice);
+      showToast('경매가 종료되었습니다.', 'success');
+      invalidateOnClosed();
+    },
+    [showToast, invalidateOnClosed],
+  );
 
   /** 실시간 입찰/종료 이벤트 구독 */
   useAuctionEvents({
@@ -159,12 +240,10 @@ export default function AuctionDetailClient({
     setBidAmount(bidAmount + bidStep);
 
     try {
-      const res = await api.auctions.placeBid(auctionId, bidAmount);
+      const res = await placeBid.mutateAsync({ auctionId, amount: bidAmount });
       setCurrentPrice(res.currentPrice);
       setBidAmount(res.currentPrice + bidStep);
       showToast('입찰이 완료되었습니다.');
-      queryClient.invalidateQueries({ queryKey: queryKeys.me });
-      queryClient.invalidateQueries({ queryKey: queryKeys.auctions.myBidding });
     } catch (err) {
       /** 실패 시 조건부 롤백: SSE로 갱신된 상태는 유지, 낙관적 업데이트만 되돌림 */
       setCurrentPrice((prev) => (prev === bidAmount ? prevPrice : prev));

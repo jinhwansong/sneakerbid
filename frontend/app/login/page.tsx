@@ -1,8 +1,9 @@
 'use client';
 
 import React from 'react';
-import { Chrome, MessageCircle } from 'lucide-react';
 import { useToastStore } from '@/store/useToastStore';
+import GoogleIcon from '@/components/auth/GoogleIcon';
+import KakaoIcon from '@/components/auth/KakaoIcon';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/util/cn';
 
@@ -27,11 +28,11 @@ export default function LoginPage() {
     <div className="min-h-[calc(100vh-64px)] flex items-center justify-center bg-bg-main px-6 py-12">
       <div className="w-full max-w-[400px] animate-in fade-in slide-in-from-bottom-4 duration-700">
         {/* 카드 컨테이너 */}
-        <div className="bg-bg-main rounded-[32px] border border-border-main p-8 md:p-12 shadow-card-lg">
+        <div className="bg-bg-card rounded-[32px] border border-border-main p-8 md:p-12 shadow-lg shadow-black/5 dark:shadow-black/30">
           {/* 상단 헤더 */}
           <div className="text-center mb-10">
             <h1 className="text-3xl font-black tracking-tightest text-text-main mb-3 uppercase">
-              Lace<span className="text-brand-primary">BID</span>
+              Lace<span className="text-brand-primary">Up</span>
             </h1>
             <p className="text-sm font-medium text-text-sub tracking-tight">
               실시간 경매에 참여하세요
@@ -44,15 +45,14 @@ export default function LoginPage() {
             <button
               onClick={() => handleLogin('google')}
               className={cn(
-                'group relative w-full h-[56px] flex items-center justify-center rounded-xl border border-border-main bg-white transition-all duration-300',
-                'hover:bg-gray-50 hover:border-text-muted/30 active:scale-[0.98]',
-               
+                'group relative w-full h-[56px] flex items-center justify-center rounded-xl  border border-border-main transition-all duration-300',
+                'bg-white  hover:bg-gray-50  hover:border-text-muted/30 active:scale-[0.98]',
               )}
             >
               <div className="absolute left-5">
-                <Chrome size={20} className="text-[#4285F4]" />
+                <GoogleIcon size={20} />
               </div>
-              <span className="text-sm font-black text-text-main">
+              <span className="text-sm font-black text-deep-navy">
                 Google로 시작하기
               </span>
             </button>
@@ -61,19 +61,14 @@ export default function LoginPage() {
             <button
               onClick={() => handleLogin('kakao')}
               className={cn(
-                'group relative w-full h-[56px] flex items-center justify-center rounded-xl bg-[#FEE500] transition-all duration-300',
+                'group relative w-full h-[56px] flex items-center justify-center rounded-xl bg-[#FEE500] text-[#191F28] transition-all duration-300',
                 'hover:bg-[#FDD835] active:scale-[0.98]',
               )}
             >
               <div className="absolute left-5">
-                <MessageCircle
-                  size={20}
-                  className="fill-deep-navy text-deep-navy"
-                />
+                <KakaoIcon size={20} />
               </div>
-              <span className="text-sm font-black text-deep-navy">
-                카카오로 시작하기
-              </span>
+              <span className="text-sm font-black">카카오로 시작하기</span>
             </button>
           </div>
 

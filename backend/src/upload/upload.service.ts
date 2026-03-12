@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import * as fs from 'fs';
@@ -10,6 +14,7 @@ import {
   UPLOAD_MAX_FILE_SIZE,
 } from '@/common/constants/upload.constants';
 import { getOrCreateUploadDir } from '@/common/util/upload.folder';
+import { UploadFile } from './upload.types';
 
 /** Server-detected MIME → safe extension for allowed image types */
 const MIME_TO_EXT: Record<(typeof UPLOAD_ALLOWED_MIMES)[number], string> = {
@@ -19,19 +24,7 @@ const MIME_TO_EXT: Record<(typeof UPLOAD_ALLOWED_MIMES)[number], string> = {
   'image/gif': 'gif',
 };
 
-/** multer 업로드 파일 (검증용 최소 필드) */
-export interface UploadedFileInfo {
-  mimetype: string;
-  size: number;
-}
-
-/** memoryStorage 파일 (buffer 포함) */
-export interface MemoryUploadedFile extends UploadedFileInfo {
-  buffer: Buffer;
-  originalname: string;
-}
-
-const BUCKET_NAME = 'uploads';
+const BUCKET_NAME = 'upload';
 
 @Injectable()
 export class UploadService {
@@ -42,20 +35,31 @@ export class UploadService {
   constructor(private readonly config: ConfigService) {
     const supabaseUrl = this.config.get<string>('SUPABASE_URL');
     const supabaseKey = this.config.get<string>('SUPABASE_SERVICE_ROLE_KEY');
+    const isProduction = this.config.get<string>('NODE_ENV') === 'production';
+
     this.useSupabase = Boolean(supabaseUrl && supabaseKey);
+
+    if (isProduction && !this.useSupabase) {
+      throw new Error(
+        '프로덕션에서는 SUPABASE_URL과 SUPABASE_SERVICE_ROLE_KEY가 필요합니다. Supabase Storage를 사용하세요.',
+      );
+    }
 
     if (this.useSupabase) {
       this.supabase = createClient(supabaseUrl, supabaseKey, {
         auth: { persistSession: false },
-      });
+      }) as SupabaseClient;
     }
 
     const port = this.config.get<number>('PORT', 3000);
     const host = this.config.get<string>('HOST', 'localhost');
-    this.localBaseUrl = `http://${host}:${port}/uploads`;
+    this.localBaseUrl = `http://${host}:${port}/upload`;
   }
 
-  async uploadImage(file: MemoryUploadedFile | undefined): Promise<string> {
+  async uploadImage(
+    file: UploadFile | undefined,
+    userId: string,
+  ): Promise<string> {
     this.validateImage(file);
 
     const detected = await fileTypeFromBuffer(file.buffer);
@@ -72,17 +76,22 @@ export class UploadService {
     const ext =
       MIME_TO_EXT[detected.mime as (typeof UPLOAD_ALLOWED_MIMES)[number]];
     const filename = `${uuid()}.${ext}`;
+    const storagePath = `temp/${userId}/${filename}`;
 
     if (this.useSupabase && this.supabase) {
-      return this.uploadToSupabase(file.buffer, filename, detected.mime);
+      return this.uploadToSupabase(
+        file.buffer,
+        storagePath,
+        detected.mime,
+      );
     }
 
-    return await this.uploadToLocal(file.buffer, filename);
+    return await this.uploadToLocal(file.buffer, storagePath);
   }
 
   private async uploadToSupabase(
     buffer: Buffer,
-    filename: string,
+    storagePath: string,
     mimetype: string,
   ): Promise<string> {
     if (!this.supabase)
@@ -90,7 +99,7 @@ export class UploadService {
 
     const { data, error } = await this.supabase.storage
       .from(BUCKET_NAME)
-      .upload(filename, buffer, {
+      .upload(storagePath, buffer, {
         contentType: mimetype,
         upsert: false,
       });
@@ -107,15 +116,82 @@ export class UploadService {
 
   private async uploadToLocal(
     buffer: Buffer,
-    filename: string,
+    storagePath: string,
   ): Promise<string> {
-    const dir = getOrCreateUploadDir('uploads');
-    const filePath = path.join(dir, filename);
+    const dir = getOrCreateUploadDir('upload');
+    const filePath = path.join(dir, storagePath);
+    await fs.promises.mkdir(path.dirname(filePath), { recursive: true });
     await fs.promises.writeFile(filePath, buffer);
-    return `${this.localBaseUrl}/${filename}`;
+    return `${this.localBaseUrl}/${storagePath}`;
   }
 
-  private validateImage(file: UploadedFileInfo | undefined): void {
+  /**
+   * URL이 사용자 소유 temp 폴더(temp/{userId}/)에 있는지 검증.
+   * 삭제 허용 시 true.
+   */
+  verifyOwnershipOrTemp(url: string, userId: string): boolean {
+    if (!url || typeof url !== 'string' || !userId) return false;
+    try {
+      const parsed = new URL(url);
+      const pathname = parsed.pathname;
+      const uploadPrefix = '/upload/';
+      const idx = pathname.indexOf(uploadPrefix);
+      if (idx === -1) return false;
+      const afterUpload = pathname.slice(idx + uploadPrefix.length);
+      const expectedPrefix = `temp/${userId}/`;
+      return afterUpload.startsWith(expectedPrefix);
+    } catch {
+      return false;
+    }
+  }
+
+  /** 업로드된 이미지 삭제 (orphan 정리용). 소유권 검증 후에만 삭제. */
+  async deleteImage(url: string, userId: string): Promise<void> {
+    if (!url || typeof url !== 'string') return;
+
+    if (!this.verifyOwnershipOrTemp(url, userId)) {
+      throw new ForbiddenException('해당 이미지를 삭제할 권한이 없습니다.');
+    }
+
+    const pathAfterUpload = this.extractPathAfterUpload(url);
+    if (!pathAfterUpload) return;
+
+    if (this.useSupabase && this.supabase) {
+      const { error } = await this.supabase.storage
+        .from(BUCKET_NAME)
+        .remove([pathAfterUpload]);
+      if (error) {
+        console.warn('[UploadService] deleteImage failed:', error.message);
+      }
+      return;
+    }
+
+    const dir = getOrCreateUploadDir('upload');
+    const filePath = path.join(dir, pathAfterUpload);
+    try {
+      await fs.promises.unlink(filePath);
+    } catch (err) {
+      console.warn('[UploadService] deleteImage (local) failed:', err);
+    }
+  }
+
+  /** URL에서 upload/ 이후 경로 추출 (Supabase path 또는 로컬 상대경로) */
+  private extractPathAfterUpload(url: string): string | null {
+    try {
+      const parsed = new URL(url);
+      const pathname = parsed.pathname;
+      const uploadPrefix = '/upload/';
+      const idx = pathname.indexOf(uploadPrefix);
+      if (idx === -1) return null;
+      return pathname.slice(idx + uploadPrefix.length) || null;
+    } catch {
+      return null;
+    }
+  }
+
+  private validateImage(
+    file: UploadFile | undefined,
+  ): asserts file is UploadFile {
     if (!file) {
       throw new BadRequestException('이미지 파일이 필요합니다.');
     }

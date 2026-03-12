@@ -14,8 +14,8 @@ import { HttpExceptionFilter } from './common/filters/httpException.filter';
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
-  // 업로드된 이미지 정적 서빙
-  app.useStaticAssets(join(process.cwd(), 'uploads'), { prefix: '/uploads/' });
+  // 업로드된 이미지 정적 서빙 (upload.service BUCKET_NAME/getOrCreateUploadDir과 일치)
+  app.useStaticAssets(join(process.cwd(), 'upload'), { prefix: '/upload/' });
 
   // 프록시/로드밸런서 뒤에서 동작할 때 클라이언트 IP 등을 올바르게 인식하도록 설정
   app.set('trust proxy', 1);
