@@ -7,6 +7,8 @@ export interface NewBidPayload {
   amount: number;
   time: string;
   isBot?: boolean;
+  /** 입찰 수 (bid count). 있으면 클라이언트가 절대값으로 사용 */
+  participantCount?: number;
 }
 
 export type AuctionEventType = 'newBid' | 'auctionClosed' | 'ping';

@@ -55,12 +55,18 @@ export function useMainCacheUpdater() {
   const queryClient = useQueryClient();
 
   return {
-    updateBid: (auctionId: string, bidAmount: number, participantDelta = 1) => {
+    updateBid: (
+      auctionId: string,
+      bidAmount: number,
+      participantDeltaOrCount = 1,
+      useAbsoluteCount?: boolean,
+    ) => {
       updateMainCacheAuctionBid(
         queryClient,
         auctionId,
         bidAmount,
-        participantDelta,
+        participantDeltaOrCount,
+        useAbsoluteCount,
       );
     },
     invalidate: () => {

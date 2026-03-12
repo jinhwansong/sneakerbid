@@ -78,6 +78,7 @@ CREATE TABLE "Auction" (
     "sellerUserId" TEXT NOT NULL,
     "relistedFromAuctionId" TEXT,
     CONSTRAINT "Auction_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "Auction_startPrice_nonnegative_chk" CHECK ("startPrice" >= 0),
     CONSTRAINT "Auction_minimum_increment_chk" CHECK ("minimumIncrement" > 0),
     CONSTRAINT "Auction_price_consistency_chk" CHECK ("currentPrice" >= "startPrice"),
     CONSTRAINT "Auction_buy_now_chk" CHECK ("buyNowPrice" IS NULL OR "buyNowPrice" >= "currentPrice"),
@@ -92,7 +93,7 @@ ALTER TABLE "Auction" ADD CONSTRAINT "Auction_sellerUserId_fkey" FOREIGN KEY ("s
 ALTER TABLE "Auction" ADD CONSTRAINT "Auction_relistedFromAuctionId_fkey" FOREIGN KEY ("relistedFromAuctionId") REFERENCES "Auction"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 CREATE INDEX "idx_auction_winner_user_id" ON "Auction"("winnerUserId");
 CREATE INDEX "idx_auction_seller_user_id" ON "Auction"("sellerUserId");
-CREATE INDEX "idx_auction_relisted_from_auction_id" ON "Auction"("relistedFromAuctionId");
+CREATE UNIQUE INDEX "idx_auction_relisted_from_auction_id" ON "Auction"("relistedFromAuctionId") WHERE "relistedFromAuctionId" IS NOT NULL;
 
 -- Bid
 CREATE TABLE "Bid" (
@@ -206,4 +207,8 @@ CREATE TRIGGER trg_set_updatedAt_Auction
 
 CREATE TRIGGER trg_set_updatedAt_Bot
   BEFORE UPDATE ON "Bot"
+  FOR EACH ROW EXECUTE FUNCTION set_updated_timestamp();
+
+CREATE TRIGGER trg_set_updatedAt_Order
+  BEFORE UPDATE ON "Order"
   FOR EACH ROW EXECUTE FUNCTION set_updated_timestamp();

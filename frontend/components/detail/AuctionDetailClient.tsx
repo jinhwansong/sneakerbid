@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { BidLogItem } from '@/types/auction';
 import type { AuctionItem } from '@/types/auction';
@@ -94,6 +94,20 @@ function AuctionDetailContent({
     item.currentBid + (item.minimumIncrement ?? DEFAULT_BID_STEP),
   );
   const [bidError, setBidError] = useState('');
+
+  /** refetch 시 item/data 변경 시 로컬 상태 동기화 (비동기로 스케줄하여 cascading render 방지) */
+  useEffect(() => {
+    const nextPrice = item.currentBid;
+    const nextParticipants = item.participants;
+    const nextBids = data.bids ?? [];
+    const nextBidAmount = item.currentBid + bidStep;
+    queueMicrotask(() => {
+      setCurrentPrice(nextPrice);
+      setParticipants(nextParticipants);
+      setBidHistory(nextBids);
+      setBidAmount(nextBidAmount);
+    });
+  }, [item.currentBid, item.participants, data.bids, bidStep]);
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [closedPayload, setClosedPayload] = useState<AuctionClosedPayload | null>(
     null,
@@ -121,9 +135,32 @@ function AuctionDetailContent({
     (bid: BidLogItem) => {
       setBidHistory((prev) => [bid, ...prev].slice(0, 5));
       setCurrentPrice(bid.amount);
-      setParticipants((prev) => prev + 1);
-      updateMainCacheAuctionBid(queryClient, auctionId, bid.amount, 1);
-      updateListCacheAuctionBid(queryClient, auctionId, bid.amount, 1);
+      const participantCount = bid.participantCount;
+      const hasCount = typeof participantCount === 'number';
+      if (hasCount) {
+        setParticipants(participantCount);
+      } else {
+        setParticipants((prev) => prev + 1);
+      }
+      if (hasCount) {
+        updateMainCacheAuctionBid(
+          queryClient,
+          auctionId,
+          bid.amount,
+          participantCount,
+          true,
+        );
+        updateListCacheAuctionBid(
+          queryClient,
+          auctionId,
+          bid.amount,
+          participantCount,
+          true,
+        );
+      } else {
+        updateMainCacheAuctionBid(queryClient, auctionId, bid.amount, 1);
+        updateListCacheAuctionBid(queryClient, auctionId, bid.amount, 1);
+      }
     },
     [auctionId, queryClient],
   );

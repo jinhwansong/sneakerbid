@@ -369,7 +369,13 @@ export function createTxClient(client: PoolClient): TxClient {
           sets.push(`"${k}" = $${i++}`);
           vals.push(v);
         }
-        if (sets.length === 0) return {} as AuctionRow;
+        if (sets.length === 0) {
+          const r = await client.query(
+            'SELECT * FROM "Auction" WHERE id = $1',
+            [args.where.id],
+          );
+          return r.rows[0] as AuctionRow;
+        }
         sets.push('"updatedAt" = CURRENT_TIMESTAMP');
         vals.push(args.where.id);
         const r = await client.query(

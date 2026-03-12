@@ -80,14 +80,15 @@ export interface EditAuctionFormProps {
 
 export type AuctionFormProps = CreateAuctionFormProps | EditAuctionFormProps;
 
-export default function AuctionForm({
-  initialData,
-  auctionId,
-  onSubmit,
-  submitLabel = '경매 등록하기',
-  isSubmitting = false,
-}: AuctionFormProps) {
-  const isEdit = !!initialData && !!auctionId;
+export default function AuctionForm(props: AuctionFormProps) {
+  const {
+    initialData,
+    auctionId,
+    onSubmit,
+    submitLabel = '경매 등록하기',
+    isSubmitting = false,
+  } = props;
+  const isEdit = 'auctionId' in props && !!props.auctionId && !!props.initialData;
   const [image, setImage] = useState<File | null>(null);
   const [formData, setFormData] = useState<AuctionFormValues>(
     initialData ? auctionToFormValues(initialData) : INITIAL_VALUES,
@@ -155,9 +156,9 @@ export default function AuctionForm({
         buyNowPrice: buyNowPrice ?? undefined,
         minimumIncrement,
         endTime: new Date(formData.endTime).toISOString(),
-        ...(image ? {} : { imageUrl: initialData?.imageUrl }),
+        ...(image ? {} : { imageUrl: props.initialData.imageUrl }),
       };
-      await onSubmit(dto, image);
+      await props.onSubmit(dto, image);
     } else {
       const dto: CreateAuctionDto = {
         modelName: formData.modelName,
@@ -171,7 +172,7 @@ export default function AuctionForm({
         minimumIncrement,
         endTime: new Date(formData.endTime).toISOString(),
       };
-      await onSubmit(dto, image);
+      await props.onSubmit(dto, image);
     }
   };
 
@@ -205,7 +206,7 @@ export default function AuctionForm({
             <div className="space-y-8">
               <Input
                 label="모델명"
-                
+                required
                 name="modelName"
                 value={formData.modelName}
                 onChange={handleChange}
@@ -215,7 +216,7 @@ export default function AuctionForm({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                 <Select
                   label="브랜드"
-                  
+                  required
                   options={brandOptions}
                   value={formData.brand}
                   onChange={(val) => handleValueChange('brand', String(val))}
@@ -224,7 +225,7 @@ export default function AuctionForm({
 
                 <Select
                   label="사이즈 (mm)"
-                  
+                  required
                   options={sizeOptions}
                   value={formData.size}
                   onChange={(val) => handleValueChange('size', val)}
@@ -265,7 +266,7 @@ export default function AuctionForm({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                 <Input
                   label="시작 가격"
-                  
+                  required
                   type="number"
                   name="startPrice"
                   value={formData.startPrice}
@@ -288,7 +289,7 @@ export default function AuctionForm({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                 <Select
                   label="최소 입찰 단위"
-                  
+                  required
                   options={INCREMENT_OPTIONS}
                   value={formData.minimumIncrement}
                   onChange={(val) => handleValueChange('minimumIncrement', String(val))}
@@ -296,7 +297,7 @@ export default function AuctionForm({
 
                 <Input
                   label="경매 종료 일시"
-                  
+                  required
                   type="datetime-local"
                   name="endTime"
                   value={formData.endTime}

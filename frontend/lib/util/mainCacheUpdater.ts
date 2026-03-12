@@ -55,7 +55,9 @@ export function updateMainCacheAuctionBid(
   queryClient: QueryClient,
   auctionId: string,
   bidAmount: number,
-  participantDelta = 1,
+  participantDeltaOrCount: number = 1,
+  /** true면 participantDeltaOrCount를 절대값(bidCount)으로 사용 */
+  useAbsoluteCount?: boolean,
 ): void {
   queryClient.setQueryData<GetMainAuctionsResponse>(
     queryKeys.auctions.main,
@@ -67,7 +69,10 @@ export function updateMainCacheAuctionBid(
             ? {
                 ...a,
                 currentPrice: bidAmount,
-                bidCount: (a.bidCount ?? 0) + participantDelta,
+                bidCount:
+                  useAbsoluteCount === true
+                    ? participantDeltaOrCount
+                    : (a.bidCount ?? 0) + participantDeltaOrCount,
               }
             : a,
         );
@@ -83,7 +88,9 @@ export function updateListCacheAuctionBid(
   queryClient: QueryClient,
   auctionId: string,
   bidAmount: number,
-  participantDelta = 1,
+  participantDeltaOrCount: number = 1,
+  /** true면 participantDeltaOrCount를 절대값(bidCount)으로 사용 */
+  useAbsoluteCount?: boolean,
 ): void {
   queryClient.setQueriesData<InfiniteData<GetAuctionListResponse>>(
     { queryKey: ['auctions', 'list'] },
@@ -98,7 +105,10 @@ export function updateListCacheAuctionBid(
               ? {
                   ...a,
                   currentPrice: bidAmount,
-                  bidCount: (a.bidCount ?? 0) + participantDelta,
+                  bidCount:
+                    useAbsoluteCount === true
+                      ? participantDeltaOrCount
+                      : (a.bidCount ?? 0) + participantDeltaOrCount,
                 }
               : a,
           ),

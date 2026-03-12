@@ -45,27 +45,21 @@ export class UsersService {
         `getMeWithStats: Bid count failed for userId=${userId}`,
         bidRes.error,
       );
-      throw new InternalServerErrorException(
-        `Failed to fetch bid count: ${bidRes.error.message}`,
-      );
+      throw new InternalServerErrorException('Failed to fetch bid count');
     }
     if (orderRes.error) {
       this.logger.error(
         `getMeWithStats: Order count failed for userId=${userId}`,
         orderRes.error,
       );
-      throw new InternalServerErrorException(
-        `Failed to fetch order count: ${orderRes.error.message}`,
-      );
+      throw new InternalServerErrorException('Failed to fetch order count');
     }
     if (auctionRes.error) {
       this.logger.error(
         `getMeWithStats: Auction count failed for userId=${userId}`,
         auctionRes.error,
       );
-      throw new InternalServerErrorException(
-        `Failed to fetch auction count: ${auctionRes.error.message}`,
-      );
+      throw new InternalServerErrorException('Failed to fetch auction count');
     }
 
     const bidCount = bidRes.count ?? 0;

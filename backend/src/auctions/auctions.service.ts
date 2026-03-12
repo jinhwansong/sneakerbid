@@ -424,12 +424,14 @@ export class AuctionsService {
       return { bid };
     });
 
+    const participantCount = await this.bidRepo.countByAuctionId(auctionId);
     this.eventsService.emitNewBid(auctionId, {
       id: result.bid.id,
       user: user.nickname,
       amount: dto.bidPrice,
       time: '방금 전',
       isBot: false,
+      participantCount,
     });
 
     return {
@@ -511,12 +513,14 @@ export class AuctionsService {
 
     if (!result) return null;
 
+    const participantCount = await this.bidRepo.countByAuctionId(auctionId);
     this.eventsService.emitNewBid(auctionId, {
       id: result.bid.id,
       user: botUser.nickname,
       amount: bidPrice,
       time: '방금 전',
       isBot: true,
+      participantCount,
     });
 
     return {
@@ -636,9 +640,6 @@ export class AuctionsService {
       throw new BadRequestException('이미 종료된 경매는 수정할 수 없습니다.');
     }
 
-    const bidCount = await this.bidRepo.countByAuctionId(auctionId);
-    const hasBids = bidCount > 0;
-
     const sneakerUpdates: Record<string, unknown> = {};
     const auctionUpdates: Record<string, unknown> = {};
 
@@ -660,20 +661,10 @@ export class AuctionsService {
       sneakerUpdates.description = updateDto.description;
     if (updateDto.imageUrl) sneakerUpdates.imageUrl = updateDto.imageUrl;
     if (typeof updateDto.startPrice === 'number') {
-      if (hasBids) {
-        throw new BadRequestException(
-          '입찰이 있는 경매는 시작 가격을 변경할 수 없습니다.',
-        );
-      }
       auctionUpdates.startPrice = updateDto.startPrice;
       auctionUpdates.currentPrice = updateDto.startPrice;
     }
     if (typeof updateDto.buyNowPrice === 'number') {
-      if (hasBids && updateDto.buyNowPrice < auction.currentPrice) {
-        throw new BadRequestException(
-          `즉시 구매 가격은 현재 최고 입찰가(${auction.currentPrice.toLocaleString()}원) 이상이어야 합니다.`,
-        );
-      }
       auctionUpdates.buyNowPrice = updateDto.buyNowPrice;
     }
     if (typeof updateDto.minimumIncrement === 'number') {
@@ -716,6 +707,26 @@ export class AuctionsService {
         );
       }
 
+      const bidRows = await tx.$queryRaw<{ count: string }>(
+        'SELECT COUNT(*)::text as count FROM "Bid" WHERE "auctionId" = $1',
+        [auctionId],
+      );
+      const bidCount = parseInt(bidRows[0]?.count ?? '0', 10);
+      const hasBids = bidCount > 0;
+
+      if (hasBids) {
+        if (typeof updateDto.startPrice === 'number') {
+          throw new BadRequestException(
+            '입찰이 있는 경매는 시작 가격을 변경할 수 없습니다.',
+          );
+        }
+        if (typeof updateDto.buyNowPrice === 'number') {
+          throw new BadRequestException(
+            '입찰이 있는 경매는 즉시 구매 가격을 변경할 수 없습니다.',
+          );
+        }
+      }
+
       if (Object.keys(sneakerUpdates).length) {
         await tx.sneaker.update({
           where: { id: auction.sneakerId },
@@ -742,47 +753,56 @@ export class AuctionsService {
     });
   }
 
-  /** 물건 삭제 */
+  /** 물건 삭제 (단일 트랜잭션으로 원자적 처리) */
   async deleteAuction(auctionId: string, user: RequestUser) {
-    const supabase = this.db.getSupabase();
-    const { data: auction } = await supabase
-      .from('Auction')
-      .select('id, sellerUserId, sneakerId')
-      .eq('id', auctionId)
-      .single();
-
-    if (!auction) {
-      throw new NotFoundException('경매를 찾을 수 없습니다.');
-    }
-
-    if (user.role !== UserRole.ADMIN && auction.sellerUserId !== user.id) {
-      throw new ForbiddenException('삭제 권한이 없습니다.');
-    }
-
-    const bidCount = await this.bidRepo.countByAuctionId(auctionId);
-    if (bidCount > 0) {
-      throw new BadRequestException(
-        '입찰이 있는 경매는 삭제할 수 없습니다. 입찰을 취소한 후 다시 시도해 주세요.',
+    await this.db.transaction(async (tx) => {
+      const auctionRows = await tx.$queryRaw<{
+        id: string;
+        sellerUserId: string;
+        sneakerId: string;
+      }>(
+        'SELECT id, "sellerUserId", "sneakerId" FROM "Auction" WHERE id = $1 FOR UPDATE',
+        [auctionId],
       );
-    }
+      const auction = auctionRows[0];
+      if (!auction) {
+        throw new NotFoundException('경매를 찾을 수 없습니다.');
+      }
 
-    const orderRows = await this.db.query<{ count: string }>(
-      `SELECT COUNT(*)::text as count FROM "Order" WHERE "auctionId" = $1 AND status IN ('PENDING', 'PAID', 'FAILED')`,
-      [auctionId],
-    );
-    const activeOrderCount = parseInt(orderRows[0]?.count ?? '0', 10);
-    if (activeOrderCount > 0) {
-      throw new BadRequestException(
-        '결제 대기 중이거나 완료된 주문이 있는 경매는 삭제할 수 없습니다.',
+      if (user.role !== UserRole.ADMIN && auction.sellerUserId !== user.id) {
+        throw new ForbiddenException('삭제 권한이 없습니다.');
+      }
+
+      const bidRows = await tx.$queryRaw<{ count: string }>(
+        'SELECT COUNT(*)::text as count FROM "Bid" WHERE "auctionId" = $1',
+        [auctionId],
       );
-    }
+      const bidCount = parseInt(bidRows[0]?.count ?? '0', 10);
+      if (bidCount > 0) {
+        throw new BadRequestException(
+          '입찰이 있는 경매는 삭제할 수 없습니다. 입찰을 취소한 후 다시 시도해 주세요.',
+        );
+      }
 
-    await supabase.from('Order').delete().eq('auctionId', auctionId);
-    await supabase.from('Auction').delete().eq('id', auctionId);
+      const orderRows = await tx.$queryRaw<{ count: string }>(
+        `SELECT COUNT(*)::text as count FROM "Order" WHERE "auctionId" = $1 AND status IN ('PENDING', 'PAID', 'FAILED')`,
+        [auctionId],
+      );
+      const activeOrderCount = parseInt(orderRows[0]?.count ?? '0', 10);
+      if (activeOrderCount > 0) {
+        throw new BadRequestException(
+          '결제 대기 중이거나 완료된 주문이 있는 경매는 삭제할 수 없습니다.',
+        );
+      }
 
-    if (auction.sneakerId) {
-      await supabase.from('Sneaker').delete().eq('id', auction.sneakerId);
-    }
+      await tx.$queryRaw('DELETE FROM "Order" WHERE "auctionId" = $1', [
+        auctionId,
+      ]);
+      await tx.$queryRaw('DELETE FROM "Auction" WHERE id = $1', [auctionId]);
+      await tx.$queryRaw('DELETE FROM "Sneaker" WHERE id = $1', [
+        auction.sneakerId,
+      ]);
+    });
   }
 
   /** 거래 내역 기간 시작 날짜 반환 */

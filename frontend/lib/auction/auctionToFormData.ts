@@ -11,11 +11,21 @@ const VALID_STATUSES = [
 /**
  * AuctionItem → GetAuctionResponse 변환 (AuctionForm initialData용)
  * 필수 필드 검증 후 기본값 적용. 검증 실패 시 null 반환.
+ * 수정 폼에 필요한 모든 필드가 있어야 함 (기본값 채우기로 덮어쓰기 방지).
  */
 export function toFormInitialData(
   item: AuctionItem | null | undefined,
 ): GetAuctionResponse | null {
-  if (!item?.id || !item?.modelName || !item?.brand || !item?.imageUrl) {
+  if (
+    !item?.id ||
+    !item?.modelName ||
+    !item?.brand ||
+    !item?.imageUrl ||
+    item.description === undefined ||
+    item.startPrice == null ||
+    !item?.endTime ||
+    item.size == null
+  ) {
     return null;
   }
 

@@ -36,7 +36,11 @@ export default function FeaturedAuction({
   const remainingTime = useRemainingTime(item.endTime);
 
   const handleNewBid = useCallback(
-    (bid: { amount: number }) => updateBid(item.id, bid.amount, 1),
+    (bid: { amount: number; participantCount?: number }) => {
+      const count = bid.participantCount;
+      const hasCount = typeof count === 'number';
+      updateBid(item.id, bid.amount, hasCount ? count : 1, hasCount);
+    },
     [updateBid, item.id],
   );
   const handleAuctionClosed = useCallback(() => invalidate(), [invalidate]);

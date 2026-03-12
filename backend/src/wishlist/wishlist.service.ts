@@ -16,7 +16,7 @@ export class WishlistService {
     private readonly wishlistRepo: WishlistRepository,
   ) {}
 
-  /** 찜하기 토글 (있으면 해제, 없으면 추가) - 원자적 패턴 */
+  /** 찜하기 토글 (있으면 해제, 없으면 추가) - 단일 트랜잭션으로 원자적 처리 */
   async toggle(
     auctionId: string,
     user: RequestUser,
@@ -33,27 +33,27 @@ export class WishlistService {
       throw new NotFoundException('경매를 찾을 수 없습니다.');
     }
 
-    const { error } = await supabase.from('Wishlist').insert({
-      id: randomUUID(),
-      userId: user.id,
-      auctionId,
-      createdAt: new Date().toISOString(),
+    const result = await this.db.transaction(async (tx) => {
+      const rows = await tx.$queryRaw<{ action: string }>(
+        `WITH deleted AS (
+          DELETE FROM "Wishlist" WHERE "userId" = $1 AND "auctionId" = $2 RETURNING id
+        ),
+        inserted AS (
+          INSERT INTO "Wishlist" (id, "userId", "auctionId", "createdAt")
+          SELECT $3, $1, $2, CURRENT_TIMESTAMP
+          WHERE NOT EXISTS (SELECT 1 FROM deleted)
+          RETURNING id
+        )
+        SELECT 'deleted' AS action FROM deleted
+        UNION ALL
+        SELECT 'inserted' FROM inserted`,
+        [user.id, auctionId, randomUUID()],
+      );
+      const action = rows[0]?.action;
+      return { isWishlisted: action === 'inserted' };
     });
 
-    if (!error) {
-      return { isWishlisted: true };
-    }
-
-    if (error.code === '23505') {
-      await supabase
-        .from('Wishlist')
-        .delete()
-        .eq('userId', user.id)
-        .eq('auctionId', auctionId);
-      return { isWishlisted: false };
-    }
-
-    throw error;
+    return result;
   }
 
   /** 여러 경매 ID에 대해 찜 여부 맵 반환 (userId, auctionIds) */

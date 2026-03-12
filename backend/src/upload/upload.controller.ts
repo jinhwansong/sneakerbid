@@ -16,6 +16,7 @@ import {
 } from '@nestjs/swagger';
 import { createMulterOptions } from '@/common/util/multer.options';
 import { UploadService } from './upload.service';
+import { RequestUser, User } from '@/common/decorator/user.decorator';
 import { Roles } from '@/common/decorator/roles.decorator';
 import { UserRole } from '@/common/enum/role.enum';
 import { RolesGuard } from '@/common/guard/roles.guard';
@@ -48,9 +49,10 @@ export class UploadController {
   })
   @UseInterceptors(FileInterceptor('file', MULTER_OPTIONS))
   async uploadImage(
+    @User() user: RequestUser,
     @UploadedFile() file: MemoryMulterFile | undefined,
   ): Promise<{ url: string }> {
-    const url = await this.uploadService.uploadImage(file);
+    const url = await this.uploadService.uploadImage(file, user.id);
     return { url };
   }
 
@@ -63,8 +65,11 @@ export class UploadController {
     description: '업로드된 이미지 삭제 (orphan 정리용)',
   })
   @ApiBody({ schema: { type: 'object', properties: { url: { type: 'string' } }, required: ['url'] } })
-  async deleteImage(@Body('url') url: string): Promise<{ ok: boolean }> {
-    await this.uploadService.deleteImage(url);
+  async deleteImage(
+    @User() user: RequestUser,
+    @Body('url') url: string,
+  ): Promise<{ ok: boolean }> {
+    await this.uploadService.deleteImage(url, user.id);
     return { ok: true };
   }
 }

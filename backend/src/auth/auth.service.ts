@@ -97,12 +97,6 @@ export class AuthService {
       updatedAt: new Date().toISOString(),
     };
 
-    const { error: userError } = await supabase.from('User').insert(newUser);
-    if (userError) {
-      console.error('[AuthService] User insert 실패:', userError);
-      throw new Error(`User 생성 실패: ${userError.message}`);
-    }
-
     const socialAccount = {
       id: randomUUID(),
       userId: newUser.id,
@@ -110,22 +104,39 @@ export class AuthService {
       providerId: profile.providerId,
       createdAt: new Date().toISOString(),
     };
-    const { error: socialError } = await supabase
-      .from('SocialAccount')
-      .insert(socialAccount);
-    if (socialError) {
-      console.error('[AuthService] SocialAccount insert 실패:', socialError);
-      const { error: deleteError } = await supabase
-        .from('User')
-        .delete()
-        .eq('id', newUser.id);
-      if (deleteError) {
-        console.error(
-          '[AuthService] User 보상 삭제 실패 (orphan user 가능):',
-          deleteError,
+
+    try {
+      await this.db.transaction(async (tx) => {
+        await tx.$queryRaw(
+          `INSERT INTO "User" (id, email, "profileImageUrl", nickname, role, balance, "createdAt", "updatedAt")
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          [
+            newUser.id,
+            newUser.email,
+            newUser.profileImageUrl,
+            newUser.nickname,
+            newUser.role,
+            newUser.balance,
+            newUser.createdAt,
+            newUser.updatedAt,
+          ],
         );
-      }
-      throw new Error(`SocialAccount 생성 실패: ${socialError.message}`);
+        await tx.$queryRaw(
+          `INSERT INTO "SocialAccount" (id, provider, "providerId", "userId", "createdAt")
+           VALUES ($1, $2, $3, $4, $5)`,
+          [
+            socialAccount.id,
+            socialAccount.provider,
+            socialAccount.providerId,
+            socialAccount.userId,
+            socialAccount.createdAt,
+          ],
+        );
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Transaction failed';
+      console.error('[AuthService] User+SocialAccount insert 실패:', err);
+      throw new Error(`사용자 생성 실패: ${msg}`);
     }
 
     return {
@@ -206,8 +217,8 @@ export class AuthService {
       return false;
     }
 
-    await this.redis.revokeRefreshToken(refreshToken);
     await this.loginWithCookies({ id: user.id, role: user.role }, res);
+    await this.redis.revokeRefreshToken(refreshToken);
     return true;
   }
 

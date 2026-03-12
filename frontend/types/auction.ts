@@ -43,6 +43,8 @@ export interface BidLogItem {
   amount: number;
   time: string;
   isBot?: boolean;
+  /** 입찰 수 (SSE payload에 있으면 절대값으로 사용) */
+  participantCount?: number;
 }
 
 /** 찜하기: 유저별 경매 단위. API 응답/목록용 */

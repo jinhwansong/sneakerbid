@@ -130,32 +130,38 @@ export class BotsService {
       excludeRelistedIds: alreadyRelistedIds,
     });
 
-    const supabase = this.db.getSupabase();
+    const endTime = new Date(
+      now.getTime() + RELIST_AUCTION_DURATION_SEC * 1000,
+    );
     for (const auction of toRelist) {
       if (!auction.winnerUserId) continue;
-      const endTime = new Date(
-        now.getTime() + RELIST_AUCTION_DURATION_SEC * 1000,
+      const id = randomUUID();
+      const endTimeStr = endTime.toISOString();
+      const inserted = await this.db.query<{ id: string }>(
+        `INSERT INTO "Auction" (id, "sneakerId", size, "startPrice", "currentPrice", "buyNowPrice", "minimumIncrement", status, "endTime", "sellerUserId", "relistedFromAuctionId", "createdAt", "updatedAt")
+         VALUES ($1, $2, $3, $4, $5, $6, $7, 'OPEN', $8, $9, $10, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+         ON CONFLICT ("relistedFromAuctionId") WHERE ("relistedFromAuctionId" IS NOT NULL) DO NOTHING
+         RETURNING id`,
+        [
+          id,
+          auction.sneakerId,
+          auction.size,
+          auction.currentPrice,
+          auction.currentPrice,
+          auction.buyNowPrice,
+          auction.minimumIncrement,
+          endTimeStr,
+          auction.winnerUserId,
+          auction.id,
+        ],
       );
-      await supabase.from('Auction').insert({
-        id: randomUUID(),
-        sneakerId: auction.sneakerId,
-        size: auction.size,
-        startPrice: auction.currentPrice,
-        currentPrice: auction.currentPrice,
-        buyNowPrice: auction.buyNowPrice,
-        minimumIncrement: auction.minimumIncrement,
-        status: 'OPEN',
-        endTime: endTime.toISOString(),
-        sellerUserId: auction.winnerUserId,
-        relistedFromAuctionId: auction.id,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      });
-      const brand = auction.sneaker_brand;
-      const model = auction.sneaker_modelName;
-      console.log(
-        `[BotsService] 재등록: ${brand} ${model} (원본 ${auction.id})`,
-      );
+      if (inserted.length > 0) {
+        const brand = auction.sneaker_brand;
+        const model = auction.sneaker_modelName;
+        console.log(
+          `[BotsService] 재등록: ${brand} ${model} (원본 ${auction.id})`,
+        );
+      }
     }
   }
 

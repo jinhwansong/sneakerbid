@@ -9,9 +9,13 @@ import Badge from '@/components/common/Badge';
 import { useRemainingTime } from '@/hooks/useRemainingTime';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { formatPrice } from '@/lib/util/format';
-import type { AuctionItem } from '@/types/auction';
+import type { AuctionItem, AuctionStatus } from '@/types/auction';
 
-const TERMINAL_STATES = new Set<string>(['closed', 'failed', 'buy_now']);
+const TERMINAL_STATES: Set<AuctionStatus> = new Set([
+  'closed',
+  'failed',
+  'buy_now',
+]);
 
 interface MyAuctionCardProps {
   item: AuctionItem;
@@ -61,15 +65,21 @@ export default function MyAuctionCard({
             e.stopPropagation();
             setMenuOpen((v) => !v);
           }}
-          className=" px-2.5 py-1.5 rounded-md bg-black/50 backdrop-blur-sm text-white/90 hover:text-white hover:bg-black/60 transition-colors"
+          className="px-2.5 py-1.5 rounded-md bg-black/50 backdrop-blur-sm text-white/90 hover:text-white hover:bg-black/60 transition-colors"
           aria-label="더보기"
+          aria-haspopup="menu"
+          aria-expanded={menuOpen}
         >
           <MoreHorizontal size={18} />
         </button>
         {menuOpen && (
-          <div className="absolute right-0 top-full mt-1.5 py-1 min-w-[120px] bg-bg-main border border-border-main rounded-xl shadow-xl z-30">
+          <div
+            role="menu"
+            className="absolute right-0 top-full mt-1.5 py-1 min-w-[120px] bg-bg-main border border-border-main rounded-xl shadow-xl z-30"
+          >
             <button
               type="button"
+              role="menuitem"
               onClick={handleEdit}
               className="flex w-full items-center gap-2 px-4 py-2.5 text-sm font-medium text-text-main hover:bg-bg-sub transition-colors text-left rounded-t-xl"
             >
@@ -78,6 +88,7 @@ export default function MyAuctionCard({
             </button>
             <button
               type="button"
+              role="menuitem"
               onClick={handleDelete}
               className="flex w-full items-center gap-2 px-4 py-2.5 text-sm font-medium text-status-urgent hover:bg-bg-sub transition-colors text-left rounded-b-xl"
             >

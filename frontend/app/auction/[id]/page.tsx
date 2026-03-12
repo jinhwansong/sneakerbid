@@ -44,14 +44,10 @@ export default async function AuctionDetailPage({ params }: AuctionDetailPagePro
     defaultOptions: { queries: queryDefaults },
   });
 
-  await queryClient.fetchQuery({
+  const data = await queryClient.fetchQuery({
     queryKey: queryKeys.auctions.detail(id),
     queryFn: () => prefetchAuctionDetail(id),
   });
-
-  const data = queryClient.getQueryData(
-    queryKeys.auctions.detail(id),
-  ) as { auction: unknown; bids: unknown[] } | undefined;
   if (!data?.auction) notFound();
 
   return (
