@@ -163,11 +163,12 @@
 
 ### 🟢 우선: 기본 설정
 - [ ] Backend: Jest 설정 확인 (spec 1개 샘플)
-- [ ] Frontend: Vitest + React Testing Library 도입 (테스트 1개 샘플)
+- [x] Frontend: Vitest + React Testing Library 도입 *(완료: 유틸/훅/캐시/Query 훅/공통 컴포넌트)*
 
 ### 🔵 여유: 커버리지 확대
-- [ ] Backend: 핵심 서비스 단위 테스트 (auth, auctions, orders), E2E
-- [ ] Frontend: 핵심 컴포넌트/훅 테스트 확대
+- [ ] Backend: 핵심 서비스 단위 테스트 (auth, auctions, orders)
+- [x] Frontend: 핵심 컴포넌트/훅 테스트 확대 *(완료)*
+- [ ] E2E 테스트 (Playwright 등) — *나중에*
 
 ---
 
