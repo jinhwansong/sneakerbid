@@ -57,7 +57,12 @@ export default function AuctionDetailClient({
   if (isLoading || !item) return <DetailSkeleton />;
 
   return (
-    <AuctionDetailContent auctionId={auctionId} item={item} data={data!} />
+    <AuctionDetailContent
+      key={auctionId}
+      auctionId={auctionId}
+      item={item}
+      data={data!}
+    />
   );
 }
 

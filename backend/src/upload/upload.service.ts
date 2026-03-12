@@ -112,6 +112,33 @@ export class UploadService {
     return `${this.localBaseUrl}/${filename}`;
   }
 
+  /** 업로드된 이미지 삭제 (orphan 정리용). url은 uploadImage 반환값 */
+  async deleteImage(url: string): Promise<void> {
+    if (!url || typeof url !== 'string') return;
+
+    const filename = url.split('/').pop();
+    if (!filename) return;
+
+    if (this.useSupabase && this.supabase) {
+      const { error } = await this.supabase.storage
+        .from(BUCKET_NAME)
+        .remove([filename]);
+      if (error) {
+        // 로그만 하고 throw 안 함 (이미 orphan이므로)
+        console.warn('[UploadService] deleteImage failed:', error.message);
+      }
+      return;
+    }
+
+    const dir = getOrCreateUploadDir('upload');
+    const filePath = path.join(dir, filename);
+    try {
+      await fs.promises.unlink(filePath);
+    } catch (err) {
+      console.warn('[UploadService] deleteImage (local) failed:', err);
+    }
+  }
+
   private validateImage(
     file: UploadFile | undefined,
   ): asserts file is UploadFile {

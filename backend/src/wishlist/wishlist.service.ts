@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { DatabaseService } from '@/database/database.service';
 import { WishlistRepository } from '@/database/repositories/wishlist.repository';
@@ -33,7 +34,7 @@ export class WishlistService {
     }
 
     const { error } = await supabase.from('Wishlist').insert({
-      id: crypto.randomUUID(),
+      id: randomUUID(),
       userId: user.id,
       auctionId,
       createdAt: new Date().toISOString(),

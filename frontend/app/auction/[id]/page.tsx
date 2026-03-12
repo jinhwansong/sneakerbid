@@ -14,14 +14,28 @@ async function prefetchAuctionDetail(id: string) {
   const headersList = await headers();
   const cookie = headersList.get('cookie') ?? '';
   const init = cookie ? { headers: { Cookie: cookie } as HeadersInit } : undefined;
-  const [auction, bids] = await Promise.all([
-    api.auctions.get(id, init),
-    api.auctions.getBids(id, init),
-  ]);
-  return {
-    auction: auction as Awaited<ReturnType<typeof api.auctions.get>>,
-    bids: Array.isArray(bids) ? bids : [],
-  };
+
+  let auction: Awaited<ReturnType<typeof api.auctions.get>>;
+  try {
+    auction = await api.auctions.get(id, init);
+  } catch (err) {
+    const status =
+      err && typeof err === 'object' && 'status' in err
+        ? (err as { status: number }).status
+        : undefined;
+    if (status === 404) notFound();
+    throw err;
+  }
+
+  let bids: Awaited<ReturnType<typeof api.auctions.getBids>> = [];
+  try {
+    const b = await api.auctions.getBids(id, init);
+    bids = Array.isArray(b) ? b : [];
+  } catch {
+    bids = [];
+  }
+
+  return { auction, bids };
 }
 
 export default async function AuctionDetailPage({ params }: AuctionDetailPageProps) {
@@ -30,14 +44,10 @@ export default async function AuctionDetailPage({ params }: AuctionDetailPagePro
     defaultOptions: { queries: queryDefaults },
   });
 
-  try {
-    await queryClient.fetchQuery({
-      queryKey: queryKeys.auctions.detail(id),
-      queryFn: () => prefetchAuctionDetail(id),
-    });
-  } catch {
-    notFound();
-  }
+  await queryClient.fetchQuery({
+    queryKey: queryKeys.auctions.detail(id),
+    queryFn: () => prefetchAuctionDetail(id),
+  });
 
   const data = queryClient.getQueryData(
     queryKeys.auctions.detail(id),

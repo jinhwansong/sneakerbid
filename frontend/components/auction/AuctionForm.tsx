@@ -62,14 +62,23 @@ function auctionToFormValues(a: GetAuctionResponse): AuctionFormValues {
   };
 }
 
-export interface AuctionFormProps {
-  /** 생성 모드: 초기값 없음. 수정 모드: initialData 있음 */
-  initialData?: GetAuctionResponse | null;
-  auctionId?: string;
-  onSubmit: (dto: CreateAuctionDto | UpdateAuctionDto, imageFile?: File | null) => Promise<void>;
+export interface CreateAuctionFormProps {
+  initialData?: null;
+  auctionId?: never;
+  onSubmit: (dto: CreateAuctionDto, imageFile?: File | null) => Promise<void>;
   submitLabel?: string;
   isSubmitting?: boolean;
 }
+
+export interface EditAuctionFormProps {
+  initialData: GetAuctionResponse;
+  auctionId: string;
+  onSubmit: (dto: UpdateAuctionDto, imageFile?: File | null) => Promise<void>;
+  submitLabel?: string;
+  isSubmitting?: boolean;
+}
+
+export type AuctionFormProps = CreateAuctionFormProps | EditAuctionFormProps;
 
 export default function AuctionForm({
   initialData,

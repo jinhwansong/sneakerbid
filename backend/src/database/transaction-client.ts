@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import type { PoolClient } from 'pg';
 import type { WalletTxType, WalletRefType } from '@/common/database/db.types';
 
@@ -205,7 +206,7 @@ export interface OrderRow {
 }
 
 export function createTxClient(client: PoolClient): TxClient {
-  const uuid = () => crypto.randomUUID();
+  const uuid = () => randomUUID();
 
   return {
     user: {
@@ -336,13 +337,21 @@ export function createTxClient(client: PoolClient): TxClient {
           id,
         ]);
         const auction = r.rows[0] as AuctionWithSneaker | undefined;
-        if (args.include?.sneaker && auction) {
-          const sneakerId = auction.sneakerId;
+        if (!auction) {
+          throw new Error(`Auction create failed: no row returned for id=${id}`);
+        }
+        if (args.include?.sneaker) {
           const snR = await client.query(
             'SELECT * FROM "Sneaker" WHERE id = $1',
-            [sneakerId],
+            [auction.sneakerId],
           );
-          auction.sneaker = snR.rows[0] as AuctionWithSneaker['sneaker'];
+          const sneaker = snR.rows[0] as AuctionWithSneaker['sneaker'] | undefined;
+          if (!sneaker) {
+            throw new Error(
+              `Auction create: Sneaker not found for sneakerId=${auction.sneakerId}`,
+            );
+          }
+          auction.sneaker = sneaker;
         }
         return auction;
       },
@@ -358,7 +367,7 @@ export function createTxClient(client: PoolClient): TxClient {
         let i = 1;
         for (const [k, v] of entries) {
           sets.push(`"${k}" = $${i++}`);
-          vals.push(v instanceof Date ? v : v);
+          vals.push(v);
         }
         if (sets.length === 0) return {} as AuctionRow;
         sets.push('"updatedAt" = CURRENT_TIMESTAMP');
@@ -397,7 +406,7 @@ export function createTxClient(client: PoolClient): TxClient {
         let i = 1;
         for (const [k, v] of entries) {
           sets.push(`"${k}" = $${i++}`);
-          vals.push(v instanceof Date ? v : v);
+          vals.push(v);
         }
         if (sets.length === 0) return;
         vals.push(args.where.id);
@@ -437,8 +446,9 @@ export function createTxClient(client: PoolClient): TxClient {
         let i = 1;
         for (const [k, v] of entries) {
           sets.push(`"${k}" = $${i++}`);
-          vals.push(v instanceof Date ? v : v);
+          vals.push(v);
         }
+        sets.push('"updatedAt" = CURRENT_TIMESTAMP');
         if (sets.length === 0) return { count: 0 };
         const where: string[] = ['id = $' + i++];
         vals.push(args.where.id);

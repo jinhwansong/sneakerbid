@@ -6,43 +6,66 @@ import { queryDefaults } from '@/hooks/withQueryDefaults';
 import type { GetMainAuctionsResponse, LiveStatsResponse } from '@/types/auction';
 import { EMPTY_MAIN, DEFAULT_STATS } from '@/lib/constants/auction';
 
+/** Server-only base URL; fallback to NEXT_PUBLIC_SITE_URL. Cookie forwarded only when API_URL is set. */
+function getServerApiBase(): { base: string; trusted: boolean } {
+  const base = (process.env.API_URL ?? process.env.NEXT_PUBLIC_SITE_URL ?? '').replace(/\/$/, '');
+  return { base, trusted: !!process.env.API_URL };
+}
+
 async function prefetchMainAuctions(): Promise<GetMainAuctionsResponse> {
+  const { base, trusted } = getServerApiBase();
   const headersList = await headers();
-  const cookie = headersList.get('cookie') ?? '';
-  const url = `${process.env.NEXT_PUBLIC_SITE_URL}/auctions/main`;
+  const cookie = trusted ? (headersList.get('cookie') ?? '') : '';
+  const url = `${base}/auctions/main`;
   const res = await fetch(url, {
     cache: 'no-store',
     headers: cookie ? { Cookie: cookie } : undefined,
   });
   if (!res.ok) throw new Error('Failed to fetch main auctions');
   const body = (await res.json()) as
-    | { success?: boolean; data?: GetMainAuctionsResponse }
+    | { success?: boolean; message?: string; data?: GetMainAuctionsResponse }
     | GetMainAuctionsResponse;
-  // 백엔드 TransformInterceptor: 객체는 { success: true, ...data }로 spread (data 키 없음)
+  if (body && typeof body === 'object' && (body as { success?: boolean }).success === false) {
+    const msg = (body as { message?: string }).message ?? 'Server returned failure';
+    throw new Error(msg);
+  }
   const data =
     body && typeof body === 'object' && 'data' in body
       ? (body as { data?: GetMainAuctionsResponse }).data
       : (body as GetMainAuctionsResponse);
-  return data ?? EMPTY_MAIN;
+  if (!data || typeof data !== 'object' || !Array.isArray(data.ongoing)) {
+    return EMPTY_MAIN;
+  }
+  return data;
 }
 
 async function prefetchLiveStats(): Promise<LiveStatsResponse> {
-  const headersList = await headers();
-  const cookie = headersList.get('cookie') ?? '';
-  const url = `${process.env.NEXT_PUBLIC_SITE_URL}/auctions/stats`;
-  const res = await fetch(url, {
-    cache: 'no-store',
-    headers: cookie ? { Cookie: cookie } : undefined,
-  });
+  const { base } = getServerApiBase();
+  const url = `${base}/auctions/stats`;
+  const res = await fetch(url, { cache: 'no-store' });
   if (!res.ok) throw new Error('Failed to fetch stats');
   const body = (await res.json()) as
-    | { success?: boolean; data?: LiveStatsResponse }
+    | { success?: boolean; message?: string; data?: LiveStatsResponse }
     | LiveStatsResponse;
+  if (body && typeof body === 'object' && (body as { success?: boolean }).success === false) {
+    const msg = (body as { message?: string }).message ?? 'Server returned failure';
+    throw new Error(msg);
+  }
   const data =
     body && typeof body === 'object' && 'data' in body
       ? (body as { data?: LiveStatsResponse }).data
       : (body as LiveStatsResponse);
-  return data ?? DEFAULT_STATS;
+  if (
+    !data ||
+    typeof data !== 'object' ||
+    typeof data.activeBidders !== 'number' ||
+    typeof data.activeAuctions !== 'number' ||
+    typeof data.volume24h !== 'number' ||
+    typeof data.avgBidSpeedSeconds !== 'number'
+  ) {
+    return DEFAULT_STATS;
+  }
+  return data;
 }
 
 export default async function Home() {

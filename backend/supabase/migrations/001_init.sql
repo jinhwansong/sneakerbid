@@ -77,7 +77,12 @@ CREATE TABLE "Auction" (
     "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "sellerUserId" TEXT NOT NULL,
     "relistedFromAuctionId" TEXT,
-    CONSTRAINT "Auction_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "Auction_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "Auction_minimum_increment_chk" CHECK ("minimumIncrement" > 0),
+    CONSTRAINT "Auction_price_consistency_chk" CHECK ("currentPrice" >= "startPrice"),
+    CONSTRAINT "Auction_buy_now_chk" CHECK ("buyNowPrice" IS NULL OR "buyNowPrice" >= "currentPrice"),
+    CONSTRAINT "Auction_counters_nonnegative_chk" CHECK ("extendCount" >= 0 AND "version" >= 0),
+    CONSTRAINT "Auction_relist_self_chk" CHECK ("relistedFromAuctionId" IS NULL OR "relistedFromAuctionId" <> "id")
 );
 CREATE INDEX "Auction_status_endTime_idx" ON "Auction"("status", "endTime");
 CREATE INDEX "Auction_sneakerId_size_status_idx" ON "Auction"("sneakerId", "size", "status");
@@ -85,6 +90,9 @@ ALTER TABLE "Auction" ADD CONSTRAINT "Auction_sneakerId_fkey" FOREIGN KEY ("snea
 ALTER TABLE "Auction" ADD CONSTRAINT "Auction_winnerUserId_fkey" FOREIGN KEY ("winnerUserId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 ALTER TABLE "Auction" ADD CONSTRAINT "Auction_sellerUserId_fkey" FOREIGN KEY ("sellerUserId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 ALTER TABLE "Auction" ADD CONSTRAINT "Auction_relistedFromAuctionId_fkey" FOREIGN KEY ("relistedFromAuctionId") REFERENCES "Auction"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+CREATE INDEX "idx_auction_winner_user_id" ON "Auction"("winnerUserId");
+CREATE INDEX "idx_auction_seller_user_id" ON "Auction"("sellerUserId");
+CREATE INDEX "idx_auction_relisted_from_auction_id" ON "Auction"("relistedFromAuctionId");
 
 -- Bid
 CREATE TABLE "Bid" (
@@ -96,12 +104,14 @@ CREATE TABLE "Bid" (
     "strategyType" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "disqualifiedAt" TIMESTAMP(3),
-    CONSTRAINT "Bid_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "Bid_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "Bid_bidPrice_positive" CHECK ("bidPrice" > 0)
 );
 CREATE INDEX "Bid_auctionId_createdAt_idx" ON "Bid"("auctionId", "createdAt" DESC);
 CREATE INDEX "Bid_auctionId_bidPrice_idx" ON "Bid"("auctionId", "bidPrice" DESC);
 ALTER TABLE "Bid" ADD CONSTRAINT "Bid_auctionId_fkey" FOREIGN KEY ("auctionId") REFERENCES "Auction"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "Bid" ADD CONSTRAINT "Bid_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+CREATE INDEX "idx_bid_user_id" ON "Bid"("userId");
 
 -- Order
 CREATE TABLE "Order" (
@@ -113,6 +123,7 @@ CREATE TABLE "Order" (
     "failureReason" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "paidAt" TIMESTAMP(3),
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT "Order_pkey" PRIMARY KEY ("id")
 );
 CREATE UNIQUE INDEX "Order_auctionId_key" ON "Order"("auctionId");

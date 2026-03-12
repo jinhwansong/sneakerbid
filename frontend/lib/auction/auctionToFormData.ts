@@ -29,11 +29,11 @@ export function toFormInitialData(
     modelName: item.modelName,
     brand: item.brand,
     imageUrl: item.imageUrl,
-    startPrice: item.startPrice ?? item.currentBid ?? 0,
-    currentBid: item.currentBid ?? 0,
-    priceIncreasePercent: item.priceIncreasePercent ?? '0',
-    participants: item.participants ?? 0,
-    endTime: item.endTime ?? '',
+    startPrice: item.startPrice,
+    currentBid: item.currentBid,
+    priceIncreasePercent: item.priceIncreasePercent,
+    participants: item.participants,
+    endTime: item.endTime,
     status,
   };
 }

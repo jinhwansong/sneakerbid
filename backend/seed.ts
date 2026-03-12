@@ -5,6 +5,7 @@
  * 실행: npx ts-node -r tsconfig-paths/register seed.ts
  * 또는: npm run seed
  */
+import { randomUUID } from 'crypto';
 import { Pool } from 'pg';
 import { config } from 'dotenv';
 
@@ -18,7 +19,7 @@ if (!DATABASE_URL) {
 
 const pool = new Pool({ connectionString: DATABASE_URL });
 
-const uuid = () => crypto.randomUUID();
+const uuid = () => randomUUID();
 
 async function seed() {
   const client = await pool.connect();
@@ -96,7 +97,7 @@ async function seed() {
     const botConfigs = [
       { type: 'AGGRESSIVE', riskTolerance: 80, bidUnit: 5000, maxBidMultiplier: 2.5, startHour: 0, endHour: 23, brands: ['Nike', 'Jordan'] },
       { type: 'CALCULATED', riskTolerance: 50, bidUnit: 3000, maxBidMultiplier: 1.8, startHour: 0, endHour: 23, brands: ['Nike', 'Adidas', 'New Balance'] },
-      { type: 'TROLL', riskTolerance: 90, bidUnit: 10000, maxBidMultiplier: 3, startHour: 0, endHour: 23, brands: ['Jordan', 'Yeezy'] },
+      { type: 'TROLL', riskTolerance: 90, bidUnit: 10000, maxBidMultiplier: 3, startHour: 0, endHour: 23, brands: ['Jordan', 'Adidas'] },
       { type: 'EMOTIONAL', riskTolerance: 70, bidUnit: 5000, maxBidMultiplier: 2.2, startHour: 0, endHour: 23, brands: ['Nike', 'Adidas'] },
       { type: 'FOLLOWER', riskTolerance: 40, bidUnit: 2000, maxBidMultiplier: 1.5, startHour: 0, endHour: 23, brands: ['Nike', 'Jordan', 'New Balance'] },
     ];

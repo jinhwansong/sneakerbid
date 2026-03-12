@@ -1,4 +1,5 @@
 import {
+  Body,
   Controller,
   Post,
   UseInterceptors,
@@ -51,5 +52,19 @@ export class UploadController {
   ): Promise<{ url: string }> {
     const url = await this.uploadService.uploadImage(file);
     return { url };
+  }
+
+  @Post('delete')
+  @Roles(UserRole.USER)
+  @UseGuards(RolesGuard)
+  @ApiBearerAuth('access-token')
+  @ApiOperation({
+    summary: '이미지 삭제',
+    description: '업로드된 이미지 삭제 (orphan 정리용)',
+  })
+  @ApiBody({ schema: { type: 'object', properties: { url: { type: 'string' } }, required: ['url'] } })
+  async deleteImage(@Body('url') url: string): Promise<{ ok: boolean }> {
+    await this.uploadService.deleteImage(url);
+    return { ok: true };
   }
 }

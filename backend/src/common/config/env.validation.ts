@@ -3,6 +3,7 @@ import {
   IsEnum,
   IsNotEmpty,
   IsNumber,
+  IsOptional,
   IsString,
   validateSync,
   Min,
@@ -30,9 +31,11 @@ class EnvironmentVariables {
   @IsString()
   APP_VERSION: string = '1.0.0';
 
-  // CORS
+  // CORS (blank string fails; missing is allowed via fallback)
+  @IsOptional()
   @IsString()
-  CORS_ORIGIN: string;
+  @IsNotEmpty()
+  CORS_ORIGIN?: string;
 
   // Rate Limiting
   @IsNumber()
@@ -57,13 +60,19 @@ class EnvironmentVariables {
   DATABASE_URL: string = process.env.DATABASE_URL;
 }
 
+function trimOrUndefined(s: unknown): string | undefined {
+  if (typeof s !== 'string') return undefined;
+  const t = s.trim();
+  return t.length > 0 ? t : undefined;
+}
+
 export function validate(config: Record<string, unknown>) {
-  // CORS_ORIGIN이 없으면 FRONTEND_URL 사용 (env 키 불일치 대응)
+  // CORS_ORIGIN이 없으면 FRONTEND_URL 사용 (env 키 불일치 대응). 빈 문자열/공백만 있는 값은 제외
   const corsOrigin =
-    config.CORS_ORIGIN ?? config.FRONTEND_URL ?? process.env.FRONTEND_URL;
-  if (corsOrigin) {
-    config = { ...config, CORS_ORIGIN: corsOrigin };
-  }
+    trimOrUndefined(config.CORS_ORIGIN) ??
+    trimOrUndefined(config.FRONTEND_URL) ??
+    trimOrUndefined(process.env.FRONTEND_URL);
+  config = { ...config, CORS_ORIGIN: corsOrigin };
   const validatedConfig = plainToInstance(EnvironmentVariables, config, {
     enableImplicitConversion: true,
   });

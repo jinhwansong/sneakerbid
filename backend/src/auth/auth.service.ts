@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Request, Response } from 'express';
@@ -31,15 +32,19 @@ export class AuthService {
   ): Promise<UserByIdResult> {
     const supabase = this.db.getSupabase();
 
-    const { data: existing } = await supabase
+    const { data: existing, error: socialQueryError } = await supabase
       .from('SocialAccount')
       .select('id, userId')
       .eq('provider', provider)
       .eq('providerId', profile.providerId)
       .maybeSingle();
 
+    if (socialQueryError) {
+      throw new Error(`SocialAccount 조회 실패: ${socialQueryError.message}`);
+    }
+
     if (existing?.userId) {
-      const { data: user } = await supabase
+      const { data: user, error: userQueryError } = await supabase
         .from('User')
         .select(
           'id, nickname, role, balance, profileImageUrl, createdAt, updatedAt',
@@ -47,16 +52,25 @@ export class AuthService {
         .eq('id', existing.userId)
         .maybeSingle();
 
+      if (userQueryError) {
+        throw new Error(`User 조회 실패: ${userQueryError.message}`);
+      }
       if (!user) throw new Error('User not found');
 
       if (profile.profileImageUrl) {
-        await supabase
+        const { error: updateError } = await supabase
           .from('User')
           .update({
             profileImageUrl: profile.profileImageUrl,
             updatedAt: new Date().toISOString(),
           })
           .eq('id', user.id);
+
+        if (updateError) {
+          throw new Error(
+            `프로필 이미지 업데이트 실패: ${updateError.message}`,
+          );
+        }
       }
 
       return {
@@ -73,7 +87,7 @@ export class AuthService {
     }
 
     const newUser = {
-      id: crypto.randomUUID(),
+      id: randomUUID(),
       nickname: profile.nickname || `user_${profile.providerId.slice(0, 8)}`,
       email: profile.email ?? null,
       profileImageUrl: profile.profileImageUrl ?? null,
@@ -90,7 +104,7 @@ export class AuthService {
     }
 
     const socialAccount = {
-      id: crypto.randomUUID(),
+      id: randomUUID(),
       userId: newUser.id,
       provider,
       providerId: profile.providerId,
@@ -234,8 +248,9 @@ export class AuthService {
     try {
       await this.redis.setRefreshToken(refreshToken, user.id, REFRESH_TTL);
     } catch (err) {
-      // Redis 연결 실패 시에도 로그인은 진행 (refresh 시 JWT 폴백 사용)
-      console.error('[AuthService] Redis setRefreshToken 실패:', err);
+      throw new Error(
+        `Failed to persist refresh token: ${err instanceof Error ? err.message : 'Redis write failed'}`,
+      );
     }
 
     return { accessToken, refreshToken };

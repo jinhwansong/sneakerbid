@@ -726,7 +726,6 @@ export class AuctionsService {
       const updated = await tx.auction.update({
         where: { id: auction.id },
         data: auctionUpdates,
-        include: { sneaker: true },
       });
 
       const count = await this.bidRepo.countByAuctionId(auction.id);
@@ -748,7 +747,7 @@ export class AuctionsService {
     const supabase = this.db.getSupabase();
     const { data: auction } = await supabase
       .from('Auction')
-      .select('id, sellerUserId')
+      .select('id, sellerUserId, sneakerId')
       .eq('id', auctionId)
       .single();
 
@@ -780,6 +779,10 @@ export class AuctionsService {
 
     await supabase.from('Order').delete().eq('auctionId', auctionId);
     await supabase.from('Auction').delete().eq('id', auctionId);
+
+    if (auction.sneakerId) {
+      await supabase.from('Sneaker').delete().eq('id', auction.sneakerId);
+    }
   }
 
   /** 거래 내역 기간 시작 날짜 반환 */

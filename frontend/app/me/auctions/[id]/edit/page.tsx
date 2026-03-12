@@ -29,16 +29,25 @@ export default function EditAuctionPage() {
 
   const handleSubmit = async (dto: UpdateAuctionDto, imageFile?: File | null) => {
     if (!id) return;
+    let uploadedUrl: string | undefined;
     try {
       let payload = { ...dto };
       if (imageFile) {
         const { url } = await api.uploadImage(imageFile);
+        uploadedUrl = url;
         payload = { ...payload, imageUrl: url };
       }
       await updateMutation.mutateAsync({ id, dto: payload });
       showToast('경매가 수정되었습니다.');
       router.push('/me/auctions');
     } catch (err) {
+      if (uploadedUrl) {
+        try {
+          await api.deleteImage(uploadedUrl);
+        } catch {
+          // orphan 정리 실패는 로그만 (사용자에게는 수정 실패만 표시)
+        }
+      }
       const msg = err instanceof Error ? err.message : '경매 수정에 실패했습니다.';
       showToast(msg, 'error');
     }

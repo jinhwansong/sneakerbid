@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import { Cron, Interval } from '@nestjs/schedule';
 import { DatabaseService } from '@/database/database.service';
@@ -136,7 +137,7 @@ export class BotsService {
         now.getTime() + RELIST_AUCTION_DURATION_SEC * 1000,
       );
       await supabase.from('Auction').insert({
-        id: crypto.randomUUID(),
+        id: randomUUID(),
         sneakerId: auction.sneakerId,
         size: auction.size,
         startPrice: auction.currentPrice,
