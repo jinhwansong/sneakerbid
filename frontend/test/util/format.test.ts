@@ -58,12 +58,12 @@ describe('formatTime', () => {
 });
 
 describe('formatJoinDate', () => {
-  it('ISO 문자열을 한국어 날짜 형식으로 변환한다', () => {
-    expect(formatJoinDate('2024-01-15')).toMatch(/2024년.*1월.*15일/);
+  it('날짜를 한국어 날짜 형식으로 변환한다', () => {
+    expect(formatJoinDate(new Date(2024, 0, 15))).toMatch(/2024년.*1월.*15일/);
   });
 
   it('Date 객체를 받아 포맷팅한다', () => {
-    expect(formatJoinDate(new Date('2024-01-15'))).toMatch(/2024년.*1월.*15일/);
+    expect(formatJoinDate(new Date(2024, 0, 15))).toMatch(/2024년.*1월.*15일/);
   });
 
   it('undefined, null, 빈 문자열이면 "-"를 반환한다', () => {
