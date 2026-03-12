@@ -211,8 +211,8 @@
 - [x] 접근성(a11y) 개선 (aria-label, 키보드 네비게이션) *(완료: Header, 필터 모달, 스킵 링크, Escape)*
 
 ### 개발 경험
-- [ ] 환경변수 검증 (env.validation) 스크립트
-- [ ] API 타입 정의 통일 (shared types 또는 OpenAPI)
+- [x] 환경변수 검증 (env.validation) 스크립트 *(완료: backend npm run env:validate, frontend npm run env:validate)*
+- [x] API 타입 정의 통일 (shared types 또는 OpenAPI) *(완료: shared/api-types, frontend re-export)*
 
 ---
 

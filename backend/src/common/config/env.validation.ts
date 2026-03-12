@@ -58,6 +58,20 @@ class EnvironmentVariables {
   @IsString()
   @IsNotEmpty()
   DATABASE_URL: string = process.env.DATABASE_URL;
+
+  // JWT (RS256)
+  @IsString()
+  @IsNotEmpty()
+  JWT_PRIVATE_KEY: string = process.env.JWT_PRIVATE_KEY;
+
+  @IsString()
+  @IsNotEmpty()
+  JWT_PUBLIC_KEY: string = process.env.JWT_PUBLIC_KEY;
+
+  // Redis (REDIS_URL 또는 REDIS_HOST+REDIS_PORT)
+  @IsOptional()
+  @IsString()
+  REDIS_URL?: string;
 }
 
 function trimOrUndefined(s: unknown): string | undefined {

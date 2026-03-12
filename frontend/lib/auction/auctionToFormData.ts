@@ -41,7 +41,7 @@ export function toFormInitialData(
     imageUrl: item.imageUrl,
     startPrice: item.startPrice,
     currentBid: item.currentBid,
-    priceIncreasePercent: item.priceIncreasePercent,
+    priceIncreasePercent: item.priceIncreasePercent ?? '0',
     participants: item.participants,
     endTime: item.endTime,
     status,
