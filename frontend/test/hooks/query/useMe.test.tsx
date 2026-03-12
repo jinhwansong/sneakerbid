@@ -31,7 +31,15 @@ describe('useMe', () => {
   });
 
   it('API 응답을 반환한다', async () => {
-    const me = { id: 'u1', nickname: 'test', profileImageUrl: null };
+    const me = {
+      id: 'u1',
+      nickname: 'test',
+      profileImageUrl: null,
+      role: 'USER',
+      balance: 0,
+      createdAt: '2024-01-01T00:00:00Z',
+      updatedAt: '2024-01-01T00:00:00Z',
+    };
     vi.mocked(api.users.getMe).mockResolvedValue(me);
 
     const { result } = renderHook(() => useMe(), {

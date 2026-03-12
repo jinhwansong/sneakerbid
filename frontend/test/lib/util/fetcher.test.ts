@@ -47,6 +47,14 @@ describe('Fetcher', () => {
     );
   });
 
+  it('fetch 자체가 실패하면 에러를 throw한다', async () => {
+    vi.mocked(fetch).mockRejectedValue(new Error('Failed to fetch'));
+
+    await expect(Fetcher('https://api.example.com/test')).rejects.toThrow(
+      'Failed to fetch'
+    );
+  });
+
   it('401 시 _skipRefreshRetry면 refresh 없이 에러를 throw한다', async () => {
     vi.mocked(fetch).mockResolvedValue({
       ok: false,

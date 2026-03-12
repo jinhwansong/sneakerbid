@@ -93,20 +93,33 @@
     "webpack-node-externals": "^3.0.0"
   },
   "jest": {
+    "rootDir": ".",
+    "setupFiles": [
+      "<rootDir>/test/jest-setup.ts"
+    ],
+    "moduleNameMapper": {
+      "^@/(.*)$": "<rootDir>/src/$1"
+    },
     "moduleFileExtensions": [
       "js",
       "json",
       "ts"
     ],
-    "rootDir": "src",
-    "testRegex": ".*\\.spec\\.ts$",
+    "testRegex": "test/.*\\.spec\\.ts$",
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
     },
     "collectCoverageFrom": [
-      "**/*.(t|j)s"
+      "src/**/*.(t|j)s",
+      "!**/*.spec.ts",
+      "!**/main.ts",
+      "!**/index.ts",
+      "!**/*.module.ts",
+      "!**/*.dto.ts",
+      "!**/*.interface.ts",
+      "!**/*.d.ts"
     ],
-    "coverageDirectory": "../coverage",
+    "coverageDirectory": "coverage",
     "testEnvironment": "node"
   }
 }

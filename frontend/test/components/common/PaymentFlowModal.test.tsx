@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import PaymentFlowModal from '@/components/common/PaymentFlowModal';
 
 vi.mock('@/store/useToastStore', () => ({

@@ -31,7 +31,9 @@ describe('Dropdown', () => {
     );
 
     const trigger = screen.getAllByRole('button', { name: /옵션1/ })[0];
-    fireEvent.mouseEnter(trigger.closest('.group')!);
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(trigger);
+    expect(trigger).toHaveAttribute('aria-expanded', 'true');
 
     const opt2Button = screen.getByRole('button', { name: '옵션2' });
     fireEvent.click(opt2Button);

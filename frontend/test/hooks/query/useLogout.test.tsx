@@ -29,7 +29,7 @@ describe('useLogout', () => {
   });
 
   it('logout API를 호출하고 me 캐시를 null로 설정한다', async () => {
-    vi.mocked(api.auth.logout).mockResolvedValue({});
+    vi.mocked(api.auth.logout).mockResolvedValue({ message: 'ok' });
 
     const queryClient = new QueryClient();
     queryClient.setQueryData(queryKeys.me, { id: 'u1', nickname: 'test' });

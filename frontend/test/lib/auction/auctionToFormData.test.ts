@@ -49,7 +49,9 @@ describe('toFormInitialData', () => {
   });
 
   it('startPrice가 null이면 null을 반환한다', () => {
-    expect(toFormInitialData({ ...validItem, startPrice: null! })).toBeNull();
+    expect(
+      toFormInitialData({ ...validItem, startPrice: null as unknown as number })
+    ).toBeNull();
   });
 
   it('endTime이 없으면 null을 반환한다', () => {
@@ -57,7 +59,9 @@ describe('toFormInitialData', () => {
   });
 
   it('size가 null이면 null을 반환한다', () => {
-    expect(toFormInitialData({ ...validItem, size: null! })).toBeNull();
+    expect(
+      toFormInitialData({ ...validItem, size: null as unknown as number })
+    ).toBeNull();
   });
 
   it('유효하지 않은 status면 ongoing으로 기본값 적용한다', () => {

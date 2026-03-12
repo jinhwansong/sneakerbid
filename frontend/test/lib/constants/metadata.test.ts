@@ -38,6 +38,9 @@ describe('createMetadata', () => {
 
   it('image가 상대 경로면 baseUrl을 붙인다', () => {
     const meta = createMetadata({ title: '홈', image: '/og.png' });
-    expect(meta.openGraph?.images?.[0]?.url).toBe('https://example.com/og.png');
+    const images = meta.openGraph?.images;
+    const firstImage = Array.isArray(images) ? images[0] : images;
+    const url = typeof firstImage === 'string' ? firstImage : (firstImage as { url?: string })?.url;
+    expect(url).toBe('https://example.com/og.png');
   });
 });

@@ -162,12 +162,17 @@
 ## 🧪 테스트 코드 (Test)
 
 ### 🟢 우선: 기본 설정
-- [ ] Backend: Jest 설정 확인 (spec 1개 샘플)
-- [ ] Frontend: Vitest + React Testing Library 도입 (테스트 1개 샘플)
+- [x] Backend: Jest 설정 및 test/ 폴더 구조 정리 *(완료: utils, services, filters, guards, interceptors)*
+- [x] Frontend: Vitest + React Testing Library 도입 *(완료: 유틸/훅/캐시/Query 훅/공통 컴포넌트)*
 
 ### 🔵 여유: 커버리지 확대
-- [ ] Backend: 핵심 서비스 단위 테스트 (auth, auctions, orders), E2E
-- [ ] Frontend: 핵심 컴포넌트/훅 테스트 확대
+- [x] Backend: 서비스 단위 테스트 *(완료: auth, auctions, orders, upload, bots, events)*
+- [x] Frontend: 핵심 컴포넌트/훅 테스트 확대 *(완료)*
+- [ ] Backend: 남은 테스트 (선택)
+  - [ ] database.service.spec.ts
+  - [ ] redis.service.spec.ts
+  - [ ] Repository 단위 테스트 (auction, bid, order, wishlist, bot)
+- [ ] E2E 테스트 (Playwright 등) — *나중에*
 
 ---
 

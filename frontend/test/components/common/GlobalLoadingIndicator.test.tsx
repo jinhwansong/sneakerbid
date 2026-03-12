@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactNode } from 'react';
 import GlobalLoadingIndicator from '@/components/common/GlobalLoadingIndicator';
@@ -21,13 +21,17 @@ describe('GlobalLoadingIndicator', () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it('fetch 중이면 로딩 바를 표시한다', () => {
+  it('fetch 중이면 로딩 바를 표시한다', async () => {
     const queryClient = new QueryClient({
       defaultOptions: {
         queries: { retry: false },
       },
     });
-    queryClient.fetchQuery({ queryKey: ['test'], queryFn: () => new Promise(() => {}) });
+    const resolveQuery = queryClient.fetchQuery({
+      queryKey: ['test'],
+      queryFn: () =>
+        new Promise<number>((resolve) => setTimeout(() => resolve(1), 50)),
+    });
 
     const { container } = render(<GlobalLoadingIndicator />, {
       wrapper: function Wrapper({ children }: { children: ReactNode }) {
@@ -39,6 +43,11 @@ describe('GlobalLoadingIndicator', () => {
       },
     });
 
-    expect(container.querySelector('.global-loading-bar')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(container.querySelector('.global-loading-bar')).toBeInTheDocument();
+    });
+
+    await resolveQuery;
+    queryClient.clear();
   });
 });

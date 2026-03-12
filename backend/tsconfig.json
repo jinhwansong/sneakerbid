@@ -18,13 +18,13 @@
     },
     "incremental": true,
     "skipLibCheck": true,
-    "types": ["node", "webpack-env"],
+    "types": ["node", "webpack-env", "jest"],
     "strictNullChecks": false,
     "noImplicitAny": false,
     "strictBindCallApply": false,
     "forceConsistentCasingInFileNames": false,
     "noFallthroughCasesInSwitch": false
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*.ts", "test/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }
