@@ -11,7 +11,9 @@ export function useUpdateAuction() {
       api.auctions.update(id, dto),
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.auctions.detail(id) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.auctions.mySelling() });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.auctions.mySellingPrefix,
+      });
     },
   });
 }

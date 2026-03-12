@@ -9,7 +9,9 @@ export function useCreateAuction() {
   return useMutation({
     mutationFn: (dto: CreateAuctionDto) => api.auctions.create(dto),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.auctions.mySelling() });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.auctions.mySellingPrefix,
+      });
     },
   });
 }

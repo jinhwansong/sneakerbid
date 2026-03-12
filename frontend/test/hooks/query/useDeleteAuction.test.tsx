@@ -53,7 +53,7 @@ describe('useDeleteAuction', () => {
 
     expect(api.auctions.delete).toHaveBeenCalledWith('auction-1');
     expect(invalidateSpy).toHaveBeenCalledWith({
-      queryKey: queryKeys.auctions.mySelling(),
+      queryKey: queryKeys.auctions.mySellingPrefix,
     });
   });
 });

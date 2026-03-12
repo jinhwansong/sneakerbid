@@ -8,7 +8,9 @@ export function useDeleteAuction() {
   return useMutation({
     mutationFn: (id: string) => api.auctions.delete(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.auctions.mySelling() });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.auctions.mySellingPrefix,
+      });
     },
   });
 }

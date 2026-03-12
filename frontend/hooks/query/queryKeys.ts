@@ -11,6 +11,7 @@ export const queryKeys = {
     stats: ['auctions', 'stats'] as const,
     detail: (id: string) => ['auctions', 'detail', id] as const,
     myBidding: ['auctions', 'myBidding'] as const,
+    mySellingPrefix: ['auctions', 'mySelling'] as const,
     mySelling: (status?: string) =>
       ['auctions', 'mySelling', status] as const,
     list: (query: Record<string, unknown>) =>

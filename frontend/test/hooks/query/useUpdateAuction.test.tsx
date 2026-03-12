@@ -56,7 +56,7 @@ describe('useUpdateAuction', () => {
       queryKey: ['auctions', 'detail', 'a1'],
     });
     expect(invalidateSpy).toHaveBeenCalledWith({
-      queryKey: ['auctions', 'mySelling', undefined],
+      queryKey: ['auctions', 'mySelling'],
     });
   });
 });

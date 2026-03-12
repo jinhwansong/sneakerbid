@@ -58,9 +58,13 @@ describe('useCreateAuction', () => {
     const dto = {
       modelName: 'Dunk',
       brand: 'Nike',
+      color: 'White',
+      description: 'Test description',
       imageUrl: 'https://example.com/img.jpg',
+      size: '260',
       startPrice: 100000,
       buyNowPrice: 150000,
+      minimumIncrement: 1000,
       endTime: '2025-12-31',
     };
 
@@ -72,7 +76,7 @@ describe('useCreateAuction', () => {
 
     expect(api.auctions.create).toHaveBeenCalledWith(dto);
     expect(invalidateSpy).toHaveBeenCalledWith({
-      queryKey: queryKeys.auctions.mySelling(),
+      queryKey: queryKeys.auctions.mySellingPrefix,
     });
   });
 });

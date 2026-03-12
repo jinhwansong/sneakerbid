@@ -83,8 +83,8 @@ export class BotsService {
     }
   }
 
-  /** 봇 입찰 시도 */
-  @Interval(20_000)
+  /** 봇 입찰 시도 (60초마다 — 프리티어 배포 시 CPU 부하 완화) */
+  @Interval(60_000)
   async runBotBidding() {
     const [auctions, bots] = await this.fetchData();
     if (auctions.length === 0 || bots.length === 0) return;
@@ -111,8 +111,8 @@ export class BotsService {
     this.logPlacedBids(placed);
   }
 
-  /** 봇 낙찰 경매 10~20초 후 재등록 (30초마다 체크) */
-  @Interval(30_000)
+  /** 봇 낙찰 경매 10~20초 후 재등록 (60초마다 체크 — 프리티어 배포 시 부하 완화) */
+  @Interval(60_000)
   async relistBotWonAuctions() {
     const now = new Date();
     const minClosed = new Date(now.getTime() - RELIST_DELAY_MAX_SEC * 1000);
