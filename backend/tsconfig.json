@@ -13,7 +13,8 @@
     "resolveJsonModule": true,
     "baseUrl": "./src",
     "paths": {
-      "@/*": ["*"]
+      "@/*": ["*"],
+      "@shared/*": ["../../shared/*"]
     },
     "incremental": true,
     "skipLibCheck": true,
