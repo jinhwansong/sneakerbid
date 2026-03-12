@@ -202,9 +202,9 @@
 > 1~2일 내 단기로 가능한 작업들
 
 ### 에러/예외 처리
-- [ ] 404 페이지 커스터마이징
-- [ ] 글로벌 에러 바운더리 (Error Boundary)
-- [ ] API 에러 메시지 통일 및 사용자 친화적 변환
+- [x] 404 페이지 커스터마이징 *(완료: app/not-found.tsx)*
+- [x] 글로벌 에러 바운더리 (Error Boundary) *(완료: RootErrorBoundary, 홈으로 링크 추가)*
+- [x] API 에러 메시지 통일 및 사용자 친화적 변환 *(완료: lib/util/apiError.ts, Fetcher 연동)*
 
 ### SEO/접근성
 - [ ] 페이지별 메타 태그 (title, description, og:image)
