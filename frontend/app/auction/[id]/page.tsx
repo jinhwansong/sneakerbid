@@ -1,13 +1,40 @@
 import { notFound } from 'next/navigation';
 import { headers } from 'next/headers';
 import { dehydrate, HydrationBoundary, QueryClient } from '@tanstack/react-query';
+import type { Metadata } from 'next';
 import AuctionDetailClient from '@/components/detail/AuctionDetailClient';
 import { api } from '@/lib/api';
 import { queryKeys } from '@/hooks/query/queryKeys';
 import { queryDefaults } from '@/hooks/withQueryDefaults';
+import { createMetadata } from '@/lib/constants/metadata';
 
 interface AuctionDetailPageProps {
   params: Promise<{ id: string }>;
+}
+
+export async function generateMetadata({
+  params,
+}: AuctionDetailPageProps): Promise<Metadata> {
+  const { id } = await params;
+  try {
+    const headersList = await headers();
+    const cookie = headersList.get('cookie') ?? '';
+    const init = cookie ? { headers: { Cookie: cookie } as HeadersInit } : undefined;
+    const auction = await api.auctions.get(id, init);
+    const title = auction?.modelName
+      ? `${auction.modelName} - 경매`
+      : '경매 상세';
+    return createMetadata({
+      title,
+      description: auction?.brand
+        ? `${auction.brand} ${auction.modelName} 실시간 경매. 지금 입찰에 참여하세요.`
+        : '실시간 스니커즈 경매 상세 페이지.',
+      path: `/auction/${id}`,
+      image: auction?.imageUrl,
+    });
+  } catch {
+    return createMetadata({ title: '경매 상세', path: `/auction/${id}` });
+  }
 }
 
 async function prefetchAuctionDetail(id: string) {

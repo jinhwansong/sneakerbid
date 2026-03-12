@@ -207,8 +207,8 @@
 - [x] API 에러 메시지 통일 및 사용자 친화적 변환 *(완료: lib/util/apiError.ts, Fetcher 연동)*
 
 ### SEO/접근성
-- [ ] 페이지별 메타 태그 (title, description, og:image)
-- [ ] 접근성(a11y) 개선 (aria-label, 키보드 네비게이션)
+- [x] 페이지별 메타 태그 (title, description, og:image) *(완료: createMetadata, layout별 metadata)*
+- [x] 접근성(a11y) 개선 (aria-label, 키보드 네비게이션) *(완료: Header, 필터 모달, 스킵 링크, Escape)*
 
 ### 개발 경험
 - [ ] 환경변수 검증 (env.validation) 스크립트

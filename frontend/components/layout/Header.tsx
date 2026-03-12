@@ -39,10 +39,13 @@ export default function Header() {
   useClickOutside(profileRef, () => setProfileOpen(false), 'mousedown');
 
   return (
-    <nav className="sticky top-0 z-50 w-full bg-bg-main/95 dark:bg-bg-main/90 backdrop-blur-md border-b border-border-main">
+    <nav
+      className="sticky top-0 z-50 w-full bg-bg-main/95 dark:bg-bg-main/90 backdrop-blur-md border-b border-border-main"
+      aria-label="메인 네비게이션"
+    >
       <div className="max-w-7xl mx-auto px-5 h-14 md:h-16 flex items-center justify-between">
         <div className="flex items-center gap-6 md:gap-8">
-          <Link href="/" className="group shrink-0">
+          <Link href="/" className="group shrink-0" aria-label="LaceUp 홈으로 이동">
             <h1 className="text-lg md:text-xl font-black tracking-tighter text-text-main group-hover:opacity-80 transition-opacity">
               Lace<span className="text-brand-primary">Up</span>
             </h1>
@@ -75,6 +78,9 @@ export default function Header() {
                   'flex items-center gap-2 h-9 md:h-10 pl-3 pr-2.5 rounded-xl border border-border-main bg-bg-sub/50 hover:bg-bg-sub transition-colors',
                   profileOpen && 'bg-bg-sub ring-1 ring-border-main',
                 )}
+                aria-label="프로필 메뉴"
+                aria-haspopup="menu"
+                aria-expanded={profileOpen}
               >
                 <User size={18} className="text-text-sub shrink-0" />
                 <span className="text-sm font-semibold text-text-main max-w-25 truncate hidden sm:block">
@@ -89,21 +95,27 @@ export default function Header() {
                 />
               </button>
               {profileOpen && (
-                <div className="absolute right-0 top-full mt-1.5 py-1 min-w-40 bg-bg-main dark:bg-bg-card border border-border-main rounded-xl shadow-lg z-50">
+                <div
+                  role="menu"
+                  className="absolute right-0 top-full mt-1.5 py-1 min-w-40 bg-bg-main dark:bg-bg-card border border-border-main rounded-xl shadow-lg z-50"
+                  aria-label="프로필 메뉴"
+                >
                   {profileNavItem.map((item) => (
                     <Link
                       key={item.label}
                       href={item.href}
                       onClick={() => setProfileOpen(false)}
                       className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-text-main hover:bg-bg-sub transition-colors"
+                      role="menuitem"
                     >
                       {item.label}
                     </Link>
                   ))}
 
-                  <div className="my-1 border-t border-border-main" />
+                  <div className="my-1 border-t border-border-main" role="separator" />
                   <button
                     type="button"
+                    role="menuitem"
                     onClick={async () => {
                       setProfileOpen(false);
                       await logout();
@@ -120,6 +132,7 @@ export default function Header() {
             <Link
               href="/login"
               className="inline-flex items-center justify-center px-3 py-1.5 md:px-4 md:py-2 text-xs md:text-sm font-bold rounded-xl bg-text-main text-bg-main hover:brightness-110 shadow-lg shadow-black/5 dark:shadow-none transition-all"
+              aria-label="로그인"
             >
               로그인
             </Link>
