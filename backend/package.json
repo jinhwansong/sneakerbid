@@ -94,6 +94,9 @@
   },
   "jest": {
     "setupFiles": ["<rootDir>/../test/jest-setup.ts"],
+    "moduleNameMapper": {
+      "^@/(.*)$": "<rootDir>/$1"
+    },
     "moduleFileExtensions": [
       "js",
       "json",
