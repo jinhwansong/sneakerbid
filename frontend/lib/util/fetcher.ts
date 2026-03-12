@@ -1,3 +1,5 @@
+import { toUserFriendlyMessage } from '@/lib/util/apiError';
+
 type FetcherOptions = RequestInit & {
   json?: boolean;
   /** 내부용: 401 시 refresh 재시도 스킵 (무한 루프 방지) */
@@ -74,7 +76,7 @@ export async function Fetcher<T>(
     }
   }
 
-  let message = 'api 요청 실패';
+  let rawMessage = 'api 요청 실패';
   const text = await res.text().catch(() => '');
   try {
     type ErrorBody = {
@@ -88,13 +90,18 @@ export async function Fetcher<T>(
     const raw = body?.data ?? body?.message;
 
     if (Array.isArray(raw)) {
-      message = (raw[0] as string | undefined) || message;
+      rawMessage = (raw[0] as string | undefined) || rawMessage;
     } else if (typeof raw === 'string') {
-      message = raw || message;
+      rawMessage = raw || rawMessage;
     }
   } catch {
-    message = text || message;
+    rawMessage = text || rawMessage;
   }
+
+  const message = toUserFriendlyMessage(
+    { message: rawMessage, status: res.status },
+    '요청에 실패했습니다. 잠시 후 다시 시도해 주세요.',
+  );
 
   const err: HttpError = new Error(message);
   err.status = res.status; // Query onError에서 401/403 등 분기용
