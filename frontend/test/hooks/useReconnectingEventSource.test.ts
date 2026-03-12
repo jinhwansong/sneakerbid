@@ -19,6 +19,7 @@ const MockEventSourceConstructor = vi.fn(function (this: unknown, _url: string) 
 beforeEach(() => {
   vi.useFakeTimers();
   MockEventSourceConstructor.mockClear();
+  mockEventSource.close.mockClear();
   vi.stubGlobal('EventSource', MockEventSourceConstructor);
 });
 
@@ -92,6 +93,6 @@ describe('useReconnectingEventSource', () => {
 
     unmount();
 
-    expect(mockEventSource.close).toHaveBeenCalled();
+    expect(mockEventSource.close).toHaveBeenCalledTimes(1);
   });
 });

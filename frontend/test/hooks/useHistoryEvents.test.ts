@@ -31,7 +31,6 @@ vi.mock('@/store/useSSEConnectionStore', () => ({
 describe('useHistoryEvents', () => {
   beforeEach(() => {
     vi.stubEnv('NEXT_PUBLIC_SITE_URL', 'https://example.com');
-    mockEventSource.close.mockClear();
   });
 
   afterEach(() => {
