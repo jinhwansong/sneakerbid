@@ -167,10 +167,10 @@
 ### 🔵 여유: 커버리지 확대
 - [x] Backend: 서비스 단위 테스트 *(완료: auth, auctions, orders, upload, bots, events)*
 - [x] Frontend: 핵심 컴포넌트/훅 테스트 확대 *(완료)*
-- [ ] Backend: 남은 테스트 (선택)
-  - [ ] database.service.spec.ts
-  - [ ] redis.service.spec.ts
-  - [ ] Repository 단위 테스트 (auction, bid, order, wishlist, bot)
+- [x] Backend: 남은 테스트 (선택) *(완료)*
+  - [x] database.service.spec.ts
+  - [x] redis.service.spec.ts
+  - [x] Repository 단위 테스트 (auction, bid, order, wishlist, bot)
 - [ ] E2E 테스트 (Playwright 등) — *나중에*
 
 ---
