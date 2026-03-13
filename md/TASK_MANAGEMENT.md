@@ -118,11 +118,11 @@
 ## 🔧 관리자 페이지 (Admin) — *여유 있을 때*
 
 ### Backend
-- [ ] 관리자 전용 API (ADMIN role guard)
-- [ ] 정산 현황/집계 API
-- [ ] 봇 on/off 또는 관리 API
-- [ ] 경매 강제 종료 API
-- [ ] 가격 변동 차트용 입찰 히스토리 API (Recharts)
+- [x] 관리자 전용 API (ADMIN role guard) *(완료: /admin/* @Roles(ADMIN))*
+- [x] 정산 현황/집계 API *(완료: GET /admin/settlement)*
+- [x] 봇 on/off 또는 관리 API *(완료: GET /admin/bots, PATCH /admin/bots/:id/enabled)*
+- [x] 경매 강제 종료 API *(완료: POST /admin/auctions/:id/force-close)*
+- [x] 가격 변동 차트용 입찰 히스토리 API *(완료: GET /admin/auctions/:id/bid-history)*
 
 ### Frontend
 - [ ] 관리자 대시보드 레이아웃/라우트

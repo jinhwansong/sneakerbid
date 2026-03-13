@@ -5,6 +5,7 @@ export interface BotRow {
   id: string;
   userId: string;
   type: string;
+  enabled?: boolean;
 }
 
 export interface BotWithUserRow {
@@ -25,17 +26,38 @@ export interface BotWithUserRow {
 export class BotRepository {
   constructor(private readonly db: DatabaseService) {}
 
-  /** 모든 봇 목록 */
+  /** 모든 봇 목록 (enabled 포함, 관리자용) */
   async findAll(): Promise<BotRow[]> {
-    return this.db.query<BotRow>('SELECT id, "userId", type FROM "Bot"');
+    return this.db.query<BotRow>(
+      'SELECT id, "userId", type, COALESCE(enabled, true) as enabled FROM "Bot"',
+    );
   }
 
-  /** 봇 userId 목록 */
+  /** 활성 봇 userId 목록 (입찰/재등록용) */
   async findUserIds(): Promise<string[]> {
     const rows = await this.db.query<{ userId: string }>(
-      'SELECT "userId" FROM "Bot"',
+      'SELECT "userId" FROM "Bot" WHERE COALESCE(enabled, true) = true',
     );
     return rows.map((r) => r.userId);
+  }
+
+  /** 활성 봇 + 유저 정보 (입찰 시도용) */
+  async findWithUsers(): Promise<BotWithUserRow[]> {
+    return this.db.query<BotWithUserRow>(
+      `SELECT b.id, b."userId", b.type, b."maxBidMultiplier", b."bidUnit", b."activityStartHour", b."activityEndHour", b."favoriteBrands",
+       u.id as user_id, u.nickname as user_nickname, u.balance as user_balance
+       FROM "Bot" b JOIN "User" u ON b."userId" = u.id
+       WHERE COALESCE(b.enabled, true) = true`,
+    );
+  }
+
+  /** 봇 on/off 토글 (관리자용) */
+  async setEnabled(botId: string, enabled: boolean): Promise<boolean> {
+    const result = await this.db.query<{ id: string }>(
+      'UPDATE "Bot" SET enabled = $1, "updatedAt" = CURRENT_TIMESTAMP WHERE id = $2 RETURNING id',
+      [enabled, botId],
+    );
+    return result.length > 0;
   }
 
   /** 이미 재등록된 경매 ID 목록 */
@@ -46,15 +68,6 @@ export class BotRepository {
     return rows
       .map((a) => a.relistedFromAuctionId)
       .filter((id): id is string => id != null);
-  }
-
-  /** 봇 + 유저 정보 (입찰 시도용) */
-  async findWithUsers(): Promise<BotWithUserRow[]> {
-    return this.db.query<BotWithUserRow>(
-      `SELECT b.id, b."userId", b.type, b."maxBidMultiplier", b."bidUnit", b."activityStartHour", b."activityEndHour", b."favoriteBrands",
-       u.id as user_id, u.nickname as user_nickname, u.balance as user_balance
-       FROM "Bot" b JOIN "User" u ON b."userId" = u.id`,
-    );
   }
 
   /** 봇 유저 잔액 증가 (일일 충전) */

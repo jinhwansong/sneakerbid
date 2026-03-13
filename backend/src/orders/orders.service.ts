@@ -121,6 +121,80 @@ export class OrdersService {
     }
   }
 
+  /** 관리자용 경매 강제 종료 (endTime 무관) */
+  async closeAuctionForAdmin(auctionId: string): Promise<boolean> {
+    const now = new Date();
+    const closed = await this.db.transaction(async (tx) => {
+      const locked = await lockAuctionForUpdate(tx, auctionId, {
+        status: 'OPEN',
+      });
+      if (!locked) return null;
+
+      const auction = await tx.auction.findUnique({
+        where: { id: auctionId },
+        include: {
+          bids: {
+            where: { disqualifiedAt: null },
+            orderBy: { bidPrice: 'desc' },
+          },
+        },
+      });
+      if (!auction) return null;
+
+      const bids = auction.bids ?? [];
+      const winnerBid = bids[0];
+      const winnerUserId = winnerBid?.userId ?? null;
+      const finalPrice = winnerBid?.bidPrice ?? auction.currentPrice;
+
+      await tx.auction.update({
+        where: { id: auctionId },
+        data: {
+          status: 'CLOSED',
+          closedAt: now,
+          winnerUserId,
+          currentPrice: finalPrice,
+        },
+      });
+
+      for (const bid of bids) {
+        if (bid.userId !== winnerUserId) {
+          await this.walletService.releaseBidHold(
+            tx,
+            bid.userId,
+            bid.bidPrice,
+            bid.id,
+          );
+        }
+      }
+
+      if (winnerUserId) {
+        await tx.order.create({
+          data: {
+            auctionId,
+            buyerUserId: winnerUserId,
+            finalPrice,
+            status: 'PENDING',
+          },
+        });
+      }
+
+      return { auctionId, winnerUserId, finalPrice };
+    });
+
+    if (closed) {
+      this.eventsService.emitAuctionClosed(auctionId, {
+        status: 'CLOSED',
+        winnerUserId: closed.winnerUserId ?? null,
+        finalPrice: closed.finalPrice,
+      });
+      const historyItem =
+        await this.auctionsService.getTradeHistoryItem(auctionId);
+      if (historyItem) this.eventsService.emitNewDeal(historyItem);
+    }
+
+    return !!closed;
+  }
+
   /** 매시 정각 PENDING 주문 타임아웃 → 유찰 처리 (3일 초과 시) */
   @Cron('0 * * * *', { timeZone: 'Asia/Seoul' })
   async cancelExpiredPendingOrders() {
