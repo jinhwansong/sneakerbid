@@ -15,8 +15,7 @@ vi.mock('@/lib/api', () => ({
 
 const { api } = await import('@/lib/api');
 
-function createWrapper() {
-  const queryClient = new QueryClient();
+function createWrapper(queryClient: QueryClient) {
   return function Wrapper({ children }: { children: ReactNode }) {
     return (
       <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
@@ -36,13 +35,7 @@ describe('useDeleteAuction', () => {
     const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
 
     const { result } = renderHook(() => useDeleteAuction(), {
-      wrapper: function Wrapper({ children }: { children: ReactNode }) {
-        return (
-          <QueryClientProvider client={queryClient}>
-            {children}
-          </QueryClientProvider>
-        );
-      },
+      wrapper: createWrapper(queryClient),
     });
 
     act(() => {
@@ -53,7 +46,7 @@ describe('useDeleteAuction', () => {
 
     expect(api.auctions.delete).toHaveBeenCalledWith('auction-1');
     expect(invalidateSpy).toHaveBeenCalledWith({
-      queryKey: queryKeys.auctions.mySelling(),
+      queryKey: queryKeys.auctions.mySellingPrefix,
     });
   });
 });

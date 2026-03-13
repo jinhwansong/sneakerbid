@@ -12,6 +12,7 @@ import { api } from '@/lib/api';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/hooks/query/queryKeys';
 import type { OrderItem } from '@/types/orders';
+import { BLUR_PLACEHOLDER } from '@/lib/constants/image';
 
 export default function WonCard({ item }: { item: OrderItem }) {
   const queryClient = useQueryClient();
@@ -53,6 +54,8 @@ export default function WonCard({ item }: { item: OrderItem }) {
               alt={item.sneakerName}
               width={80}
               height={80}
+              placeholder="blur"
+              blurDataURL={BLUR_PLACEHOLDER}
               className="object-contain p-2 mix-blend-multiply dark:mix-blend-normal group-hover:scale-110 transition-transform"
             />
           </div>

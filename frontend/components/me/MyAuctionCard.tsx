@@ -10,6 +10,7 @@ import { useRemainingTime } from '@/hooks/useRemainingTime';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { formatPrice } from '@/lib/util/format';
 import type { AuctionItem, AuctionStatus } from '@/types/auction';
+import { BLUR_PLACEHOLDER } from '@/lib/constants/image';
 
 const TERMINAL_STATES: Set<AuctionStatus> = new Set([
   'closed',
@@ -105,6 +106,9 @@ export default function MyAuctionCard({
             src={item.imageUrl}
             alt={item.modelName}
             fill
+            placeholder="blur"
+            blurDataURL={BLUR_PLACEHOLDER}
+            sizes="(max-width: 768px) 50vw, 33vw"
             className="object-contain p-6 group-hover:scale-105 transition-transform duration-500"
           />
         </div>
