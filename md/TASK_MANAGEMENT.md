@@ -148,7 +148,7 @@
 ### Backend
 - [ ] 알림 API 설계 (GET /notifications, PATCH /notifications/:id/read)
 - [ ] 알림 생성 이벤트 (낙찰, 입찰 추월, 경매 종료 임박 등)
-- [ ] 실시간 알림 (SSE 또는 WebSocket)
+- [ ] 실시간 알림 (SSE)
 
 ### Frontend
 - [ ] 헤더에 알림(종) 아이콘 추가

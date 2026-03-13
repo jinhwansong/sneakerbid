@@ -116,7 +116,8 @@ export class BotsService {
   async relistBotWonAuctions() {
     const now = new Date();
     const minClosed = new Date(
-      now.getTime() - RELIST_CHECK_INTERVAL_SEC * 1000,
+      now.getTime() -
+        (RELIST_CHECK_INTERVAL_SEC + RELIST_DELAY_MIN_SEC) * 1000,
     );
     const maxClosed = new Date(now.getTime() - RELIST_DELAY_MIN_SEC * 1000);
 
