@@ -15,7 +15,7 @@ import {
   DAILY_TOPUP_RANGE_BY_TYPE,
   DEFAULT_RANGE,
   RELIST_AUCTION_DURATION_SEC,
-  RELIST_DELAY_MAX_SEC,
+  RELIST_CHECK_INTERVAL_SEC,
   RELIST_DELAY_MIN_SEC,
 } from '@/common/constants/bot.constants';
 
@@ -111,11 +111,13 @@ export class BotsService {
     this.logPlacedBids(placed);
   }
 
-  /** 봇 낙찰 경매 10~20초 후 재등록 (60초마다 체크 — 프리티어 배포 시 부하 완화) */
-  @Interval(60_000)
+  /** 봇 낙찰 경매 10초 후 재등록 (60초마다 체크 — 프리티어 배포 시 부하 완화) */
+  @Interval(RELIST_CHECK_INTERVAL_SEC * 1000)
   async relistBotWonAuctions() {
     const now = new Date();
-    const minClosed = new Date(now.getTime() - RELIST_DELAY_MAX_SEC * 1000);
+    const minClosed = new Date(
+      now.getTime() - RELIST_CHECK_INTERVAL_SEC * 1000,
+    );
     const maxClosed = new Date(now.getTime() - RELIST_DELAY_MIN_SEC * 1000);
 
     const botUserIds = await this.botRepo.findUserIds();

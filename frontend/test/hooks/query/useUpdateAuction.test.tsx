@@ -3,6 +3,7 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactNode } from 'react';
 import { useUpdateAuction } from '@/hooks/query/useUpdateAuction';
+import { queryKeys } from '@/hooks/query/queryKeys';
 
 vi.mock('@/lib/api', () => ({
   api: {
@@ -53,10 +54,10 @@ describe('useUpdateAuction', () => {
       name: 'Updated',
     });
     expect(invalidateSpy).toHaveBeenCalledWith({
-      queryKey: ['auctions', 'detail', 'a1'],
+      queryKey: queryKeys.auctions.detail('a1'),
     });
     expect(invalidateSpy).toHaveBeenCalledWith({
-      queryKey: ['auctions', 'mySelling'],
+      queryKey: queryKeys.auctions.mySellingPrefix,
     });
   });
 });

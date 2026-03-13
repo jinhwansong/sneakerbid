@@ -25,5 +25,8 @@ export const BID_STAGGER_MS = 18_000;
 export const RELIST_DELAY_MIN_SEC = 10;
 export const RELIST_DELAY_MAX_SEC = 20;
 
+/** relistBotWonAuctions 실행 주기 (초) — closedAt 윈도우와 동기화 */
+export const RELIST_CHECK_INTERVAL_SEC = 60;
+
 /** 재등록 시 새 경매 유지 시간 (초) */
 export const RELIST_AUCTION_DURATION_SEC = 3600; // 1시간
