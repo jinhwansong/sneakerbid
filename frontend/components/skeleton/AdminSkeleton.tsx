@@ -39,7 +39,12 @@ export function AdminLoadingSkeleton() {
 
 export function AdminErrorState({ message }: { message: string }) {
   return (
-    <div className="py-24 text-center">
+    <div
+      className="py-24 text-center"
+      role="alert"
+      aria-live="assertive"
+      aria-atomic="true"
+    >
       <p className="text-status-urgent font-medium">{message}</p>
     </div>
   );

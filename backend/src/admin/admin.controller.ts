@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Param,
+  ParseUUIDPipe,
   Patch,
   Post,
   Query,
@@ -49,7 +50,7 @@ export class AdminController {
   @ApiResponse({ status: 200, description: 'OK' })
   @ApiResponse({ status: 404, description: '봇 없음' })
   setBotEnabled(
-    @Param('botId') botId: string,
+    @Param('botId', new ParseUUIDPipe()) botId: string,
     @Body() dto: SetBotEnabledDto,
   ) {
     return this.adminService.setBotEnabled(botId, dto.enabled);
@@ -67,10 +68,10 @@ export class AdminController {
   })
   @ApiResponse({ status: 200, description: 'OK' })
   getDashboardTimeline(@Query('days') days?: string) {
-    const daysNum = days ? parseInt(days, 10) : 14;
-    return this.adminService.getDashboardTimeline(
-      Math.min(Math.max(daysNum, 1), 90),
-    );
+    const parsed = days ? parseInt(days, 10) : 14;
+    const validDays = Number.isNaN(parsed) ? 14 : parsed;
+    const daysNumClamped = Math.min(Math.max(validDays, 1), 90);
+    return this.adminService.getDashboardTimeline(daysNumClamped);
   }
 
   @Get('settlement')
@@ -91,7 +92,7 @@ export class AdminController {
   @ApiParam({ name: 'auctionId', description: '경매 ID' })
   @ApiResponse({ status: 200, description: 'OK' })
   @ApiResponse({ status: 404, description: '경매 없음 또는 이미 종료' })
-  forceCloseAuction(@Param('auctionId') auctionId: string) {
+  forceCloseAuction(@Param('auctionId', new ParseUUIDPipe()) auctionId: string) {
     return this.adminService.forceCloseAuction(auctionId);
   }
 
@@ -108,13 +109,12 @@ export class AdminController {
   })
   @ApiResponse({ status: 200, description: 'OK' })
   getBidHistoryForChart(
-    @Param('auctionId') auctionId: string,
+    @Param('auctionId', new ParseUUIDPipe()) auctionId: string,
     @Query('limit') limit?: string,
   ) {
-    const limitNum = limit ? parseInt(limit, 10) : 200;
-    return this.adminService.getBidHistoryForChart(
-      auctionId,
-      Math.min(Math.max(limitNum, 1), 500),
-    );
+    const parsed = limit ? parseInt(limit, 10) : 200;
+    const limitNum = Number.isNaN(parsed) ? 200 : parsed;
+    const clamped = Math.min(Math.max(limitNum, 1), 500);
+    return this.adminService.getBidHistoryForChart(auctionId, clamped);
   }
 }

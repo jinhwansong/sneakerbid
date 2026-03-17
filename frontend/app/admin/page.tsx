@@ -7,6 +7,7 @@ import { Users } from 'lucide-react';
 import {
   AdminQueryState,
   AdminSettlementSkeleton,
+  AdminErrorState,
 } from '@/components/skeleton/AdminSkeleton';
 import {
   ADMIN_STAT_CARDS,
@@ -17,8 +18,13 @@ import { AdminLineChart } from '@/components/chart/AdminLineChart';
 
 export default function AdminDashboardPage() {
   const { data, isLoading, isError } = useAdminSettlement();
-  const { data: timeline, isLoading: isTimelineLoading } =
-    useAdminTimeline(14);
+  const {
+    data: timeline,
+    isLoading: isTimelineLoading,
+    isError: isTimelineError,
+    error: timelineError,
+    refetch: refetchTimeline,
+  } = useAdminTimeline(14);
 
   return (
     <AdminQueryState
@@ -86,7 +92,24 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* 총 유저 수 + 차트 */}
-      {timeline && (
+      {isTimelineError ? (
+        <div className="mt-10">
+          <AdminErrorState
+            message={
+              timelineError instanceof Error
+                ? timelineError.message
+                : '시계열 데이터를 불러오는데 실패했습니다.'
+            }
+          />
+          <button
+            type="button"
+            onClick={() => refetchTimeline()}
+            className="mt-4 text-sm font-medium text-brand-primary hover:underline"
+          >
+            다시 시도
+          </button>
+        </div>
+      ) : timeline && (
         <div className="mt-10 space-y-8">
           <div className="flex items-center gap-4">
             <div className="p-5 rounded-2xl bg-bg-card dark:bg-bg-card border border-border-main">

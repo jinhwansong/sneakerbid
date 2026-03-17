@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { DatabaseService } from '@/database/database.service';
+import type { TxClient } from '@/database/transaction-client';
 import { AuctionRepository } from '@/database/repositories/auction.repository';
 import { BidRepository } from '@/database/repositories/bid.repository';
 import { OrderRepository } from '@/database/repositories/order.repository';
@@ -24,6 +25,20 @@ import {
 } from '@/common/constants';
 import type { ReopenOrderPayload } from './orders.types';
 
+/** 경매 종료 트랜잭션 결과 (releaseBidHold는 트랜잭션 밖에서 수행) */
+type CloseResult = {
+  auctionId: string;
+  winnerUserId: string | null;
+  finalPrice: number;
+  losingBids: Array<{ userId: string; bidPrice: number; id: string }>;
+};
+
+/** lock 옵션 (closeExpired: endTimeLte, closeAuctionForAdmin: status만) */
+type CloseLockOptions = {
+  status?: 'OPEN';
+  endTimeLte?: Date;
+};
+
 @Injectable()
 export class OrdersService {
   private readonly logger = new Logger(OrdersService.name);
@@ -38,6 +53,91 @@ export class OrdersService {
     private readonly walletService: WalletService,
   ) {}
 
+  /**
+   * 경매 종료 DB 작업만 수행 (트랜잭션 내).
+   * releaseBidHold는 호출하지 않음 → finalizeAuctionClose에서 post-commit으로 수행.
+   */
+  private async executeCloseInTransaction(
+    tx: TxClient,
+    auctionId: string,
+    lockOptions: CloseLockOptions,
+    now: Date,
+  ): Promise<CloseResult | null> {
+    const locked = await lockAuctionForUpdate(tx, auctionId, lockOptions);
+    if (!locked) return null;
+
+    const auction = await tx.auction.findUnique({
+      where: { id: auctionId },
+      include: {
+        bids: {
+          where: { disqualifiedAt: null },
+          orderBy: { bidPrice: 'desc' },
+        },
+      },
+    });
+    if (!auction) return null;
+
+    const bids = auction.bids ?? [];
+    const winnerBid = bids[0];
+    const winnerUserId = winnerBid?.userId ?? null;
+    const finalPrice = winnerBid?.bidPrice ?? auction.currentPrice;
+
+    await tx.auction.update({
+      where: { id: auctionId },
+      data: {
+        status: 'CLOSED',
+        closedAt: now,
+        winnerUserId,
+        currentPrice: finalPrice,
+      },
+    });
+
+    if (winnerUserId) {
+      await tx.order.create({
+        data: {
+          auctionId,
+          buyerUserId: winnerUserId,
+          finalPrice,
+          status: 'PENDING',
+        },
+      });
+    }
+
+    const losingBids = bids
+      .filter((b) => b.userId !== winnerUserId)
+      .map((b) => ({ userId: b.userId, bidPrice: b.bidPrice, id: b.id }));
+
+    return { auctionId, winnerUserId, finalPrice, losingBids };
+  }
+
+  /**
+   * 경매 종료 후 post-commit 단계: losing bid hold 해제 + 이벤트 발행.
+   * closeAuctionForAdmin, closeExpiredAuctions 모두 이 시퀀스를 사용.
+   */
+  private async finalizeAuctionClose(result: CloseResult): Promise<void> {
+    if (result.losingBids.length > 0) {
+      await this.db.transaction(async (tx) => {
+        for (const bid of result.losingBids) {
+          await this.walletService.releaseBidHold(
+            tx,
+            bid.userId,
+            bid.bidPrice,
+            bid.id,
+          );
+        }
+      });
+    }
+    this.eventsService.emitAuctionClosed(result.auctionId, {
+      status: 'CLOSED',
+      winnerUserId: result.winnerUserId,
+      finalPrice: result.finalPrice,
+    });
+    const historyItem = await this.auctionsService.getTradeHistoryItem(
+      result.auctionId,
+    );
+    if (historyItem) this.eventsService.emitNewDeal(historyItem);
+  }
+
   /** 매분 경매 종료 체크 → 낙찰자 확정, Order 생성 (배치 크기·타임아웃 제한) */
   @Cron('* * * * *', { timeZone: 'Asia/Seoul' })
   async closeExpiredAuctions() {
@@ -50,73 +150,20 @@ export class OrdersService {
 
     for (const { id: auctionId } of expired) {
       if (Date.now() - start >= CLOSE_EXPIRED_TIMEOUT_MS) break;
-      const closed = await this.db.transaction(async (tx) => {
-        const locked = await lockAuctionForUpdate(tx, auctionId, {
-          status: 'OPEN',
-          endTimeLte: now,
-        });
-        if (!locked) return null;
-
-        const auction = await tx.auction.findUnique({
-          where: { id: auctionId },
-          include: {
-            bids: {
-              where: { disqualifiedAt: null },
-              orderBy: { bidPrice: 'desc' },
-            },
+      const closed = await this.db.transaction(async (tx) =>
+        this.executeCloseInTransaction(
+          tx,
+          auctionId,
+          {
+            status: 'OPEN',
+            endTimeLte: now,
           },
-        });
-        if (!auction) return null;
-
-        const bids = auction.bids ?? [];
-        const winnerBid = bids[0];
-        const winnerUserId = winnerBid?.userId ?? null;
-        const finalPrice = winnerBid?.bidPrice ?? auction.currentPrice;
-
-        await tx.auction.update({
-          where: { id: auctionId },
-          data: {
-            status: 'CLOSED',
-            closedAt: now,
-            winnerUserId,
-            currentPrice: finalPrice,
-          },
-        });
-
-        for (const bid of bids) {
-          if (bid.userId !== winnerUserId) {
-            await this.walletService.releaseBidHold(
-              tx,
-              bid.userId,
-              bid.bidPrice,
-              bid.id,
-            );
-          }
-        }
-
-        if (winnerUserId) {
-          await tx.order.create({
-            data: {
-              auctionId,
-              buyerUserId: winnerUserId,
-              finalPrice,
-              status: 'PENDING',
-            },
-          });
-        }
-
-        return { auctionId, winnerUserId, finalPrice };
-      });
+          now,
+        ),
+      );
 
       if (closed) {
-        this.eventsService.emitAuctionClosed(auctionId, {
-          status: 'CLOSED',
-          winnerUserId: closed.winnerUserId ?? null,
-          finalPrice: closed.finalPrice,
-        });
-        const historyItem =
-          await this.auctionsService.getTradeHistoryItem(auctionId);
-        if (historyItem) this.eventsService.emitNewDeal(historyItem);
+        await this.finalizeAuctionClose(closed);
       }
     }
   }
@@ -124,72 +171,12 @@ export class OrdersService {
   /** 관리자용 경매 강제 종료 (endTime 무관) */
   async closeAuctionForAdmin(auctionId: string): Promise<boolean> {
     const now = new Date();
-    const closed = await this.db.transaction(async (tx) => {
-      const locked = await lockAuctionForUpdate(tx, auctionId, {
-        status: 'OPEN',
-      });
-      if (!locked) return null;
-
-      const auction = await tx.auction.findUnique({
-        where: { id: auctionId },
-        include: {
-          bids: {
-            where: { disqualifiedAt: null },
-            orderBy: { bidPrice: 'desc' },
-          },
-        },
-      });
-      if (!auction) return null;
-
-      const bids = auction.bids ?? [];
-      const winnerBid = bids[0];
-      const winnerUserId = winnerBid?.userId ?? null;
-      const finalPrice = winnerBid?.bidPrice ?? auction.currentPrice;
-
-      await tx.auction.update({
-        where: { id: auctionId },
-        data: {
-          status: 'CLOSED',
-          closedAt: now,
-          winnerUserId,
-          currentPrice: finalPrice,
-        },
-      });
-
-      for (const bid of bids) {
-        if (bid.userId !== winnerUserId) {
-          await this.walletService.releaseBidHold(
-            tx,
-            bid.userId,
-            bid.bidPrice,
-            bid.id,
-          );
-        }
-      }
-
-      if (winnerUserId) {
-        await tx.order.create({
-          data: {
-            auctionId,
-            buyerUserId: winnerUserId,
-            finalPrice,
-            status: 'PENDING',
-          },
-        });
-      }
-
-      return { auctionId, winnerUserId, finalPrice };
-    });
+    const closed = await this.db.transaction(async (tx) =>
+      this.executeCloseInTransaction(tx, auctionId, { status: 'OPEN' }, now),
+    );
 
     if (closed) {
-      this.eventsService.emitAuctionClosed(auctionId, {
-        status: 'CLOSED',
-        winnerUserId: closed.winnerUserId ?? null,
-        finalPrice: closed.finalPrice,
-      });
-      const historyItem =
-        await this.auctionsService.getTradeHistoryItem(auctionId);
-      if (historyItem) this.eventsService.emitNewDeal(historyItem);
+      await this.finalizeAuctionClose(closed);
     }
 
     return !!closed;
@@ -394,7 +381,12 @@ export class OrdersService {
 
           const auction = await tx.auction.findUnique({
             where: { id: order.auctionId },
-            include: { bids: { where: { disqualifiedAt: null }, orderBy: { bidPrice: 'desc' } } },
+            include: {
+              bids: {
+                where: { disqualifiedAt: null },
+                orderBy: { bidPrice: 'desc' },
+              },
+            },
           });
           const bids = auction?.bids ?? [];
           const nowPerOrder = new Date();

@@ -6,38 +6,50 @@ import { useAuctionList, auctionListPagesToItems } from '@/hooks/query/useAuctio
 import { Button } from '@/components/common/Button';
 import { formatPrice } from '@/lib/util/format';
 import { Gavel, Loader2 } from 'lucide-react';
-import { AdminLoadingSkeleton } from '@/components/skeleton/AdminSkeleton';
+import { AdminLoadingSkeleton, AdminErrorState } from '@/components/skeleton/AdminSkeleton';
 import { useToastStore } from '@/store/useToastStore';
 import Image from 'next/image';
 import { BLUR_PLACEHOLDER } from '@/lib/constants/image';
+import ConfirmModal from '@/components/common/ConfirmModal';
 
 export default function AdminAuctionsPage() {
   const [auctionIdInput, setAuctionIdInput] = useState('');
+  const [forceCloseTargetId, setForceCloseTargetId] = useState<string | null>(null);
   const forceClose = useAdminForceClose();
   const { showToast } = useToastStore();
-  const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
-    useAuctionList({ sort: 'ending_soon' });
+  const {
+    data,
+    isLoading,
+    isError,
+    error,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useAuctionList({ sort: 'ending_soon' });
   const items = auctionListPagesToItems(data);
 
-  const handleForceCloseById = async () => {
+  const handleRequestForceCloseById = () => {
     const id = auctionIdInput.trim();
     if (!id) {
       showToast('경매 ID를 입력하세요.', 'error');
       return;
     }
-    try {
-      await forceClose.mutateAsync(id);
-      showToast('경매가 강제 종료되었습니다.');
-      setAuctionIdInput('');
-    } catch (err) {
-      showToast(err instanceof Error ? err.message : '강제 종료 실패', 'error');
-    }
+    setForceCloseTargetId(id);
   };
 
-  const handleForceClose = async (id: string) => {
+  const handleRequestForceClose = (id: string) => {
+    setForceCloseTargetId(id);
+  };
+
+  const handleForceCloseConfirm = async () => {
+    if (!forceCloseTargetId) return;
     try {
-      await forceClose.mutateAsync(id);
+      await forceClose.mutateAsync(forceCloseTargetId);
       showToast('경매가 강제 종료되었습니다.');
+      setForceCloseTargetId(null);
+      if (auctionIdInput.trim() === forceCloseTargetId) {
+        setAuctionIdInput('');
+      }
     } catch (err) {
       showToast(err instanceof Error ? err.message : '강제 종료 실패', 'error');
     }
@@ -71,7 +83,7 @@ export default function AdminAuctionsPage() {
             variant="outline"
             size="md"
             disabled={forceClose.isPending}
-            onClick={handleForceCloseById}
+            onClick={handleRequestForceCloseById}
           >
             {forceClose.isPending ? (
               <Loader2 size={18} className="animate-spin" />
@@ -92,6 +104,10 @@ export default function AdminAuctionsPage() {
         </h2>
         {isLoading ? (
           <AdminLoadingSkeleton />
+        ) : isError ? (
+          <AdminErrorState
+            message={error instanceof Error ? error.message : '경매 목록을 불러오는데 실패했습니다.'}
+          />
         ) : items.length === 0 ? (
           <div className="py-16 text-center text-text-muted">
             진행 중인 경매가 없습니다.
@@ -131,7 +147,7 @@ export default function AdminAuctionsPage() {
                     variant="outline"
                     size="sm"
                     disabled={forceClose.isPending}
-                    onClick={() => handleForceClose(item.id)}
+                    onClick={() => handleRequestForceClose(item.id)}
                   >
                     <Gavel size={14} className="mr-1" />
                     강제 종료
@@ -153,6 +169,18 @@ export default function AdminAuctionsPage() {
           </div>
         )}
       </div>
+
+      <ConfirmModal
+        isOpen={!!forceCloseTargetId}
+        onClose={() => !forceClose.isPending && setForceCloseTargetId(null)}
+        title="경매 강제 종료"
+        message={`경매 ${forceCloseTargetId ?? ''}를 강제 종료하시겠습니까?`}
+        confirmLabel="강제 종료"
+        cancelLabel="취소"
+        variant="danger"
+        onConfirm={handleForceCloseConfirm}
+        isLoading={forceClose.isPending}
+      />
     </div>
   );
 }

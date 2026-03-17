@@ -70,12 +70,19 @@ export const ADMIN_STAT_CARDS: Array<{
   },
 ];
 
-export const ADMIN_DERIVED_STAT_ICONS: Record<string, LucideIcon> = {
-  유찰수: XCircle,
-  유찰률: Percent,
-  평균거래액: BarChart3,
-  결제전환율: Percent,
-};
+export type AdminDerivedStatId =
+  | '유찰수'
+  | '유찰률'
+  | '평균거래액'
+  | '결제전환율';
+
+export const ADMIN_DERIVED_STAT_ICONS: Record<AdminDerivedStatId, LucideIcon> =
+  {
+    유찰수: XCircle,
+    유찰률: Percent,
+    평균거래액: BarChart3,
+    결제전환율: Percent,
+  };
 
 export function getAdminDerivedStats(data: {
   totalClosedAuctions: number;
@@ -99,25 +106,25 @@ export function getAdminDerivedStats(data: {
 
   return [
     {
-      key: '유찰수',
+      key: '유찰수' as const,
       label: '유찰 수',
       value: lostCount,
       format: (v: number) => `${v.toLocaleString()}건`,
     },
     {
-      key: '유찰률',
+      key: '유찰률' as const,
       label: '유찰률',
       value: lostRate,
       format: (v: number) => `${v.toFixed(1)}%`,
     },
     {
-      key: '평균거래액',
+      key: '평균거래액' as const,
       label: '평균 거래액',
       value: avgPaidAmount,
       format: (v: number) => `${formatPrice(v)}원`,
     },
     {
-      key: '결제전환율',
+      key: '결제전환율' as const,
       label: '결제 전환율',
       value: conversionRate,
       format: (v: number) => `${v.toFixed(1)}%`,

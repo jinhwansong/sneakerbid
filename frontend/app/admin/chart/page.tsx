@@ -13,13 +13,19 @@ import {
 export default function AdminChartPage() {
   const [auctionId, setAuctionId] = useState('');
   const [searchId, setSearchId] = useState('');
-  const { data: history, isLoading, isError } = useAdminBidHistory(
-    searchId || null,
-    500,
-  );
+  const {
+    data: history,
+    isLoading,
+    isError,
+    refetch,
+  } = useAdminBidHistory(searchId || null, 500);
 
   const handleSearch = () => {
-    setSearchId(auctionId.trim());
+    const trimmed = auctionId.trim();
+    setSearchId(trimmed);
+    if (trimmed === searchId) {
+      refetch();
+    }
   };
 
   const chartData =

@@ -4,8 +4,8 @@ export const queryKeys = {
     settlement: () => ['admin', 'settlement'] as const,
     timeline: (days?: number) => ['admin', 'timeline', days] as const,
     bots: () => ['admin', 'bots'] as const,
-    bidHistory: (auctionId: string) =>
-      ['admin', 'bidHistory', auctionId] as const,
+    bidHistory: (auctionId: string, limit?: number) =>
+      ['admin', 'bidHistory', auctionId, limit] as const,
   },
   orders: {
     my: ['orders', 'my'] as const,

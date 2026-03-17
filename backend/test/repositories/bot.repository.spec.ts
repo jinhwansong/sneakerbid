@@ -49,6 +49,35 @@ describe('BotRepository', () => {
     });
   });
 
+  describe('findWithUsers', () => {
+    it('활성 봇만 유저 정보와 함께 반환 (enabled 필터 적용)', async () => {
+      const rows = [
+        {
+          id: 'b1',
+          userId: 'u1',
+          type: 'AGGRESSIVE',
+          maxBidMultiplier: 1.5,
+          bidUnit: 5000,
+          activityStartHour: 9,
+          activityEndHour: 22,
+          favoriteBrands: null,
+          user_id: 'u1',
+          user_nickname: 'Bot1',
+          user_balance: 100000,
+        },
+      ];
+      mockDb.query.mockResolvedValueOnce(rows);
+
+      const result = await repo.findWithUsers();
+
+      expect(mockDb.query).toHaveBeenCalledWith(
+        expect.stringContaining('COALESCE(b.enabled, true) = true'),
+      );
+      expect(result).toEqual(rows);
+      expect(result).toHaveLength(1);
+    });
+  });
+
   describe('findUserIds', () => {
     it('활성 봇 userId 배열 반환', async () => {
       mockDb.query.mockResolvedValueOnce([
@@ -96,6 +125,18 @@ describe('BotRepository', () => {
 
       const result = await repo.setEnabled('missing', true);
 
+      expect(result).toBe(false);
+    });
+
+    it('enabled 컬럼 없을 때 (42703) false 반환', async () => {
+      mockDb.query.mockRejectedValueOnce({ code: '42703' });
+
+      const result = await repo.setEnabled('someId', true);
+
+      expect(mockDb.query).toHaveBeenCalledWith(
+        expect.stringContaining('enabled = $1'),
+        [true, 'someId'],
+      );
       expect(result).toBe(false);
     });
   });
