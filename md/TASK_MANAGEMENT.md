@@ -125,11 +125,11 @@
 - [x] 가격 변동 차트용 입찰 히스토리 API *(완료: GET /admin/auctions/:id/bid-history)*
 
 ### Frontend
-- [ ] 관리자 대시보드 레이아웃/라우트
-- [ ] 정산 현황 대시보드
-- [ ] 봇 관리 UI
-- [ ] 경매 관리 (강제 종료 등)
-- [ ] 가격 변동 차트 (Recharts)
+- [x] 관리자 대시보드 레이아웃/라우트 *(완료: /admin, 사이드바)*
+- [x] 정산 현황 대시보드 *(완료: GET /admin/settlement)*
+- [x] 봇 관리 UI *(완료: GET/PATCH /admin/bots)*
+- [x] 경매 관리 (강제 종료 등) *(완료: POST /admin/auctions/:id/force-close)*
+- [x] 가격 변동 차트 (Recharts) *(완료: GET /admin/auctions/:id/bid-history)*
 
 ---
 
@@ -228,4 +228,4 @@
 - [x] 이미지 lazy loading / placeholder 최적화 *(완료: blur placeholder)*
 
 ### 관리자 페이지
-- [ ] 전체 상세: 🔧 관리자 페이지 (Admin) 섹션 참고
+- [x] 전체 상세: 🔧 관리자 페이지 (Admin) 섹션 참고

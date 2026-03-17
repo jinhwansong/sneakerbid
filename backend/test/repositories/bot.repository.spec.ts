@@ -24,6 +24,31 @@ describe('BotRepository', () => {
     });
   });
 
+  describe('findAllForAdmin', () => {
+    it('favoriteBrands·활동시간 포함 반환', async () => {
+      const rows = [
+        {
+          id: 'b1',
+          userId: 'u1',
+          type: 'AGGRESSIVE',
+          enabled: true,
+          favoriteBrands: ['Nike', 'Adidas'],
+          activityStartHour: 9,
+          activityEndHour: 22,
+        },
+      ];
+      mockDb.query.mockResolvedValueOnce(rows);
+
+      const result = await repo.findAllForAdmin();
+
+      expect(mockDb.query).toHaveBeenCalledWith(
+        expect.stringContaining('favoriteBrands'),
+      );
+      expect(result[0].favoriteBrands).toEqual(['Nike', 'Adidas']);
+      expect(result[0].activityEndHour).toBe(22);
+    });
+  });
+
   describe('findUserIds', () => {
     it('활성 봇 userId 배열 반환', async () => {
       mockDb.query.mockResolvedValueOnce([

@@ -18,6 +18,23 @@ export interface BidHistoryPointDto {
   createdAt: string;
 }
 
+export interface DailyPaymentPoint {
+  date: string;
+  amount: number;
+  count: number;
+}
+
+export interface DailyUserPoint {
+  date: string;
+  count: number;
+}
+
+export interface DashboardTimelineDto {
+  payments: DailyPaymentPoint[];
+  users: DailyUserPoint[];
+  totalUsers: number;
+}
+
 @Injectable()
 export class AdminService {
   constructor(
@@ -68,6 +85,52 @@ export class AdminService {
     };
   }
 
+  /** 대시보드 차트용: 일별 결제·유저 시계열 (최근 N일) */
+  async getDashboardTimeline(days = 14): Promise<DashboardTimelineDto> {
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+    startDate.setHours(0, 0, 0, 0);
+
+    const [paymentRows, userRows, totalUserRow] = await Promise.all([
+      this.db.query<{ date: string; sum: string; count: string }>(
+        `SELECT DATE("paidAt")::text as date,
+         COALESCE(SUM("finalPrice"), 0)::text as sum,
+         COUNT(*)::text as count
+         FROM "Order"
+         WHERE status = 'PAID' AND "paidAt" >= $1
+         GROUP BY DATE("paidAt")
+         ORDER BY date ASC`,
+        [startDate],
+      ),
+      this.db.query<{ date: string; count: string }>(
+        `SELECT DATE("createdAt")::text as date, COUNT(*)::text as count
+         FROM "User"
+         WHERE "createdAt" >= $1
+         GROUP BY DATE("createdAt")
+         ORDER BY date ASC`,
+        [startDate],
+      ),
+      this.db.query<{ count: string }>(
+        'SELECT COUNT(*)::text as count FROM "User"',
+      ),
+    ]);
+
+    const payments: DailyPaymentPoint[] = paymentRows.map((r) => ({
+      date: r.date,
+      amount: parseInt(r.sum ?? '0', 10),
+      count: parseInt(r.count ?? '0', 10),
+    }));
+
+    const users: DailyUserPoint[] = userRows.map((r) => ({
+      date: r.date,
+      count: parseInt(r.count ?? '0', 10),
+    }));
+
+    const totalUsers = parseInt(totalUserRow[0]?.count ?? '0', 10);
+
+    return { payments, users, totalUsers };
+  }
+
   /** 경매 강제 종료 */
   async forceCloseAuction(auctionId: string): Promise<{ success: boolean }> {
     const closed = await this.ordersService.closeAuctionForAdmin(auctionId);
@@ -77,9 +140,9 @@ export class AdminService {
     return { success: true };
   }
 
-  /** 봇 목록 (관리자용) */
+  /** 봇 목록 (관리자용, favoriteBrands·활동시간 포함) */
   async getBots() {
-    return this.botRepo.findAll();
+    return this.botRepo.findAllForAdmin();
   }
 
   /** 봇 on/off 토글 */

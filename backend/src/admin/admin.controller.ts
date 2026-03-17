@@ -55,6 +55,24 @@ export class AdminController {
     return this.adminService.setBotEnabled(botId, dto.enabled);
   }
 
+  @Get('stats/timeline')
+  @ApiOperation({
+    summary: '대시보드 차트용 시계열',
+    description: '일별 결제 금액·건수, 유저 신규 가입 (최근 N일)',
+  })
+  @ApiQuery({
+    name: 'days',
+    required: false,
+    description: '조회 기간 (일, 기본 14)',
+  })
+  @ApiResponse({ status: 200, description: 'OK' })
+  getDashboardTimeline(@Query('days') days?: string) {
+    const daysNum = days ? parseInt(days, 10) : 14;
+    return this.adminService.getDashboardTimeline(
+      Math.min(Math.max(daysNum, 1), 90),
+    );
+  }
+
   @Get('settlement')
   @ApiOperation({
     summary: '정산 현황/집계',
