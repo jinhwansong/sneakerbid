@@ -179,6 +179,24 @@ export class AuthService {
     };
   }
 
+  /**
+   * SameSite=None 크로스 사이트 쿠키에 Partitioned 추가.
+   * Chrome CHIPS: third-party cookie를 보내려면 Partitioned 필요.
+   */
+  private appendPartitionedIfCrossSite(res: Response): void {
+    const base = this.getCookieBaseSettings();
+    if (base.sameSite !== 'none') return;
+
+    const setCookie = res.getHeader('Set-Cookie');
+    const arr = Array.isArray(setCookie) ? [...setCookie] : [setCookie];
+    if (arr.length === 0 || arr.some((c) => c == null)) return;
+
+    const modified: string[] = arr
+      .filter((c): c is string => typeof c === 'string')
+      .map((c) => `${c}; Partitioned`);
+    res.setHeader('Set-Cookie', modified);
+  }
+
   /* 로그인 쿠키 설정 */
   async loginWithCookies(
     user: { id: string; role: string },
@@ -198,6 +216,7 @@ export class AuthService {
     });
 
     res.cookie('refreshToken', refreshToken, cookieOptions);
+    this.appendPartitionedIfCrossSite(res);
   }
 
   /* 리프레시 토큰으로 새 토큰 발급 */

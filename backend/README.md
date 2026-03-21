@@ -53,8 +53,14 @@ npm run env:validate
 
 이 프로젝트는 **Prisma migrate가 아닌** `supabase/migrations/*.sql`을 사용합니다.
 
-- Supabase Dashboard → SQL Editor에서 파일 내용을 순서대로 실행하거나
-- `supabase db push` / CI 파이프라인 등 조직 규칙에 맞게 적용
+**순서 (같은 DB·같은 Supabase 프로젝트에 적용):**
+
+1. `001_init.sql` — 전체 스키마 (`"Auction"` 등 테이블 생성). **이걸 안 하면 `003`에서 relation 없음 오류**
+2. `002_add_bot_enabled.sql`
+3. `003_auction_post_close_finalize_payload.sql`
+
+- Supabase Dashboard → **SQL Editor**에서 위 순서로 실행 (또는 `supabase db push` 등)
+- `DATABASE_URL`이 가리키는 프로젝트와 SQL을 실행하는 프로젝트가 **동일한지** 확인
 
 스키마 변경 시 새 번호의 SQL 파일을 추가합니다.
 
