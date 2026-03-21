@@ -25,7 +25,7 @@ import {
 } from '@/common/constants';
 import type { ReopenOrderPayload } from './orders.types';
 
-/** 경매 종료 트랜잭션 결과 (releaseBidHold는 트랜잭션 밖에서 수행) */
+/** 경매 종료 트랜잭션 결과 (패자 입찰은 트랜잭션 내 disqualifiedAt 설정, releaseBidHold는 post-commit) */
 type CloseResult = {
   auctionId: string;
   winnerUserId: string | null;
@@ -42,6 +42,9 @@ type CloseLockOptions = {
 @Injectable()
 export class OrdersService {
   private readonly logger = new Logger(OrdersService.name);
+
+  /** finalizeAuctionClose 실패 시 재시도 (post-commit 단계 전용) */
+  private readonly auctionFinalizeRetryQueue: CloseResult[] = [];
 
   constructor(
     private readonly db: DatabaseService,
@@ -107,6 +110,13 @@ export class OrdersService {
       .filter((b) => b.userId !== winnerUserId)
       .map((b) => ({ userId: b.userId, bidPrice: b.bidPrice, id: b.id }));
 
+    for (const l of losingBids) {
+      await tx.bid.update({
+        where: { id: l.id },
+        data: { disqualifiedAt: now },
+      });
+    }
+
     return { auctionId, winnerUserId, finalPrice, losingBids };
   }
 
@@ -138,9 +148,59 @@ export class OrdersService {
     if (historyItem) this.eventsService.emitNewDeal(historyItem);
   }
 
+  /** 큐에 쌓인 finalize 재시도 (동일 분에 closeExpired와 함께 처리) */
+  private async processAuctionFinalizeRetryQueue(): Promise<void> {
+    if (this.auctionFinalizeRetryQueue.length === 0) return;
+    const pending = [...this.auctionFinalizeRetryQueue];
+    this.auctionFinalizeRetryQueue.length = 0;
+    for (const closed of pending) {
+      try {
+        await this.finalizeAuctionClose(closed);
+      } catch (err: unknown) {
+        this.auctionFinalizeRetryQueue.push(closed);
+        this.logger.error('Auction finalize retry failed (re-queued)', {
+          auctionId: closed.auctionId,
+          winnerUserId: closed.winnerUserId,
+          finalPrice: closed.finalPrice,
+          losingBidsCount: closed.losingBids.length,
+          err: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+  }
+
+  /**
+   * 커밋 후 finalize: 실패 시 로그 + 재시도 큐 (경매/Order는 이미 확정됨).
+   */
+  private async safeFinalizeAuctionClose(closed: CloseResult): Promise<void> {
+    try {
+      await this.finalizeAuctionClose(closed);
+    } catch (err: unknown) {
+      this.logger.error(
+        'Auction finalize failed after commit (queued for retry)',
+        {
+          auctionId: closed.auctionId,
+          winnerUserId: closed.winnerUserId,
+          finalPrice: closed.finalPrice,
+          losingBidsCount: closed.losingBids.length,
+          err: err instanceof Error ? err.message : String(err),
+          stack: err instanceof Error ? err.stack : undefined,
+        },
+      );
+      this.auctionFinalizeRetryQueue.push(closed);
+    }
+  }
+
+  /** finalize 재시도 전용 (만료 경매 없을 때도 큐 비우기) */
+  @Cron('*/5 * * * *', { timeZone: 'Asia/Seoul' })
+  async retryFailedAuctionFinalizations() {
+    await this.processAuctionFinalizeRetryQueue();
+  }
+
   /** 매분 경매 종료 체크 → 낙찰자 확정, Order 생성 (배치 크기·타임아웃 제한) */
   @Cron('* * * * *', { timeZone: 'Asia/Seoul' })
   async closeExpiredAuctions() {
+    await this.processAuctionFinalizeRetryQueue();
     const now = new Date();
     const start = Date.now();
     const expired = await this.auctionRepo.findExpiredForClose(
@@ -163,7 +223,7 @@ export class OrdersService {
       );
 
       if (closed) {
-        await this.finalizeAuctionClose(closed);
+        await this.safeFinalizeAuctionClose(closed);
       }
     }
   }
@@ -176,7 +236,7 @@ export class OrdersService {
     );
 
     if (closed) {
-      await this.finalizeAuctionClose(closed);
+      await this.safeFinalizeAuctionClose(closed);
     }
 
     return !!closed;

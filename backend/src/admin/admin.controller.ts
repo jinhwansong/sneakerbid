@@ -31,6 +31,17 @@ import { RolesGuard } from '@/common/guard/roles.guard';
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 
+  private parseAndClampQueryInt(
+    value: string | undefined,
+    defaultValue: number,
+    min: number,
+    max: number,
+  ): number {
+    const parsed = value ? parseInt(value, 10) : defaultValue;
+    const base = Number.isNaN(parsed) ? defaultValue : parsed;
+    return Math.min(Math.max(base, min), max);
+  }
+
   @Get('bots')
   @ApiOperation({
     summary: '봇 목록',
@@ -68,10 +79,8 @@ export class AdminController {
   })
   @ApiResponse({ status: 200, description: 'OK' })
   getDashboardTimeline(@Query('days') days?: string) {
-    const parsed = days ? parseInt(days, 10) : 14;
-    const validDays = Number.isNaN(parsed) ? 14 : parsed;
-    const daysNumClamped = Math.min(Math.max(validDays, 1), 90);
-    return this.adminService.getDashboardTimeline(daysNumClamped);
+    const daysNum = this.parseAndClampQueryInt(days, 14, 1, 90);
+    return this.adminService.getDashboardTimeline(daysNum);
   }
 
   @Get('settlement')
@@ -112,9 +121,7 @@ export class AdminController {
     @Param('auctionId', new ParseUUIDPipe()) auctionId: string,
     @Query('limit') limit?: string,
   ) {
-    const parsed = limit ? parseInt(limit, 10) : 200;
-    const limitNum = Number.isNaN(parsed) ? 200 : parsed;
-    const clamped = Math.min(Math.max(limitNum, 1), 500);
-    return this.adminService.getBidHistoryForChart(auctionId, clamped);
+    const limitNum = this.parseAndClampQueryInt(limit, 200, 1, 500);
+    return this.adminService.getBidHistoryForChart(auctionId, limitNum);
   }
 }

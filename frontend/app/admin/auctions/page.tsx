@@ -27,6 +27,7 @@ export default function AdminAuctionsPage() {
     isFetchingNextPage,
   } = useAuctionList({ sort: 'ending_soon' });
   const items = auctionListPagesToItems(data);
+  const ongoingItems = items.filter((i) => i.status === 'ongoing');
 
   const handleRequestForceCloseById = () => {
     const id = auctionIdInput.trim();
@@ -108,15 +109,13 @@ export default function AdminAuctionsPage() {
           <AdminErrorState
             message={error instanceof Error ? error.message : '경매 목록을 불러오는데 실패했습니다.'}
           />
-        ) : items.length === 0 ? (
+        ) : ongoingItems.length === 0 ? (
           <div className="py-16 text-center text-text-muted">
             진행 중인 경매가 없습니다.
           </div>
         ) : (
           <div className="space-y-3">
-            {items
-              .filter((i) => i.status === 'ongoing')
-              .map((item) => (
+            {ongoingItems.map((item) => (
                 <div
                   key={item.id}
                   className="flex items-center justify-between gap-4 p-4 rounded-2xl bg-bg-card dark:bg-bg-card border border-border-main"
