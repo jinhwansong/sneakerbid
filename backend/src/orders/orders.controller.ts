@@ -18,7 +18,7 @@ export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 
   @Get('me')
-  @Roles(UserRole.USER)
+  @Roles(UserRole.USER, UserRole.ADMIN)
   @UseGuards(RolesGuard)
   @ApiBearerAuth('access-token')
   @ApiOperation({

@@ -14,7 +14,7 @@ import { RequestUser, User } from '@/common/decorator/user.decorator';
 
 @ApiTags('Wishlist')
 @Controller('wishlist')
-@Roles(UserRole.USER)
+@Roles(UserRole.USER, UserRole.ADMIN)
 @UseGuards(RolesGuard)
 @ApiBearerAuth('access-token')
 export class WishlistController {

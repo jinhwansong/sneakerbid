@@ -92,7 +92,7 @@ export class AuctionsController {
   }
 
   @Get('me/bidding')
-  @Roles(UserRole.USER)
+  @Roles(UserRole.USER, UserRole.ADMIN)
   @UseGuards(RolesGuard)
   @ApiBearerAuth('access-token')
   @ApiOperation({
@@ -115,7 +115,7 @@ export class AuctionsController {
   }
 
   @Get('me/selling')
-  @Roles(UserRole.USER)
+  @Roles(UserRole.USER, UserRole.ADMIN)
   @UseGuards(RolesGuard)
   @ApiBearerAuth('access-token')
   @ApiOperation({

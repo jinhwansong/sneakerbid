@@ -10,6 +10,9 @@ import {
   Bot,
   Gavel,
   BarChart3,
+  Heart,
+  Package,
+  HandCoins,
 } from 'lucide-react';
 
 const ADMIN_NAV = [
@@ -17,6 +20,9 @@ const ADMIN_NAV = [
   { href: '/admin/bots', label: '봇 관리', icon: Bot },
   { href: '/admin/auctions', label: '경매 관리', icon: Gavel },
   { href: '/admin/chart', label: '가격 차트', icon: BarChart3 },
+  { href: '/me/wishlist', label: '찜 목록', icon: Heart },
+  { href: '/me/auctions', label: '내 경매', icon: Package },
+  { href: '/me/bids', label: '내 입찰', icon: HandCoins },
 ] as const;
 
 export default function AdminLayout({
