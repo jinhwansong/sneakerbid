@@ -101,7 +101,9 @@ export class AdminController {
   @ApiParam({ name: 'auctionId', description: '경매 ID' })
   @ApiResponse({ status: 200, description: 'OK' })
   @ApiResponse({ status: 404, description: '경매 없음 또는 이미 종료' })
-  forceCloseAuction(@Param('auctionId', new ParseUUIDPipe()) auctionId: string) {
+  forceCloseAuction(
+    @Param('auctionId', new ParseUUIDPipe()) auctionId: string,
+  ) {
     return this.adminService.forceCloseAuction(auctionId);
   }
 

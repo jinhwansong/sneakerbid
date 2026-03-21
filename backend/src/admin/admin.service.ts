@@ -45,29 +45,25 @@ export class AdminService {
 
   /** 정산 현황/집계 */
   async getSettlementStats(): Promise<SettlementStatsDto> {
-    const [
-      paidRows,
-      closedRows,
-      pendingRows,
-      todayPaidRows,
-    ] = await Promise.all([
-      this.db.query<{ sum: string; count: string }>(
-        `SELECT COALESCE(SUM("finalPrice"), 0)::text as sum, COUNT(*)::text as count
+    const [paidRows, closedRows, pendingRows, todayPaidRows] =
+      await Promise.all([
+        this.db.query<{ sum: string; count: string }>(
+          `SELECT COALESCE(SUM("finalPrice"), 0)::text as sum, COUNT(*)::text as count
          FROM "Order" WHERE status = 'PAID'`,
-      ),
-      this.db.query<{ total: string; withWinner: string }>(
-        `SELECT COUNT(*)::text as total,
+        ),
+        this.db.query<{ total: string; withWinner: string }>(
+          `SELECT COUNT(*)::text as total,
          COUNT(*) FILTER (WHERE "winnerUserId" IS NOT NULL)::text as "withWinner"
          FROM "Auction" WHERE status = 'CLOSED'`,
-      ),
-      this.db.query<{ count: string }>(
-        `SELECT COUNT(*)::text as count FROM "Order" WHERE status = 'PENDING'`,
-      ),
-      this.db.query<{ sum: string; count: string }>(
-        `SELECT COALESCE(SUM("finalPrice"), 0)::text as sum, COUNT(*)::text as count
+        ),
+        this.db.query<{ count: string }>(
+          `SELECT COUNT(*)::text as count FROM "Order" WHERE status = 'PENDING'`,
+        ),
+        this.db.query<{ sum: string; count: string }>(
+          `SELECT COALESCE(SUM("finalPrice"), 0)::text as sum, COUNT(*)::text as count
          FROM "Order" WHERE status = 'PAID' AND "paidAt" >= CURRENT_DATE`,
-      ),
-    ]);
+        ),
+      ]);
 
     const paid = paidRows[0];
     const closed = closedRows[0];

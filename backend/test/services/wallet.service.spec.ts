@@ -23,6 +23,7 @@ describe('WalletService', () => {
       walletTransaction: {
         create: walletTransactionCreate,
       },
+      $queryRaw: jest.fn().mockResolvedValue([{ n: '0' }]),
       ...overrides,
     } as unknown as TxClient;
   }
@@ -90,6 +91,7 @@ describe('WalletService', () => {
     it('잔액 증가 및 BID_RELEASE 트랜잭션 생성', async () => {
       await service.releaseBidHold(mockTx, 'u1', 50000, 'bid-1');
 
+      expect(mockTx.$queryRaw).toHaveBeenCalled();
       expect(mockTx.user.update).toHaveBeenCalledWith({
         where: { id: 'u1' },
         data: { balance: { increment: 50000 } },
@@ -103,6 +105,15 @@ describe('WalletService', () => {
           refId: 'bid-1',
         },
       });
+    });
+
+    it('이미 BID_RELEASE가 있으면 중복 해제하지 않음', async () => {
+      (mockTx.$queryRaw as jest.Mock).mockResolvedValueOnce([{ n: '1' }]);
+
+      await service.releaseBidHold(mockTx, 'u1', 50000, 'bid-1');
+
+      expect(mockTx.user.update).not.toHaveBeenCalled();
+      expect(mockTx.walletTransaction.create).not.toHaveBeenCalled();
     });
   });
 

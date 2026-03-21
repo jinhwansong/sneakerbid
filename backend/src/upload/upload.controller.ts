@@ -64,7 +64,17 @@ export class UploadController {
     summary: '이미지 삭제',
     description: '업로드된 이미지 삭제 (orphan 정리용)',
   })
-  @ApiBody({ schema: { type: 'object', properties: { url: { type: 'string' } }, required: ['url'] } })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        url: {
+          type: 'string',
+        },
+      },
+      required: ['url'],
+    },
+  })
   async deleteImage(
     @User() user: RequestUser,
     @Body('url') url: string,

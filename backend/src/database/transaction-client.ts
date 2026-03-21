@@ -32,6 +32,7 @@ const AUCTION_UPDATE_WHITELIST = new Set([
   'extendCount',
   'sellerUserId',
   'relistedFromAuctionId',
+  'postCloseFinalizePayload',
 ]);
 const BID_UPDATE_WHITELIST = new Set([
   'auctionId',
@@ -169,6 +170,8 @@ export interface AuctionRow {
   extendCount: number;
   sellerUserId: string;
   relistedFromAuctionId: string | null;
+  /** Pending post-close finalize (wallet + events); null when none */
+  postCloseFinalizePayload?: unknown | null;
   sneaker?: { modelName: string; brand: string; imageUrl: string };
   bids?: BidRow[];
 }
