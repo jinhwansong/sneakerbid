@@ -42,5 +42,8 @@ export const REFRESH_TTL = 7 * 24 * 60 * 60; // 7일(초)
 /** closeExpiredAuctions 배치 크기 (한 번에 처리할 최대 경매 수) */
 export const CLOSE_EXPIRED_BATCH_SIZE = 50;
 
+/** DB에 쌓인 post-close finalize 재시도 배치 크기 */
+export const FINALIZE_RETRY_BATCH_SIZE = 20;
+
 /** closeExpiredAuctions 전체 실행 타임아웃 (ms) */
 export const CLOSE_EXPIRED_TIMEOUT_MS = 55_000; // cron 1분 주기이므로 55초

@@ -26,6 +26,7 @@ import { OrdersModule } from './orders/orders.module';
 import { WalletModule } from './wallet/wallet.module';
 import { WishlistModule } from './wishlist/wishlist.module';
 import { UploadModule } from './upload/upload.module';
+import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
@@ -64,6 +65,7 @@ import { UploadModule } from './upload/upload.module';
     WalletModule,
     WishlistModule,
     UploadModule,
+    AdminModule,
   ],
   controllers: [AppController, HealthController],
   providers: [

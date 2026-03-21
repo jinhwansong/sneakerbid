@@ -79,11 +79,7 @@ export class UploadService {
     const storagePath = `temp/${userId}/${filename}`;
 
     if (this.useSupabase && this.supabase) {
-      return this.uploadToSupabase(
-        file.buffer,
-        storagePath,
-        detected.mime,
-      );
+      return this.uploadToSupabase(file.buffer, storagePath, detected.mime);
     }
 
     return await this.uploadToLocal(file.buffer, storagePath);

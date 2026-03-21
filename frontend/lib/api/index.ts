@@ -1,4 +1,5 @@
 import { auth } from './auth';
+import { admin } from './admin';
 import { auctions } from './auctions';
 import { orders } from './orders';
 import { users } from './users';
@@ -7,6 +8,7 @@ import { apiClient } from './client';
 
 export const api = {
   auth,
+  admin,
   auctions,
   orders,
   users,

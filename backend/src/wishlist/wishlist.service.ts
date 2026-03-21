@@ -3,11 +3,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { DatabaseService } from '@/database/database.service';
 import { WishlistRepository } from '@/database/repositories/wishlist.repository';
 import type { RequestUser } from '@/common/decorator/user.decorator';
-import type {
-  WishlistItem,
-  WishlistToggleResult,
-  WishlistEntryRow,
-} from './wishlist.types';
+import type { WishlistItem, WishlistToggleResult } from './wishlist.types';
 
 @Injectable()
 export class WishlistService {

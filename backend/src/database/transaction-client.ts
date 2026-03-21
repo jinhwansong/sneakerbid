@@ -32,6 +32,7 @@ const AUCTION_UPDATE_WHITELIST = new Set([
   'extendCount',
   'sellerUserId',
   'relistedFromAuctionId',
+  'postCloseFinalizePayload',
 ]);
 const BID_UPDATE_WHITELIST = new Set([
   'auctionId',
@@ -169,6 +170,8 @@ export interface AuctionRow {
   extendCount: number;
   sellerUserId: string;
   relistedFromAuctionId: string | null;
+  /** Pending post-close finalize (wallet + events); absent or null when none */
+  postCloseFinalizePayload?: Record<string, unknown> | null;
   sneaker?: { modelName: string; brand: string; imageUrl: string };
   bids?: BidRow[];
 }
@@ -338,14 +341,18 @@ export function createTxClient(client: PoolClient): TxClient {
         ]);
         const auction = r.rows[0] as AuctionWithSneaker | undefined;
         if (!auction) {
-          throw new Error(`Auction create failed: no row returned for id=${id}`);
+          throw new Error(
+            `Auction create failed: no row returned for id=${id}`,
+          );
         }
         if (args.include?.sneaker) {
           const snR = await client.query(
             'SELECT * FROM "Sneaker" WHERE id = $1',
             [auction.sneakerId],
           );
-          const sneaker = snR.rows[0] as AuctionWithSneaker['sneaker'] | undefined;
+          const sneaker = snR.rows[0] as
+            | AuctionWithSneaker['sneaker']
+            | undefined;
           if (!sneaker) {
             throw new Error(
               `Auction create: Sneaker not found for sneakerId=${auction.sneakerId}`,

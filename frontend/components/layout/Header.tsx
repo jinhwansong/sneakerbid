@@ -4,7 +4,7 @@ import { useState, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/util/cn';
-import { ChevronDown, User, LogOut } from 'lucide-react';
+import { ChevronDown, User, LogOut, Shield } from 'lucide-react';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { useMe } from '@/hooks/query/useMe';
 import { useLogout } from '@/hooks/query/useLogout';
@@ -111,7 +111,17 @@ export default function Header() {
                       {item.label}
                     </Link>
                   ))}
-
+                  {user.role === 'ADMIN' && (
+                    <Link
+                      href="/admin"
+                      onClick={() => setProfileOpen(false)}
+                      className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-brand-primary hover:bg-bg-sub transition-colors"
+                      role="menuitem"
+                    >
+                      <Shield size={16} className="shrink-0" />
+                      관리자
+                    </Link>
+                  )}
                   <div className="my-1 border-t border-border-main" role="separator" />
                   <button
                     type="button"

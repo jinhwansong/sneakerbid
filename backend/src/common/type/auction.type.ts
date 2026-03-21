@@ -16,6 +16,8 @@ export interface AuctionRow {
   extendCount?: number;
   sellerUserId: string;
   relistedFromAuctionId?: string | null;
+  /** JSON payload when post-close finalize must be retried */
+  postCloseFinalizePayload?: Record<string, unknown> | null;
 }
 
 export interface SneakerRow {

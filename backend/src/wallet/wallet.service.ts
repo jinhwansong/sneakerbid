@@ -33,13 +33,22 @@ export class WalletService {
     return true;
   }
 
-  /** 입찰 보류 해제 (BID_RELEASE) - 비낙찰자 환불 */
+  /** 입찰 보류 해제 (BID_RELEASE) - 비낙찰자 환불 (동일 bidId 재시도 시 중복 적립 방지) */
   async releaseBidHold(
     tx: TxClient,
     userId: string,
     amount: number,
     bidId: string,
   ): Promise<void> {
+    const already = await tx.$queryRaw<{ n: string }>(
+      `SELECT COUNT(*)::text AS n FROM "WalletTransaction"
+       WHERE type = 'BID_RELEASE' AND "refType" = 'BID' AND "refId" = $1`,
+      [bidId],
+    );
+    if (parseInt(already[0]?.n ?? '0', 10) > 0) {
+      return;
+    }
+
     await tx.user.update({
       where: { id: userId },
       data: { balance: { increment: amount } },
