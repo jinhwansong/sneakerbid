@@ -33,6 +33,7 @@ const config = {
   JWT_PRIVATE_KEY: process.env.JWT_PRIVATE_KEY,
   JWT_PUBLIC_KEY: process.env.JWT_PUBLIC_KEY,
   REDIS_URL: process.env.REDIS_URL,
+  AUTH_COOKIE_SAME_SITE: process.env.AUTH_COOKIE_SAME_SITE,
 };
 
 try {

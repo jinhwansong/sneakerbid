@@ -150,6 +150,35 @@ export class AuthService {
     };
   }
 
+  /**
+   * SameSite=None 은 크로스 사이트 fetch(예: Vercel → API 도메인)에 쿠키를 실을 때 필요.
+   * 스펙상 None 이면 Secure 는 항상 true 여야 함.
+   */
+  private getCookieBaseSettings(): {
+    httpOnly: true;
+    secure: boolean;
+    sameSite: 'lax' | 'strict' | 'none';
+    path: '/';
+  } {
+    const raw = this.configService
+      .get<string>('AUTH_COOKIE_SAME_SITE')
+      ?.trim()
+      .toLowerCase();
+    let sameSite: 'lax' | 'strict' | 'none' = 'lax';
+    if (raw === 'none') sameSite = 'none';
+    else if (raw === 'strict') sameSite = 'strict';
+
+    const secure =
+      sameSite === 'none' ? true : process.env.NODE_ENV === 'production';
+
+    return {
+      httpOnly: true,
+      secure,
+      sameSite,
+      path: '/',
+    };
+  }
+
   /* 로그인 쿠키 설정 */
   async loginWithCookies(
     user: { id: string; role: string },
@@ -157,11 +186,9 @@ export class AuthService {
   ): Promise<void> {
     const { accessToken, refreshToken } = await this.login(user);
 
+    const base = this.getCookieBaseSettings();
     const cookieOptions = {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax' as const,
-      path: '/',
+      ...base,
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7일 (ms)
     };
 
@@ -231,10 +258,7 @@ export class AuthService {
     }
 
     const clearOptions = {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax' as const,
-      path: '/',
+      ...this.getCookieBaseSettings(),
       maxAge: 0,
     };
     res.clearCookie('accessToken', clearOptions);

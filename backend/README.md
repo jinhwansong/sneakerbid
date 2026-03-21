@@ -1,94 +1,114 @@
+# LaceUp / SneakerBid — Backend (NestJS)
 
+스니커즈 경매 API. PostgreSQL(Supabase), Redis(리프레시 토큰), RS256 JWT, OAuth(Google/Kakao).
 
-## Description
+## 요구 사항
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+- Node.js 20+ 권장
+- PostgreSQL (Supabase 권장)
+- Redis (로컬 또는 Upstash 등)
 
-## 환경 설정 (Supabase / Upstash)
-
-### Redis (Upstash)
-- Upstash Console → Redis → **Node** 탭에서 Connection URL 복사
-- `REDIS_URL=rediss://default:[token]@[host].upstash.io:6379` 형식 (TLS는 `rediss://`)
-
-### Supabase Storage (이미지 업로드)
-- Supabase Dashboard → Storage → `uploads` 버킷 생성
-- 버킷을 **Public**으로 설정 (이미지 URL 직접 접근용)
-  - Storage → uploads → Configuration → Public bucket: ON
-- `.env`에 `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` 설정
-- **프로덕션**: Supabase Storage만 사용 (로컬 폴백 없음)
-
-### Supabase Database (PostgreSQL)
-- Supabase Dashboard → Project Settings → Database → Connection string
-- `DATABASE_URL`에 연결 문자열 설정 후 `npx prisma migrate deploy`
-
-## Project setup
+## 빠른 시작
 
 ```bash
-$ npm install
+cd backend
+npm install
+# 루트에 .env 생성 (아래 표 참고)
 ```
 
-## Compile and run the project
+DB에 `supabase/migrations/` 아래 SQL을 **순서대로** 적용한 뒤:
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+npm run start:dev
 ```
 
-## Run tests
+기본 포트는 `.env`의 `PORT` (미설정 시 Nest 기본값 참고).
+
+## 환경 변수
+
+| 변수 | 필수 | 설명 |
+|------|------|------|
+| `NODE_ENV` | 권장 | `production`일 때 쿠키 `Secure` 등 프로덕션 동작. `start:prod`에서 설정됨. |
+| `PORT` | ✅ | HTTP 포트 (예: `3030`) |
+| `APP_NAME` | ✅ | Swagger 제목 등 |
+| `DATABASE_URL` | ✅ | Postgres 연결 문자열 (트랜잭션용 `pg` Pool) |
+| `SUPABASE_URL` | ✅ | Supabase 프로젝트 URL |
+| `SUPABASE_SERVICE_ROLE_KEY` | ✅ | Service role 키 |
+| `JWT_PRIVATE_KEY` | ✅ | RS256 개인키 (PEM, `.env`에서는 `\n` 이스케이프) |
+| `JWT_PUBLIC_KEY` | ✅ | RS256 공개키 |
+| `REDIS_URL` | 권장 | 리프레시 토큰 저장. 없으면 Redis 모듈 동작 방식 확인 필요 |
+| `FRONTEND_URL` | ✅ (프로덕션) | **정확한 Origin** (예: `https://sneakerbid.vercel.app`). CORS `origin`에 사용 |
+| `CORS_ORIGIN` | 선택 | 없으면 `FRONTEND_URL`로 대체 |
+| `AUTH_COOKIE_SAME_SITE` | 선택 | `lax` \| `strict` \| `none`. 프론트·API **도메인이 다르면** `none` + HTTPS |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `GOOGLE_CALLBACK_URL` | OAuth 시 | 콜백 URL은 배포된 API 도메인 기준 |
+| `KAKAO_CLIENT_ID` / `KAKAO_CLIENT_SECRET` / `KAKAO_CALLBACK_URL` | OAuth 시 | 동일 |
+
+검증 스크립트:
 
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+npm run env:validate
 ```
 
-## Deployment
+## 데이터베이스 마이그레이션
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+이 프로젝트는 **Prisma migrate가 아닌** `supabase/migrations/*.sql`을 사용합니다.
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+- Supabase Dashboard → SQL Editor에서 파일 내용을 순서대로 실행하거나
+- `supabase db push` / CI 파이프라인 등 조직 규칙에 맞게 적용
+
+스키마 변경 시 새 번호의 SQL 파일을 추가합니다.
+
+## Redis (Upstash 예시)
+
+- Upstash Console → Redis → **Connect** 에서 URL 복사
+- `REDIS_URL=rediss://default:...@....upstash.io:6379` (`rediss` = TLS)
+
+## Supabase Storage (이미지 업로드)
+
+- Storage에 `uploads` 버킷 생성 후 **Public**으로 설정 (직링크용)
+- `.env`: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
+
+## 인증 · CORS · 쿠키
+
+- JWT는 **헤더 Bearer** 또는 **쿠키 `accessToken`** 으로 전달 (`passport-jwt` 커스텀 extractor).
+- 리프레시는 **httpOnly 쿠키 `refreshToken`** + Redis.
+- `main.ts`: `credentials: true` CORS, `origin`은 **`FRONTEND_URL` 단일 값** — 브라우저에서 접속하는 주소와 **완전히 일치**해야 함 (`www` 유무 포함).
+- **프론트와 API 호스트가 다를 때** (예: Vercel + 자체 도메인 API):  
+  `AUTH_COOKIE_SAME_SITE=none`  
+  이때 쿠키는 **`Secure` 필수**이므로 API는 **HTTPS**여야 합니다.
+
+## 프로덕션 실행
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+npm run build
+npm run start:prod
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+`start:prod`는 `NODE_ENV=production`을 포함합니다. 리버스 프록시(Nginx 등) 뒤에서는 `X-Forwarded-Proto` 전달을 권장합니다 (`trust proxy` 설정됨).
 
-## Resources
+## 시드 데이터
 
-Check out a few resources that may come in handy when working with NestJS:
+```bash
+npm run seed
+```
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+`DATABASE_URL` 필요. 진행 중 경매·봇·스니커 샘플을 넣습니다. **중복 실행 시 PK 충돌**할 수 있으니 개발 DB 위주로 사용하세요.
 
-## Support
+## 테스트
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+```bash
+npm run test
+npm run test:e2e
+```
 
-## Stay in touch
+## API 문서
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+앱 기동 후 (기본 경로 기준): `/api` — Swagger UI.
 
-## License
+## 모노레포
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+프론트엔드는 상위 디렉터리 `../frontend` — 환경 변수·배포 연동은 [frontend README](../frontend/README.md) 참고.
+
+## 라이선스
+
+Private / 포트폴리오 용도에 맞게 프로젝트 루트 정책을 따릅니다.

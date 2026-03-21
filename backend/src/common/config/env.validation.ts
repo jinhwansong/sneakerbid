@@ -1,6 +1,7 @@
 import { plainToInstance } from 'class-transformer';
 import {
   IsEnum,
+  IsIn,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -36,6 +37,11 @@ class EnvironmentVariables {
   @IsString()
   @IsNotEmpty()
   CORS_ORIGIN?: string;
+
+  /** 쿠키 SameSite: 프론트와 API 도메인이 다르면 none (반드시 HTTPS + Secure) */
+  @IsOptional()
+  @IsIn(['lax', 'strict', 'none'])
+  AUTH_COOKIE_SAME_SITE?: string;
 
   // Rate Limiting
   @IsNumber()
