@@ -107,6 +107,13 @@ npm run test
 npm run test:e2e
 ```
 
+**E2E (CI)**  
+`test:e2e`는 실제 DB/Redis 연결이 필요합니다. GitHub Actions에서 실행하려면 Secrets에 `DATABASE_URL` 등을 설정하세요.
+
+- `DATABASE_URL`: Supabase Dashboard → **Settings → Database** → Connection string (URI) 전체 복사  
+  - 형식 예: `postgresql://postgres.[ref]:[pwd]@aws-0-[region].pooler.supabase.com:6543/postgres`  
+  - `getaddrinfo EAI_AGAIN base` 오류 시: hostname이 잘못됨. URL 전체가 올바른지 확인
+
 ## API 문서
 
 앱 기동 후 (기본 경로 기준): `/api` — Swagger UI.

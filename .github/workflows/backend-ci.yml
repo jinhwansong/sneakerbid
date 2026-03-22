@@ -34,5 +34,28 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: Test
+      - name: Unit Test
         run: npm run test
+
+      - name: E2E Test
+        run: npm run test:e2e
+        env:
+          NODE_ENV: test
+          PORT: 4000
+          APP_NAME: ${{ vars.APP_NAME || 'Auction API' }}
+          FRONTEND_URL: ${{ vars.FRONTEND_URL || 'http://localhost:3000' }}
+          # Supabase: Settings → Database → Connection string (URI) 전체 복사
+          # hostname이 'base'로 보이면 URL 잘못됨 (예: db.xxx.supabase.co)
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          JWT_PRIVATE_KEY: ${{ secrets.JWT_PRIVATE_KEY }}
+          JWT_PUBLIC_KEY: ${{ secrets.JWT_PUBLIC_KEY }}
+          REDIS_URL: ${{ secrets.REDIS_URL }}
+          # OAuth 전략 부팅용 플레이스홀더 (E2E는 OAuth 호출 안 함)
+          KAKAO_CLIENT_ID: ${{ secrets.KAKAO_CLIENT_ID || 'e2e-placeholder' }}
+          KAKAO_CLIENT_SECRET: ${{ secrets.KAKAO_CLIENT_SECRET || 'e2e-placeholder' }}
+          KAKAO_CALLBACK_URL: ${{ secrets.KAKAO_CALLBACK_URL || 'http://localhost:4000/auth/kakao/callback' }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID || 'e2e-placeholder' }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET || 'e2e-placeholder' }}
+          GOOGLE_CALLBACK_URL: ${{ secrets.GOOGLE_CALLBACK_URL || 'http://localhost:4000/auth/google/callback' }}
