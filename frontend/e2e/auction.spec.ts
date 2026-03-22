@@ -22,15 +22,14 @@ test.describe('경매 상세', () => {
 
   test('경매 목록에서 첫 항목 클릭 시 상세 이동', async ({ page }) => {
     await page.goto('/auction');
-    // 스켈레톤/로딩 대기
     await page.waitForLoadState('networkidle');
     const firstCard = page.locator('a[href^="/auction/"]').first();
     const count = await firstCard.count();
     if (count === 0) {
-      test.skip(); // API에 경매가 없으면 스킵
+      throw new Error('No auctions found — backend or test data not available');
     }
     const href = await firstCard.getAttribute('href');
     await firstCard.click();
-    await expect(page).toHaveURL(new RegExp(`^http://localhost:3000${href}`));
+    await expect(page).toHaveURL(`http://localhost:3000${href}`);
   });
 });
