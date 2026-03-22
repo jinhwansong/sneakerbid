@@ -68,6 +68,8 @@ npm run env:validate
 | `npm run lint` | ESLint |
 | `npm run type-check` | `tsc --noEmit` |
 | `npm run test` / `test:run` | Vitest |
+| `npm run test:e2e` | Playwright E2E (백엔드 `http://localhost:3030` 동작 필요) |
+| `npm run test:e2e:ui` | Playwright UI 모드 |
 | `npm run env:validate` | 필수 env 확인 |
 
 ## API 클라이언트
