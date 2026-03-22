@@ -34,5 +34,11 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: Test
+      - name: Unit Test
         run: npm run test
+
+      - name: E2E Test
+        run: npm run test:e2e
+        env:
+          NODE_ENV: test
+          # DB/Redis/JWT 등은 GitHub Secrets에서 주입 (DATABASE_URL, REDIS_URL, JWT_PUBLIC_KEY, JWT_PRIVATE_KEY, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, APP_NAME, FRONTEND_URL, PORT)
