@@ -44,6 +44,8 @@ jobs:
           PORT: 4000
           APP_NAME: ${{ vars.APP_NAME || 'Auction API' }}
           FRONTEND_URL: ${{ vars.FRONTEND_URL || 'http://localhost:3000' }}
+          # Supabase: Settings → Database → Connection string (URI) 전체 복사
+          # hostname이 'base'로 보이면 URL 잘못됨 (예: db.xxx.supabase.co)
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
