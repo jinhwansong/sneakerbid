@@ -41,4 +41,12 @@ jobs:
         run: npm run test:e2e
         env:
           NODE_ENV: test
-          # DB/Redis/JWT 등은 GitHub Secrets에서 주입 (DATABASE_URL, REDIS_URL, JWT_PUBLIC_KEY, JWT_PRIVATE_KEY, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, APP_NAME, FRONTEND_URL, PORT)
+          PORT: 4000
+          APP_NAME: ${{ vars.APP_NAME || 'Auction API' }}
+          FRONTEND_URL: ${{ vars.FRONTEND_URL || 'http://localhost:3000' }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          JWT_PRIVATE_KEY: ${{ secrets.JWT_PRIVATE_KEY }}
+          JWT_PUBLIC_KEY: ${{ secrets.JWT_PUBLIC_KEY }}
+          REDIS_URL: ${{ secrets.REDIS_URL }}

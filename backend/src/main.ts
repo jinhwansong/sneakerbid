@@ -63,14 +63,17 @@ async function bootstrap() {
 
   // Swagger 문서
   const config = new DocumentBuilder()
-    .setTitle(process.env.APP_NAME)
+    .setTitle(process.env.APP_NAME ?? 'Auction API')
+    .setDescription(
+      '경매 플랫폼 REST API. 인증은 JWT Bearer 또는 OAuth 쿠키로 처리됩니다.',
+    )
     .setVersion('1.0')
     .addBearerAuth(
       {
         type: 'http',
         scheme: 'bearer',
         bearerFormat: 'JWT',
-        description: 'JWT Bearer Token',
+        description: 'Authorization 헤더에 Bearer {accessToken} 형태로 전달',
       },
       'access-token',
     )

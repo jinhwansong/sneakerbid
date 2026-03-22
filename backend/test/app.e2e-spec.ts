@@ -11,7 +11,7 @@ describe('App (e2e)', () => {
   }, 30000);
 
   afterAll(async () => {
-    await app.close();
+    if (app) await app.close();
   });
 
   it('/ (GET)', () => {

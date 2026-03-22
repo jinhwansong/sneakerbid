@@ -33,13 +33,21 @@ interface BidsBody {
 
 describe('Auctions (e2e)', () => {
   let app: INestApplication;
+  let firstAuctionId: string | null = null;
 
   beforeAll(async () => {
     app = await createE2EApp();
+    const listRes = await request(app.getHttpServer() as Server)
+      .get('/auctions?limit=1')
+      .expect(200);
+    const body = listRes.body as ListBody;
+    if (body.items.length > 0) {
+      firstAuctionId = body.items[0].auctionId ?? body.items[0].id ?? null;
+    }
   }, 30000);
 
   afterAll(async () => {
-    await app.close();
+    if (app) await app.close();
   });
 
   describe('GET /auctions/stats (public)', () => {
@@ -129,23 +137,19 @@ describe('Auctions (e2e)', () => {
         .expect(404);
     });
 
-    it('returns auction detail when exists', async () => {
-      const listRes = await request(app.getHttpServer() as Server)
-        .get('/auctions?limit=1')
-        .expect(200);
-      const body = listRes.body as ListBody;
-      const items = body.items;
-      if (items.length === 0) return;
-      const id = items[0].auctionId ?? items[0].id;
-      await request(app.getHttpServer() as Server)
-        .get(`/auctions/${id}`)
-        .expect(200)
-        .expect((res) => {
-          const detailBody = res.body as { success: boolean; id: string };
-          expect(detailBody).toHaveProperty('success', true);
-          expect(detailBody).toHaveProperty('id', id);
-        });
-    });
+    (firstAuctionId ? it : it.skip)(
+      'returns auction detail when exists',
+      async () => {
+        await request(app.getHttpServer() as Server)
+          .get(`/auctions/${firstAuctionId}`)
+          .expect(200)
+          .expect((res) => {
+            const detailBody = res.body as { success: boolean; id: string };
+            expect(detailBody).toHaveProperty('success', true);
+            expect(detailBody).toHaveProperty('id', firstAuctionId);
+          });
+      },
+    );
   });
 
   describe('GET /auctions/:id/bids (public)', () => {
@@ -160,24 +164,20 @@ describe('Auctions (e2e)', () => {
         });
     });
 
-    it('returns bids when auction exists', async () => {
-      const listRes = await request(app.getHttpServer() as Server)
-        .get('/auctions?limit=1')
-        .expect(200);
-      const listBody = listRes.body as ListBody;
-      const items = listBody.items;
-      if (items.length === 0) return;
-      const id = items[0].auctionId ?? items[0].id;
-      await request(app.getHttpServer() as Server)
-        .get(`/auctions/${id}/bids`)
-        .expect(200)
-        .expect((res) => {
-          const bidsBody = res.body as BidsBody;
-          expect(bidsBody).toHaveProperty('success', true);
-          expect(bidsBody).toHaveProperty('data');
-          expect(Array.isArray(bidsBody.data)).toBe(true);
-        });
-    });
+    (firstAuctionId ? it : it.skip)(
+      'returns bids when auction exists',
+      async () => {
+        await request(app.getHttpServer() as Server)
+          .get(`/auctions/${firstAuctionId}/bids`)
+          .expect(200)
+          .expect((res) => {
+            const bidsBody = res.body as BidsBody;
+            expect(bidsBody).toHaveProperty('success', true);
+            expect(bidsBody).toHaveProperty('data');
+            expect(Array.isArray(bidsBody.data)).toBe(true);
+          });
+      },
+    );
   });
 
   describe('Protected routes without auth', () => {
