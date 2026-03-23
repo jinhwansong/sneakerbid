@@ -44,8 +44,7 @@ describe('Auctions (e2e)', () => {
       if (listRes.status === 200) {
         const body = listRes.body as ListBody;
         if (body.items.length > 0) {
-          firstAuctionId =
-            body.items[0].auctionId ?? body.items[0].id ?? null;
+          firstAuctionId = body.items[0].auctionId ?? body.items[0].id ?? null;
         }
       }
     } catch {

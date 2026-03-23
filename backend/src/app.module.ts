@@ -27,6 +27,7 @@ import { WalletModule } from './wallet/wallet.module';
 import { WishlistModule } from './wishlist/wishlist.module';
 import { UploadModule } from './upload/upload.module';
 import { AdminModule } from './admin/admin.module';
+import { ProductSeedModule } from './product-seed/product-seed.module';
 
 @Module({
   imports: [
@@ -66,6 +67,7 @@ import { AdminModule } from './admin/admin.module';
     WishlistModule,
     UploadModule,
     AdminModule,
+    ProductSeedModule,
   ],
   controllers: [AppController, HealthController],
   providers: [

@@ -78,6 +78,11 @@ class EnvironmentVariables {
   @IsOptional()
   @IsString()
   REDIS_URL?: string;
+
+  /** KicksDB API 키 (상품 시드 Cron용, 없으면 스킵) */
+  @IsOptional()
+  @IsString()
+  KICKS_API_KEY?: string;
 }
 
 function trimOrUndefined(s: unknown): string | undefined {

@@ -42,6 +42,7 @@ npm run start:dev
 | `AUTH_COOKIE_SAME_SITE` | 선택 | `lax` \| `strict` \| `none`. 프론트·API **도메인이 다르면** `none` + HTTPS |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `GOOGLE_CALLBACK_URL` | OAuth 시 | 콜백 URL은 배포된 API 도메인 기준 |
 | `KAKAO_CLIENT_ID` / `KAKAO_CLIENT_SECRET` / `KAKAO_CALLBACK_URL` | OAuth 시 | 동일 |
+| `KICKS_API_KEY` | 선택 | KicksDB API 키. 없으면 상품 시드 Cron 스킵 (매일 00:00, 12:00) |
 
 검증 스크립트:
 

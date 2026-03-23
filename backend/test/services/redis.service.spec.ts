@@ -23,7 +23,8 @@ describe('RedisService', () => {
     jest.clearAllMocks();
     mockConfig = {
       get: jest.fn((key: string) => {
-        if (key === 'REDIS_URL') return 'rediss://default:token@host.upstash.io:6379';
+        if (key === 'REDIS_URL')
+          return 'rediss://default:token@host.upstash.io:6379';
         return undefined;
       }),
     };
@@ -140,7 +141,9 @@ describe('RedisService', () => {
 
   describe('REDIS_URL 검증', () => {
     it('redis:// 또는 rediss://가 아니면 에러', async () => {
-      const invalidConfig = { get: jest.fn().mockReturnValue('http://invalid') };
+      const invalidConfig = {
+        get: jest.fn().mockReturnValue('http://invalid'),
+      };
       const invalidService = new RedisService(
         invalidConfig as unknown as ConfigService,
       );

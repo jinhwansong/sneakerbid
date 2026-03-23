@@ -73,7 +73,11 @@ export class CreateAuctionDto {
   @Min(0)
   buyNowPrice?: number;
 
-  @ApiProperty({ description: '최소 입찰 단위 (원)', example: 1000, minimum: 1 })
+  @ApiProperty({
+    description: '최소 입찰 단위 (원)',
+    example: 1000,
+    minimum: 1,
+  })
   @Type(() => Number)
   @IsInt()
   @Min(1)

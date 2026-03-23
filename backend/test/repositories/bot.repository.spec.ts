@@ -12,7 +12,9 @@ describe('BotRepository', () => {
 
   describe('findAll', () => {
     it('모든 봇 반환 (enabled 포함)', async () => {
-      const rows = [{ id: 'b1', userId: 'u1', type: 'AGGRESSIVE', enabled: true }];
+      const rows = [
+        { id: 'b1', userId: 'u1', type: 'AGGRESSIVE', enabled: true },
+      ];
       mockDb.query.mockResolvedValueOnce(rows);
 
       const result = await repo.findAll();
@@ -80,10 +82,7 @@ describe('BotRepository', () => {
 
   describe('findUserIds', () => {
     it('활성 봇 userId 배열 반환', async () => {
-      mockDb.query.mockResolvedValueOnce([
-        { userId: 'u1' },
-        { userId: 'u2' },
-      ]);
+      mockDb.query.mockResolvedValueOnce([{ userId: 'u1' }, { userId: 'u2' }]);
 
       const result = await repo.findUserIds();
 

@@ -51,9 +51,7 @@ describe('BidRepository', () => {
 
   describe('findWinningBid', () => {
     it('최고가 1건 반환', async () => {
-      mockDb.query.mockResolvedValueOnce([
-        { userId: 'u1', bidPrice: 100000 },
-      ]);
+      mockDb.query.mockResolvedValueOnce([{ userId: 'u1', bidPrice: 100000 }]);
 
       const result = await repo.findWinningBid('a1');
 

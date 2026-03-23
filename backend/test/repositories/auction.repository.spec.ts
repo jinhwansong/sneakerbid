@@ -18,7 +18,7 @@ describe('AuctionRepository', () => {
       const result = await repo.findMainAuctions(now);
 
       expect(mockDb.query).toHaveBeenCalledWith(
-        expect.stringContaining('status = \'OPEN\''),
+        expect.stringContaining("status = 'OPEN'"),
         [now],
       );
       expect(mockDb.query).toHaveBeenCalledWith(
