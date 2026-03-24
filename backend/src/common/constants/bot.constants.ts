@@ -32,3 +32,9 @@ export const RELIST_CHECK_INTERVAL_SEC = 60;
 
 /** 재등록 시 새 경매 유지 시간 (초) */
 export const RELIST_AUCTION_DURATION_SEC = 3600; // 1시간
+
+/** 봇 판매자(재판매) OPEN 경매 조회 상한 */
+export const BOT_SELLER_AUCTION_LIMIT = 20;
+
+/** 봇 입찰 후보로 합친 경매 최대 개수 (메인 + 봇 판매자) */
+export const MERGED_AUCTIONS_FOR_BOTS = 28;

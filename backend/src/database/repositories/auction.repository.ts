@@ -47,6 +47,32 @@ export interface TradeHistoryRow {
 export class AuctionRepository {
   constructor(private readonly db: DatabaseService) {}
 
+  async existsById(auctionId: string): Promise<boolean> {
+    const rows = await this.db.query<{ one: number }>(
+      `SELECT 1 AS one FROM "Auction" WHERE id = $1 LIMIT 1`,
+      [auctionId],
+    );
+    return rows.length > 0;
+  }
+
+  /**
+   * CLOSED이면서 post-close finalize 페이로드가 남은 경매 (재시도 큐).
+   */
+  async findClosedWithPendingPostCloseFinalize(
+    limit: number,
+  ): Promise<Array<{ id: string; postCloseFinalizePayload: unknown }>> {
+    return this.db.query<{
+      id: string;
+      postCloseFinalizePayload: unknown;
+    }>(
+      `SELECT id, "postCloseFinalizePayload" FROM "Auction"
+       WHERE status = 'CLOSED' AND "postCloseFinalizePayload" IS NOT NULL
+       ORDER BY "updatedAt" ASC
+       LIMIT $1`,
+      [limit],
+    );
+  }
+
   /** 메인 경매 목록 (진행 중, 20건) */
   async findMainAuctions(now: Date): Promise<AuctionListRow[]> {
     return this.db.query<AuctionListRow>(

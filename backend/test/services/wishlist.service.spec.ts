@@ -1,19 +1,25 @@
 import { NotFoundException } from '@nestjs/common';
 import { WishlistService } from '../../src/wishlist/wishlist.service';
 import { DatabaseService } from '../../src/database/database.service';
-import { WishlistRepository } from '../../src/database/repositories/wishlist.repository';
+import { AuctionRepository } from '../../src/database/repositories/auction.repository';
+import { WishlistReadRepository } from '../../src/database/repositories/wishlist-read.repository';
+import { WishlistToggleRepository } from '../../src/database/repositories/wishlist-toggle.repository';
 import type { RequestUser } from '../../src/common/decorator/user.decorator';
 import { UserRole } from '../../src/common/enum/role.enum';
 
 describe('WishlistService', () => {
   let service: WishlistService;
   let mockDb: {
-    getSupabase: jest.Mock;
     transaction: jest.Mock;
   };
-  let mockWishlistRepo: {
-    findMyWishlist: jest.Mock;
+  let mockAuctionRepo: {
+    existsById: jest.Mock;
   };
+  let mockWishlistReadRepo: {
+    findMyWishlist: jest.Mock;
+    findWishlistedAuctionIdsIn: jest.Mock;
+  };
+  let mockWishlistToggleRepo: { toggleAtomic: jest.Mock };
 
   const mockUser: RequestUser = {
     id: 'u1',
@@ -26,29 +32,27 @@ describe('WishlistService', () => {
 
   beforeEach(() => {
     mockDb = {
-      getSupabase: jest.fn(),
       transaction: jest.fn(),
     };
-    mockWishlistRepo = {
-      findMyWishlist: jest.fn(),
+    mockAuctionRepo = {
+      existsById: jest.fn(),
     };
+    mockWishlistReadRepo = {
+      findMyWishlist: jest.fn(),
+      findWishlistedAuctionIdsIn: jest.fn(),
+    };
+    mockWishlistToggleRepo = { toggleAtomic: jest.fn() };
     service = new WishlistService(
       mockDb as unknown as DatabaseService,
-      mockWishlistRepo as unknown as WishlistRepository,
+      mockAuctionRepo as unknown as AuctionRepository,
+      mockWishlistReadRepo as unknown as WishlistReadRepository,
+      mockWishlistToggleRepo as unknown as WishlistToggleRepository,
     );
   });
 
   describe('toggle', () => {
     it('경매가 없으면 NotFoundException', async () => {
-      mockDb.getSupabase.mockReturnValue({
-        from: jest.fn().mockReturnValue({
-          select: jest.fn().mockReturnValue({
-            eq: jest.fn().mockReturnValue({
-              single: jest.fn().mockResolvedValue({ data: null }),
-            }),
-          }),
-        }),
-      });
+      mockAuctionRepo.existsById.mockResolvedValue(false);
 
       let thrown: unknown;
       try {
@@ -61,21 +65,11 @@ describe('WishlistService', () => {
     });
 
     it('삭제 후 isWishlisted false', async () => {
-      mockDb.getSupabase.mockReturnValue({
-        from: jest.fn().mockReturnValue({
-          select: jest.fn().mockReturnValue({
-            eq: jest.fn().mockReturnValue({
-              single: jest.fn().mockResolvedValue({ data: { id: 'a1' } }),
-            }),
-          }),
-        }),
-      });
+      mockAuctionRepo.existsById.mockResolvedValue(true);
       mockDb.transaction.mockImplementation(
         async (fn: (tx: unknown) => Promise<unknown>) => {
-          const mockTx = {
-            $queryRaw: jest.fn().mockResolvedValue([{ action: 'deleted' }]),
-          };
-          return fn(mockTx);
+          mockWishlistToggleRepo.toggleAtomic.mockResolvedValue('deleted');
+          return fn({});
         },
       );
 
@@ -85,21 +79,11 @@ describe('WishlistService', () => {
     });
 
     it('추가 후 isWishlisted true', async () => {
-      mockDb.getSupabase.mockReturnValue({
-        from: jest.fn().mockReturnValue({
-          select: jest.fn().mockReturnValue({
-            eq: jest.fn().mockReturnValue({
-              single: jest.fn().mockResolvedValue({ data: { id: 'a1' } }),
-            }),
-          }),
-        }),
-      });
+      mockAuctionRepo.existsById.mockResolvedValue(true);
       mockDb.transaction.mockImplementation(
         async (fn: (tx: unknown) => Promise<unknown>) => {
-          const mockTx = {
-            $queryRaw: jest.fn().mockResolvedValue([{ action: 'inserted' }]),
-          };
-          return fn(mockTx);
+          mockWishlistToggleRepo.toggleAtomic.mockResolvedValue('inserted');
+          return fn({});
         },
       );
 
@@ -114,24 +98,22 @@ describe('WishlistService', () => {
       const result = await service.getWishlistedMap('u1', []);
 
       expect(result).toEqual({});
-      expect(mockDb.getSupabase).not.toHaveBeenCalled();
+      expect(
+        mockWishlistReadRepo.findWishlistedAuctionIdsIn,
+      ).not.toHaveBeenCalled();
     });
 
     it('찜 여부 맵 반환', async () => {
-      mockDb.getSupabase.mockReturnValue({
-        from: jest.fn().mockReturnValue({
-          select: jest.fn().mockReturnValue({
-            eq: jest.fn().mockReturnValue({
-              in: jest.fn().mockResolvedValue({
-                data: [{ auctionId: 'a1' }, { auctionId: 'a3' }],
-              }),
-            }),
-          }),
-        }),
-      });
+      mockWishlistReadRepo.findWishlistedAuctionIdsIn.mockResolvedValue([
+        'a1',
+        'a3',
+      ]);
 
       const result = await service.getWishlistedMap('u1', ['a1', 'a2', 'a3']);
 
+      expect(
+        mockWishlistReadRepo.findWishlistedAuctionIdsIn,
+      ).toHaveBeenCalledWith('u1', ['a1', 'a2', 'a3']);
       expect(result).toEqual({ a1: true, a2: false, a3: true });
     });
   });
@@ -153,11 +135,11 @@ describe('WishlistService', () => {
           buyNowPrice: 150000,
         },
       ];
-      mockWishlistRepo.findMyWishlist.mockResolvedValue(rows);
+      mockWishlistReadRepo.findMyWishlist.mockResolvedValue(rows);
 
       const result = await service.getMyWishlist(mockUser);
 
-      expect(mockWishlistRepo.findMyWishlist).toHaveBeenCalledWith('u1');
+      expect(mockWishlistReadRepo.findMyWishlist).toHaveBeenCalledWith('u1');
       expect(result).toHaveLength(1);
       expect(result[0]).toEqual({
         id: 'w1',

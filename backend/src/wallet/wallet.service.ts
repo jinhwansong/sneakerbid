@@ -1,9 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import type { TxClient } from '@/database/transaction-client';
 import type { WalletRefType, WalletTxType } from '@/common/database/db.types';
+import { WalletRepository } from '../database/repositories/wallet.repository';
 
 @Injectable()
 export class WalletService {
+  constructor(private readonly walletRepo: WalletRepository) {}
+
   /** 입찰 시 잔액 보류 (BID_HOLD) */
   async holdForBid(
     tx: TxClient,
@@ -40,12 +43,8 @@ export class WalletService {
     amount: number,
     bidId: string,
   ): Promise<void> {
-    const already = await tx.$queryRaw<{ n: string }>(
-      `SELECT COUNT(*)::text AS n FROM "WalletTransaction"
-       WHERE type = 'BID_RELEASE' AND "refType" = 'BID' AND "refId" = $1`,
-      [bidId],
-    );
-    if (parseInt(already[0]?.n ?? '0', 10) > 0) {
+    const releaseCount = await this.walletRepo.countBidReleaseForBid(tx, bidId);
+    if (releaseCount > 0) {
       return;
     }
 

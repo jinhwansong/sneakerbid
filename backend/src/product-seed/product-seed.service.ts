@@ -1,8 +1,14 @@
 import { randomUUID } from 'crypto';
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
-import { DatabaseService } from '@/database/database.service';
+import { AuctionSeedRepository } from '@/database/repositories/auction-seed.repository';
+import { SneakerRepository } from '@/database/repositories/sneaker.repository';
+import { UserRepository } from '@/database/repositories/user.repository';
 import { KicksDBService } from '@/kicksdb/kicksdb.service';
+import {
+  KicksDBApiError,
+  KicksDBRateLimitError,
+} from '@/kicksdb/kicksdb.errors';
 import {
   AUCTION_SIZES,
   AUCTION_BRANDS,
@@ -41,7 +47,9 @@ export class ProductSeedService {
   private readonly logger = new Logger(ProductSeedService.name);
 
   constructor(
-    private readonly db: DatabaseService,
+    private readonly auctionSeedRepo: AuctionSeedRepository,
+    private readonly sneakerRepo: SneakerRepository,
+    private readonly userRepo: UserRepository,
     private readonly kicksdb: KicksDBService,
   ) {}
 
@@ -58,6 +66,18 @@ export class ProductSeedService {
     try {
       products = await this.kicksdb.searchProducts(query, PRODUCTS_PER_CRON);
     } catch (err) {
+      if (err instanceof KicksDBRateLimitError) {
+        this.logger.warn(
+          `KicksDB rate limit(429) 재시도 소진 (query=${query}): ${err.message}`,
+        );
+        return;
+      }
+      if (err instanceof KicksDBApiError) {
+        this.logger.warn(
+          `KicksDB API ${err.statusCode} (query=${query}): ${err.message}`,
+        );
+        return;
+      }
       this.logger.warn(`KicksDB 조회 실패 (query=${query}): ${err}`);
       return;
     }
@@ -83,29 +103,18 @@ export class ProductSeedService {
       const sku =
         p.sku ?? p.slug ?? `${p.brand}-${p.model}-${randomUUID().slice(0, 8)}`;
 
-      const existingSneaker = await this.db.query<{ id: string }>(
-        `SELECT id FROM "Sneaker" WHERE "styleCode" = $1 LIMIT 1`,
-        [sku],
-      );
-
-      let sneakerId: string;
-      if (existingSneaker.length > 0) {
-        sneakerId = existingSneaker[0].id;
-      } else {
+      let sneakerId = await this.sneakerRepo.findIdByStyleCode(sku);
+      if (!sneakerId) {
         sneakerId = randomUUID();
-        await this.db.query(
-          `INSERT INTO "Sneaker" (id, "modelName", brand, colorway, description, "imageUrl", "popularityScore", "styleCode", "createdAt", "updatedAt")
-           VALUES ($1, $2, $3, $4, $5, $6, 100, $7, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-          [
-            sneakerId,
-            p.model,
-            brand,
-            colorway || null,
-            p.description?.slice(0, 500) ?? null,
-            p.image ?? '',
-            sku,
-          ],
-        );
+        await this.sneakerRepo.insertSeedRow({
+          id: sneakerId,
+          modelName: p.model,
+          brand,
+          colorway: colorway || null,
+          description: p.description?.slice(0, 500) ?? null,
+          imageUrl: p.image ?? '',
+          styleCode: sku,
+        });
       }
 
       const size =
@@ -113,27 +122,26 @@ export class ProductSeedService {
       const startPrice = Math.round((p.avg_price ?? p.min_price ?? 100) * 100);
       const minIncrement = 10000;
 
-      const alreadyOpen = await this.db.query<{ id: string }>(
-        `SELECT id FROM "Auction" WHERE "sneakerId" = $1 AND size = $2 AND status = 'OPEN' AND "endTime" > $3 LIMIT 1`,
-        [sneakerId, size, now],
-      );
-      if (alreadyOpen.length > 0) continue;
-
-      const auctionId = randomUUID();
-      await this.db.query(
-        `INSERT INTO "Auction" (id, "sneakerId", size, "startPrice", "currentPrice", "buyNowPrice", "minimumIncrement", status, "endTime", "sellerUserId", "createdAt", "updatedAt")
-         VALUES ($1, $2, $3, $4, $4, $5, $6, 'OPEN', $7, $8, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-        [
-          auctionId,
+      if (
+        await this.auctionSeedRepo.existsOpenForSneakerSizeAfter(
           sneakerId,
           size,
-          startPrice,
-          startPrice * 2,
-          minIncrement,
-          endTime.toISOString(),
-          sellerId,
-        ],
-      );
+          now,
+        )
+      ) {
+        continue;
+      }
+
+      await this.auctionSeedRepo.insertSeedRow({
+        id: randomUUID(),
+        sneakerId,
+        size,
+        startPrice,
+        buyNowPrice: startPrice * 2,
+        minimumIncrement: minIncrement,
+        endTime,
+        sellerUserId: sellerId,
+      });
       created++;
     }
 
@@ -143,22 +151,17 @@ export class ProductSeedService {
   }
 
   private async getOrCreateSeedSeller(): Promise<string> {
-    const rows = await this.db.query<{ id: string }>(
-      `SELECT id FROM "User" WHERE nickname = 'seed_seller' AND role = 'USER' LIMIT 1`,
+    const byNickname = await this.userRepo.findIdByNicknameAndRole(
+      'seed_seller',
+      'USER',
     );
-    if (rows.length > 0) return rows[0].id;
+    if (byNickname) return byNickname;
 
-    const rows2 = await this.db.query<{ id: string }>(
-      `SELECT id FROM "User" WHERE role = 'USER' ORDER BY "createdAt" ASC LIMIT 1`,
-    );
-    if (rows2.length > 0) return rows2[0].id;
+    const oldest = await this.userRepo.findOldestUserId();
+    if (oldest) return oldest;
 
     const id = randomUUID();
-    await this.db.query(
-      `INSERT INTO "User" (id, nickname, role, balance, "createdAt", "updatedAt")
-       VALUES ($1, 'seed_seller', 'USER', 1000000, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-      [id],
-    );
+    await this.userRepo.insertSeedSeller(id);
     return id;
   }
 }

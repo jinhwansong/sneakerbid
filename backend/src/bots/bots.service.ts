@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import { Cron, Interval } from '@nestjs/schedule';
-import { DatabaseService } from '@/database/database.service';
+import { AuctionRelistRepository } from '@/database/repositories/auction-relist.repository';
 import {
   AuctionRepository,
   type AuctionListRow,
@@ -21,10 +21,9 @@ import {
   RELIST_CHECK_INTERVAL_SEC,
   RELIST_DELAY_MIN_SEC,
   RELIST_LOOKBACK_DAYS,
+  BOT_SELLER_AUCTION_LIMIT,
+  MERGED_AUCTIONS_FOR_BOTS,
 } from '@/common/constants/bot.constants';
-
-const BOT_SELLER_AUCTION_LIMIT = 20;
-const MERGED_AUCTIONS_FOR_BOTS = 28;
 
 /** 랜덤 정수 생성 */
 function randInt(min: number, max: number) {
@@ -64,8 +63,8 @@ interface BotWithUser {
 @Injectable()
 export class BotsService {
   constructor(
-    private readonly db: DatabaseService,
     private readonly auctionRepo: AuctionRepository,
+    private readonly auctionRelistRepo: AuctionRelistRepository,
     private readonly botRepo: BotRepository,
     private readonly auctionsService: AuctionsService,
     @Inject('BOT_COOLDOWN_STORE')
@@ -145,26 +144,18 @@ export class BotsService {
     for (const auction of toRelist) {
       if (!auction.winnerUserId) continue;
       const id = randomUUID();
-      const endTimeStr = endTime.toISOString();
-      const inserted = await this.db.query<{ id: string }>(
-        `INSERT INTO "Auction" (id, "sneakerId", size, "startPrice", "currentPrice", "buyNowPrice", "minimumIncrement", status, "endTime", "sellerUserId", "relistedFromAuctionId", "createdAt", "updatedAt")
-         VALUES ($1, $2, $3, $4, $5, $6, $7, 'OPEN', $8, $9, $10, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-         ON CONFLICT ("relistedFromAuctionId") WHERE ("relistedFromAuctionId" IS NOT NULL) DO NOTHING
-         RETURNING id`,
-        [
-          id,
-          auction.sneakerId,
-          auction.size,
-          auction.currentPrice,
-          auction.currentPrice,
-          auction.buyNowPrice,
-          auction.minimumIncrement,
-          endTimeStr,
-          auction.winnerUserId,
-          auction.id,
-        ],
-      );
-      if (inserted.length > 0) {
+      const inserted = await this.auctionRelistRepo.insertAfterBotWin({
+        id,
+        sneakerId: auction.sneakerId,
+        size: auction.size,
+        currentPrice: auction.currentPrice,
+        buyNowPrice: auction.buyNowPrice,
+        minimumIncrement: auction.minimumIncrement,
+        endTimeIso: endTime.toISOString(),
+        sellerUserId: auction.winnerUserId,
+        relistedFromAuctionId: auction.id,
+      });
+      if (inserted) {
         const brand = auction.sneaker_brand;
         const model = auction.sneaker_modelName;
         console.log(

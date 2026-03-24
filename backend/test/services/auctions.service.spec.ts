@@ -3,6 +3,7 @@ import type { CreateAuctionDto } from '../../src/auctions/dto/create.auction.dto
 import { AuctionsService } from '../../src/auctions/auctions.service';
 import { DatabaseService } from '../../src/database/database.service';
 import { AuctionRepository } from '../../src/database/repositories/auction.repository';
+import { AuctionsTxRepository } from '../../src/database/repositories/auctions-tx.repository';
 import { BidRepository } from '../../src/database/repositories/bid.repository';
 import { EventsService } from '../../src/events/events.service';
 import { WalletService } from '../../src/wallet/wallet.service';
@@ -27,6 +28,14 @@ describe('AuctionsService', () => {
     findRecentCreatedAt: jest.Mock;
     findBidsForAuction: jest.Mock;
     countByAuctionId: jest.Mock;
+  };
+  let mockAuctionsTxRepo: {
+    countBidsInTx: jest.Mock;
+    findAuctionForDeleteLock: jest.Mock;
+    countBlockingOrdersInTx: jest.Mock;
+    deleteOrdersByAuctionInTx: jest.Mock;
+    deleteAuctionByIdInTx: jest.Mock;
+    deleteSneakerByIdInTx: jest.Mock;
   };
   let mockEvents: { emitNewBid: jest.Mock; emitAuctionClosed: jest.Mock };
   let mockWallet: { holdForBid: jest.Mock };
@@ -70,6 +79,14 @@ describe('AuctionsService', () => {
       findBidsForAuction: jest.fn().mockResolvedValue([]),
       countByAuctionId: jest.fn().mockResolvedValue(0),
     };
+    mockAuctionsTxRepo = {
+      countBidsInTx: jest.fn().mockResolvedValue(0),
+      findAuctionForDeleteLock: jest.fn(),
+      countBlockingOrdersInTx: jest.fn().mockResolvedValue(0),
+      deleteOrdersByAuctionInTx: jest.fn().mockResolvedValue(undefined),
+      deleteAuctionByIdInTx: jest.fn().mockResolvedValue(undefined),
+      deleteSneakerByIdInTx: jest.fn().mockResolvedValue(undefined),
+    };
     mockEvents = { emitNewBid: jest.fn(), emitAuctionClosed: jest.fn() };
     mockWallet = { holdForBid: jest.fn().mockResolvedValue(true) };
     mockWishlist = { getWishlistedMap: jest.fn().mockResolvedValue({}) };
@@ -78,6 +95,7 @@ describe('AuctionsService', () => {
       mockDb as unknown as DatabaseService,
       mockAuctionRepo as unknown as AuctionRepository,
       mockBidRepo as unknown as BidRepository,
+      mockAuctionsTxRepo as unknown as AuctionsTxRepository,
       mockEvents as unknown as EventsService,
       mockWallet as unknown as WalletService,
       mockWishlist as unknown as WishlistService,

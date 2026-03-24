@@ -1,7 +1,9 @@
 import { randomUUID } from 'crypto';
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { DatabaseService } from '@/database/database.service';
-import { WishlistRepository } from '@/database/repositories/wishlist.repository';
+import { DatabaseService } from '../database/database.service';
+import { AuctionRepository } from '../database/repositories/auction.repository';
+import { WishlistReadRepository } from '../database/repositories/wishlist-read.repository';
+import { WishlistToggleRepository } from '../database/repositories/wishlist-toggle.repository';
 import type { RequestUser } from '@/common/decorator/user.decorator';
 import type { WishlistItem, WishlistToggleResult } from './wishlist.types';
 
@@ -9,7 +11,9 @@ import type { WishlistItem, WishlistToggleResult } from './wishlist.types';
 export class WishlistService {
   constructor(
     private readonly db: DatabaseService,
-    private readonly wishlistRepo: WishlistRepository,
+    private readonly auctionRepo: AuctionRepository,
+    private readonly wishlistReadRepo: WishlistReadRepository,
+    private readonly wishlistToggleRepo: WishlistToggleRepository,
   ) {}
 
   /** 찜하기 토글 (있으면 해제, 없으면 추가) - 단일 트랜잭션으로 원자적 처리 */
@@ -17,35 +21,18 @@ export class WishlistService {
     auctionId: string,
     user: RequestUser,
   ): Promise<WishlistToggleResult> {
-    const supabase = this.db.getSupabase();
-
-    const { data: auction } = await supabase
-      .from('Auction')
-      .select('id')
-      .eq('id', auctionId)
-      .single();
-
-    if (!auction) {
+    const auctionExists = await this.auctionRepo.existsById(auctionId);
+    if (!auctionExists) {
       throw new NotFoundException('경매를 찾을 수 없습니다.');
     }
 
     const result = await this.db.transaction(async (tx) => {
-      const rows = await tx.$queryRaw<{ action: string }>(
-        `WITH deleted AS (
-          DELETE FROM "Wishlist" WHERE "userId" = $1 AND "auctionId" = $2 RETURNING id
-        ),
-        inserted AS (
-          INSERT INTO "Wishlist" (id, "userId", "auctionId", "createdAt")
-          SELECT $3, $1, $2, CURRENT_TIMESTAMP
-          WHERE NOT EXISTS (SELECT 1 FROM deleted)
-          RETURNING id
-        )
-        SELECT 'deleted' AS action FROM deleted
-        UNION ALL
-        SELECT 'inserted' FROM inserted`,
-        [user.id, auctionId, randomUUID()],
+      const action = await this.wishlistToggleRepo.toggleAtomic(
+        tx,
+        user.id,
+        auctionId,
+        randomUUID(),
       );
-      const action = rows[0]?.action;
       return { isWishlisted: action === 'inserted' };
     });
 
@@ -59,22 +46,17 @@ export class WishlistService {
   ): Promise<Record<string, boolean>> {
     if (auctionIds.length === 0) return {};
 
-    const { data: entries } = await this.db
-      .getSupabase()
-      .from('Wishlist')
-      .select('auctionId')
-      .eq('userId', userId)
-      .in('auctionId', auctionIds);
-
-    const set = new Set(
-      (entries ?? []).map((e: { auctionId: string }) => e.auctionId),
+    const wishlisted = await this.wishlistReadRepo.findWishlistedAuctionIdsIn(
+      userId,
+      auctionIds,
     );
+    const set = new Set(wishlisted);
     return Object.fromEntries(auctionIds.map((id) => [id, set.has(id)]));
   }
 
   /** 내 찜 목록 조회 (raw SQL - Supabase auction/sneaker relation 이슈 회피) */
   async getMyWishlist(user: RequestUser): Promise<WishlistItem[]> {
-    const rows = await this.wishlistRepo.findMyWishlist(user.id);
+    const rows = await this.wishlistReadRepo.findMyWishlist(user.id);
 
     return rows.map((r) => ({
       id: r.id,

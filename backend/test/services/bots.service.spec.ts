@@ -1,18 +1,18 @@
 import type { BotCooldownStore } from '../../src/bots/cooldown.store';
 import { BotsService } from '../../src/bots/bots.service';
-import { DatabaseService } from '../../src/database/database.service';
+import { AuctionRelistRepository } from '../../src/database/repositories/auction-relist.repository';
 import { AuctionRepository } from '../../src/database/repositories/auction.repository';
 import { BotRepository } from '../../src/database/repositories/bot.repository';
 import { AuctionsService } from '../../src/auctions/auctions.service';
 
 describe('BotsService', () => {
   let service: BotsService;
-  let mockDb: Record<string, jest.Mock>;
   let mockAuctionRepo: {
     findMainAuctions: jest.Mock;
     findOpenWithBotSeller: jest.Mock;
     findClosedForRelist: jest.Mock;
   };
+  let mockAuctionRelistRepo: { insertAfterBotWin: jest.Mock };
   let mockBotRepo: {
     findAll: jest.Mock;
     findWithUsers: jest.Mock;
@@ -29,11 +29,13 @@ describe('BotsService', () => {
   };
 
   beforeEach(() => {
-    mockDb = {};
     mockAuctionRepo = {
       findMainAuctions: jest.fn().mockResolvedValue([]),
       findOpenWithBotSeller: jest.fn().mockResolvedValue([]),
       findClosedForRelist: jest.fn().mockResolvedValue([]),
+    };
+    mockAuctionRelistRepo = {
+      insertAfterBotWin: jest.fn().mockResolvedValue(null),
     };
     mockBotRepo = {
       findAll: jest.fn().mockResolvedValue([]),
@@ -51,8 +53,8 @@ describe('BotsService', () => {
     };
 
     service = new BotsService(
-      mockDb as unknown as DatabaseService,
       mockAuctionRepo as unknown as AuctionRepository,
+      mockAuctionRelistRepo as unknown as AuctionRelistRepository,
       mockBotRepo as unknown as BotRepository,
       mockAuctionsService as unknown as AuctionsService,
       mockCooldownStore as unknown as BotCooldownStore,
