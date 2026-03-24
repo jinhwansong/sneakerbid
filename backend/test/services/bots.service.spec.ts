@@ -10,6 +10,7 @@ describe('BotsService', () => {
   let mockDb: Record<string, jest.Mock>;
   let mockAuctionRepo: {
     findMainAuctions: jest.Mock;
+    findOpenWithBotSeller: jest.Mock;
     findClosedForRelist: jest.Mock;
   };
   let mockBotRepo: {
@@ -31,6 +32,7 @@ describe('BotsService', () => {
     mockDb = {};
     mockAuctionRepo = {
       findMainAuctions: jest.fn().mockResolvedValue([]),
+      findOpenWithBotSeller: jest.fn().mockResolvedValue([]),
       findClosedForRelist: jest.fn().mockResolvedValue([]),
     };
     mockBotRepo = {
@@ -83,6 +85,7 @@ describe('BotsService', () => {
   describe('runBotBidding', () => {
     it('경매 없으면 조기 반환', async () => {
       mockAuctionRepo.findMainAuctions.mockResolvedValue([]);
+      mockAuctionRepo.findOpenWithBotSeller.mockResolvedValue([]);
       mockBotRepo.findWithUsers.mockResolvedValue([
         {
           id: 'b1',

@@ -45,8 +45,8 @@ export class ProductSeedService {
     private readonly kicksdb: KicksDBService,
   ) {}
 
-  /** 매일 00:00, 12:00 KST — KicksDB에서 20개 상품 추가 */
-  @Cron('0 0,12 * * *', { timeZone: 'Asia/Seoul' })
+  /** 매일 00:00, 09:00, 12:00, 14:00, 18:00 KST — KicksDB에서 20개 상품 추가 */
+  @Cron('0 0,9,12,14,18 * * *', { timeZone: 'Asia/Seoul' })
   async seedFromKicksDB() {
     if (!this.kicksdb.isEnabled) {
       this.logger.debug('KICKS_API_KEY 없음, 상품 시드 스킵');

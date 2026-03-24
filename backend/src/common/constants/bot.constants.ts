@@ -21,11 +21,13 @@ export const BIDS_PER_TURN = 8;
 /** 각 입찰 시도 간 랜덤 지연 최대값 (ms) - 봇들이 동시에 움직이지 않도록 분산 */
 export const BID_STAGGER_MS = 18_000;
 
-/** 봇 낙찰 후 재등록 시점: closedAt 이후 N초 ~ N초 (min~max) */
+/** 봇 낙찰 후 재등록: 종료 시각 이후 최소 N초 지난 뒤에만 INSERT (정산·finalize 여유) */
 export const RELIST_DELAY_MIN_SEC = 10;
-export const RELIST_DELAY_MAX_SEC = 20;
 
-/** relistBotWonAuctions 실행 주기 (초) — closedAt 윈도우와 동기화 */
+/** 재등록 후보 조회: 최근 N일 이내 종료된 경매만 (누락된 재등록 보정 + 스캔 범위 제한) */
+export const RELIST_LOOKBACK_DAYS = 30;
+
+/** relistBotWonAuctions 실행 주기 (초) */
 export const RELIST_CHECK_INTERVAL_SEC = 60;
 
 /** 재등록 시 새 경매 유지 시간 (초) */
