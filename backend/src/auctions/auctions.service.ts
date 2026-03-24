@@ -1,6 +1,7 @@
-import { DatabaseService } from '@/database/database.service';
-import { AuctionRepository } from '@/database/repositories/auction.repository';
-import { BidRepository } from '@/database/repositories/bid.repository';
+import { DatabaseService } from '../database/database.service';
+import { AuctionRepository } from '../database/repositories/auction.repository';
+import { AuctionsTxRepository } from '../database/repositories/auctions-tx.repository';
+import { BidRepository } from '../database/repositories/bid.repository';
 import {
   BadRequestException,
   ForbiddenException,
@@ -46,6 +47,7 @@ export class AuctionsService {
     private readonly db: DatabaseService,
     private readonly auctionRepo: AuctionRepository,
     private readonly bidRepo: BidRepository,
+    private readonly auctionsTxRepo: AuctionsTxRepository,
     private readonly eventsService: EventsService,
     private readonly walletService: WalletService,
     private readonly wishlistService: WishlistService,
@@ -707,11 +709,7 @@ export class AuctionsService {
         );
       }
 
-      const bidRows = await tx.$queryRaw<{ count: string }>(
-        'SELECT COUNT(*)::text as count FROM "Bid" WHERE "auctionId" = $1',
-        [auctionId],
-      );
-      const bidCount = parseInt(bidRows[0]?.count ?? '0', 10);
+      const bidCount = await this.auctionsTxRepo.countBidsInTx(tx, auctionId);
       const hasBids = bidCount > 0;
 
       if (hasBids) {
@@ -739,7 +737,7 @@ export class AuctionsService {
         data: auctionUpdates,
       });
 
-      const count = await this.bidRepo.countByAuctionId(auction.id);
+      const count = await this.auctionsTxRepo.countBidsInTx(tx, auction.id);
       const sneakerData =
         Object.keys(sneakerUpdates).length > 0
           ? { ...auction.sneaker, ...sneakerUpdates }
@@ -756,15 +754,10 @@ export class AuctionsService {
   /** 물건 삭제 (단일 트랜잭션으로 원자적 처리) */
   async deleteAuction(auctionId: string, user: RequestUser) {
     await this.db.transaction(async (tx) => {
-      const auctionRows = await tx.$queryRaw<{
-        id: string;
-        sellerUserId: string;
-        sneakerId: string;
-      }>(
-        'SELECT id, "sellerUserId", "sneakerId" FROM "Auction" WHERE id = $1 FOR UPDATE',
-        [auctionId],
+      const auction = await this.auctionsTxRepo.findAuctionForDeleteLock(
+        tx,
+        auctionId,
       );
-      const auction = auctionRows[0];
       if (!auction) {
         throw new NotFoundException('경매를 찾을 수 없습니다.');
       }
@@ -773,35 +766,24 @@ export class AuctionsService {
         throw new ForbiddenException('삭제 권한이 없습니다.');
       }
 
-      const bidRows = await tx.$queryRaw<{ count: string }>(
-        'SELECT COUNT(*)::text as count FROM "Bid" WHERE "auctionId" = $1',
-        [auctionId],
-      );
-      const bidCount = parseInt(bidRows[0]?.count ?? '0', 10);
+      const bidCount = await this.auctionsTxRepo.countBidsInTx(tx, auctionId);
       if (bidCount > 0) {
         throw new BadRequestException(
           '입찰이 있는 경매는 삭제할 수 없습니다. 입찰을 취소한 후 다시 시도해 주세요.',
         );
       }
 
-      const orderRows = await tx.$queryRaw<{ count: string }>(
-        `SELECT COUNT(*)::text as count FROM "Order" WHERE "auctionId" = $1 AND status IN ('PENDING', 'PAID', 'FAILED')`,
-        [auctionId],
-      );
-      const activeOrderCount = parseInt(orderRows[0]?.count ?? '0', 10);
+      const activeOrderCount =
+        await this.auctionsTxRepo.countBlockingOrdersInTx(tx, auctionId);
       if (activeOrderCount > 0) {
         throw new BadRequestException(
           '결제 대기 중이거나 완료된 주문이 있는 경매는 삭제할 수 없습니다.',
         );
       }
 
-      await tx.$queryRaw('DELETE FROM "Order" WHERE "auctionId" = $1', [
-        auctionId,
-      ]);
-      await tx.$queryRaw('DELETE FROM "Auction" WHERE id = $1', [auctionId]);
-      await tx.$queryRaw('DELETE FROM "Sneaker" WHERE id = $1', [
-        auction.sneakerId,
-      ]);
+      await this.auctionsTxRepo.deleteOrdersByAuctionInTx(tx, auctionId);
+      await this.auctionsTxRepo.deleteAuctionByIdInTx(tx, auctionId);
+      await this.auctionsTxRepo.deleteSneakerByIdInTx(tx, auction.sneakerId);
     });
   }
 

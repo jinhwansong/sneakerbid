@@ -77,7 +77,7 @@
 
 ### 인프라
 - [x] Supabase (DB, Storage), Upstash Redis
-- [x] KicksDB 상품 시드 Cron *(매일 00:00, 12:00 — 20개씩)*
+- [x] KicksDB 상품 시드 Cron *(매일 00:00, 09:00, 12:00, 14:00, 18:00 — 20개씩)*
 
 ---
 

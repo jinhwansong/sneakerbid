@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { DatabaseService } from '@/database/database.service';
-import { BotRepository } from '@/database/repositories/bot.repository';
-import { OrdersService } from '@/orders/orders.service';
+import { AdminStatsRepository } from '../database/repositories/admin-stats.repository';
+import { BotRepository } from '../database/repositories/bot.repository';
+import { OrdersService } from '../orders/orders.service';
 
 export interface SettlementStatsDto {
   totalPaidAmount: number;
@@ -38,44 +38,26 @@ export interface DashboardTimelineDto {
 @Injectable()
 export class AdminService {
   constructor(
-    private readonly db: DatabaseService,
+    private readonly adminStatsRepo: AdminStatsRepository,
     private readonly botRepo: BotRepository,
     private readonly ordersService: OrdersService,
   ) {}
 
   /** 정산 현황/집계 */
   async getSettlementStats(): Promise<SettlementStatsDto> {
-    const [paidRows, closedRows, pendingRows, todayPaidRows] =
-      await Promise.all([
-        this.db.query<{ sum: string; count: string }>(
-          `SELECT COALESCE(SUM("finalPrice"), 0)::text as sum, COUNT(*)::text as count
-         FROM "Order" WHERE status = 'PAID'`,
-        ),
-        this.db.query<{ total: string; withWinner: string }>(
-          `SELECT COUNT(*)::text as total,
-         COUNT(*) FILTER (WHERE "winnerUserId" IS NOT NULL)::text as "withWinner"
-         FROM "Auction" WHERE status = 'CLOSED'`,
-        ),
-        this.db.query<{ count: string }>(
-          `SELECT COUNT(*)::text as count FROM "Order" WHERE status = 'PENDING'`,
-        ),
-        this.db.query<{ sum: string; count: string }>(
-          `SELECT COALESCE(SUM("finalPrice"), 0)::text as sum, COUNT(*)::text as count
-         FROM "Order" WHERE status = 'PAID' AND "paidAt" >= CURRENT_DATE`,
-        ),
-      ]);
-
-    const paid = paidRows[0];
-    const closed = closedRows[0];
-    const pending = pendingRows[0];
-    const todayPaid = todayPaidRows[0];
+    const [paid, closed, pendingOrders, todayPaid] = await Promise.all([
+      this.adminStatsRepo.getPaidTotals(),
+      this.adminStatsRepo.getClosedAuctionStats(),
+      this.adminStatsRepo.getPendingOrderCount(),
+      this.adminStatsRepo.getTodayPaidTotals(),
+    ]);
 
     return {
       totalPaidAmount: parseInt(paid?.sum ?? '0', 10),
       totalPaidCount: parseInt(paid?.count ?? '0', 10),
       totalClosedAuctions: parseInt(closed?.total ?? '0', 10),
       totalClosedWithWinner: parseInt(closed?.withWinner ?? '0', 10),
-      pendingOrders: parseInt(pending?.count ?? '0', 10),
+      pendingOrders,
       todayPaidAmount: parseInt(todayPaid?.sum ?? '0', 10),
       todayPaidCount: parseInt(todayPaid?.count ?? '0', 10),
     };
@@ -87,28 +69,10 @@ export class AdminService {
     startDate.setDate(startDate.getDate() - days);
     startDate.setHours(0, 0, 0, 0);
 
-    const [paymentRows, userRows, totalUserRow] = await Promise.all([
-      this.db.query<{ date: string; sum: string; count: string }>(
-        `SELECT DATE("paidAt")::text as date,
-         COALESCE(SUM("finalPrice"), 0)::text as sum,
-         COUNT(*)::text as count
-         FROM "Order"
-         WHERE status = 'PAID' AND "paidAt" >= $1
-         GROUP BY DATE("paidAt")
-         ORDER BY date ASC`,
-        [startDate],
-      ),
-      this.db.query<{ date: string; count: string }>(
-        `SELECT DATE("createdAt")::text as date, COUNT(*)::text as count
-         FROM "User"
-         WHERE "createdAt" >= $1
-         GROUP BY DATE("createdAt")
-         ORDER BY date ASC`,
-        [startDate],
-      ),
-      this.db.query<{ count: string }>(
-        'SELECT COUNT(*)::text as count FROM "User"',
-      ),
+    const [paymentRows, userRows, totalUsers] = await Promise.all([
+      this.adminStatsRepo.findDailyPaidSince(startDate),
+      this.adminStatsRepo.findDailyUserSignupsSince(startDate),
+      this.adminStatsRepo.countAllUsers(),
     ]);
 
     const payments: DailyPaymentPoint[] = paymentRows.map((r) => ({
@@ -121,8 +85,6 @@ export class AdminService {
       date: r.date,
       count: parseInt(r.count ?? '0', 10),
     }));
-
-    const totalUsers = parseInt(totalUserRow[0]?.count ?? '0', 10);
 
     return { payments, users, totalUsers };
   }
@@ -158,11 +120,9 @@ export class AdminService {
     auctionId: string,
     limit = 200,
   ): Promise<BidHistoryPointDto[]> {
-    const rows = await this.db.query<{ bidPrice: number; createdAt: Date }>(
-      `SELECT "bidPrice", "createdAt" FROM "Bid"
-       WHERE "auctionId" = $1 AND "disqualifiedAt" IS NULL
-       ORDER BY "createdAt" ASC LIMIT $2`,
-      [auctionId, limit],
+    const rows = await this.adminStatsRepo.findBidHistoryForChart(
+      auctionId,
+      limit,
     );
     return rows.map((r) => ({
       bidPrice: r.bidPrice,

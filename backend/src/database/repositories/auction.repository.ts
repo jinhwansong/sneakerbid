@@ -47,6 +47,32 @@ export interface TradeHistoryRow {
 export class AuctionRepository {
   constructor(private readonly db: DatabaseService) {}
 
+  async existsById(auctionId: string): Promise<boolean> {
+    const rows = await this.db.query<{ one: number }>(
+      `SELECT 1 AS one FROM "Auction" WHERE id = $1 LIMIT 1`,
+      [auctionId],
+    );
+    return rows.length > 0;
+  }
+
+  /**
+   * CLOSED이면서 post-close finalize 페이로드가 남은 경매 (재시도 큐).
+   */
+  async findClosedWithPendingPostCloseFinalize(
+    limit: number,
+  ): Promise<Array<{ id: string; postCloseFinalizePayload: unknown }>> {
+    return this.db.query<{
+      id: string;
+      postCloseFinalizePayload: unknown;
+    }>(
+      `SELECT id, "postCloseFinalizePayload" FROM "Auction"
+       WHERE status = 'CLOSED' AND "postCloseFinalizePayload" IS NOT NULL
+       ORDER BY "updatedAt" ASC
+       LIMIT $1`,
+      [limit],
+    );
+  }
+
   /** 메인 경매 목록 (진행 중, 20건) */
   async findMainAuctions(now: Date): Promise<AuctionListRow[]> {
     return this.db.query<AuctionListRow>(
@@ -260,11 +286,14 @@ export class AuctionRepository {
     );
   }
 
-  /** 봇 재등록 대상 (닫힌 경매, 봇 낙찰, 시간대) */
+  /**
+   * 봇 재등록 대상: CLOSED + 낙찰자가 봇 + 아직 재등록 안 됨.
+   * closedAt은 [closedAfter, closedBefore] 구간 (넓은 구간으로 누락 방지).
+   */
   async findClosedForRelist(params: {
     botUserIds: string[];
-    minClosed: Date;
-    maxClosed: Date;
+    closedAfter: Date;
+    closedBefore: Date;
     excludeRelistedIds: string[];
   }): Promise<
     (AuctionListRow & {
@@ -272,19 +301,38 @@ export class AuctionRepository {
       sneaker_modelName: string;
     })[]
   > {
-    const { botUserIds, minClosed, maxClosed, excludeRelistedIds } = params;
+    const { botUserIds, closedAfter, closedBefore, excludeRelistedIds } =
+      params;
     const excludeClause =
       excludeRelistedIds.length > 0 ? 'AND a.id != ALL($4::text[])' : '';
     const queryParams: unknown[] =
       excludeRelistedIds.length > 0
-        ? [botUserIds, minClosed, maxClosed, excludeRelistedIds]
-        : [botUserIds, minClosed, maxClosed];
+        ? [botUserIds, closedAfter, closedBefore, excludeRelistedIds]
+        : [botUserIds, closedAfter, closedBefore];
     return this.db.query(
       `SELECT a.*, s.brand as "sneaker_brand", s."modelName" as "sneaker_modelName"
        FROM "Auction" a JOIN "Sneaker" s ON a."sneakerId" = s.id
        WHERE a.status = 'CLOSED' AND a."winnerUserId" = ANY($1::text[])
          AND a."closedAt" >= $2 AND a."closedAt" <= $3 ${excludeClause}`,
       queryParams,
+    );
+  }
+
+  /** 봇이 판매자인 진행 중 경매 (재판매 건 — 다른 봇 입찰 풀에 포함) */
+  async findOpenWithBotSeller(
+    now: Date,
+    limit: number,
+  ): Promise<AuctionListRow[]> {
+    return this.db.query<AuctionListRow>(
+      `SELECT a.*, s.id as "sneaker_id", s."modelName" as "sneaker_modelName", s.brand as "sneaker_brand", s."imageUrl" as "sneaker_imageUrl",
+         (SELECT COUNT(*) FROM "Bid" WHERE "auctionId" = a.id)::int as bid_count
+       FROM "Auction" a
+       JOIN "Sneaker" s ON a."sneakerId" = s.id
+       JOIN "User" u ON a."sellerUserId" = u.id
+       WHERE a.status = 'OPEN' AND a."endTime" > $1 AND u.role = 'BOT'
+       ORDER BY a."endTime" ASC
+       LIMIT $2`,
+      [now, limit],
     );
   }
 

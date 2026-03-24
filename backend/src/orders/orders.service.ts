@@ -244,15 +244,8 @@ export class OrdersService {
 
   /** DB에 남은 post-close finalize 재시도 (프로세스 재시작 후에도 유지) */
   private async processPendingPostCloseFinalizes(): Promise<void> {
-    const rows = await this.db.query<{
-      id: string;
-      postCloseFinalizePayload: unknown;
-    }>(
-      `SELECT id, "postCloseFinalizePayload" FROM "Auction"
-       WHERE status = 'CLOSED' AND "postCloseFinalizePayload" IS NOT NULL
-       ORDER BY "updatedAt" ASC
-       LIMIT $1`,
-      [FINALIZE_RETRY_BATCH_SIZE],
+    const rows = await this.auctionRepo.findClosedWithPendingPostCloseFinalize(
+      FINALIZE_RETRY_BATCH_SIZE,
     );
 
     for (const row of rows) {

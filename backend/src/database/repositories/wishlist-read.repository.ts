@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { DatabaseService } from '@/database/database.service';
+import { DatabaseService } from '../database.service';
 
 export interface WishlistItemRow {
   id: string;
@@ -15,11 +15,23 @@ export interface WishlistItemRow {
   bid_count: number;
 }
 
+/** 찜 조회 전용 (소형 레포 — ESLint 타입 해석 안정화) */
 @Injectable()
-export class WishlistRepository {
+export class WishlistReadRepository {
   constructor(private readonly db: DatabaseService) {}
 
-  /** 내 찜 목록 (Auction + Sneaker 조인) */
+  async findWishlistedAuctionIdsIn(
+    userId: string,
+    auctionIds: string[],
+  ): Promise<string[]> {
+    if (auctionIds.length === 0) return [];
+    const rows = await this.db.query<{ auctionId: string }>(
+      `SELECT "auctionId" FROM "Wishlist" WHERE "userId" = $1 AND "auctionId" = ANY($2::text[])`,
+      [userId, auctionIds],
+    );
+    return rows.map((r) => r.auctionId);
+  }
+
   async findMyWishlist(userId: string): Promise<WishlistItemRow[]> {
     return this.db.query<WishlistItemRow>(
       `SELECT w.id, w."auctionId", a.size, a."currentPrice", a."endTime", a.status, a."buyNowPrice",

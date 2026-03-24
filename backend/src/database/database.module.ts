@@ -1,30 +1,54 @@
 import { Global, Module } from '@nestjs/common';
 import { DatabaseService } from './database.service';
 import {
+  AdminStatsRepository,
+  AuctionRelistRepository,
+  AuctionsTxRepository,
   AuctionRepository,
+  AuctionSeedRepository,
   BidRepository,
   BotRepository,
   OrderRepository,
-  WishlistRepository,
+  SneakerRepository,
+  UserRepository,
+  WalletRepository,
+  WishlistReadRepository,
+  WishlistToggleRepository,
 } from './repositories';
 
 @Global()
 @Module({
   providers: [
     DatabaseService,
+    AdminStatsRepository,
     AuctionRepository,
+    AuctionsTxRepository,
+    AuctionRelistRepository,
+    AuctionSeedRepository,
     BidRepository,
     BotRepository,
     OrderRepository,
-    WishlistRepository,
+    SneakerRepository,
+    UserRepository,
+    WalletRepository,
+    WishlistReadRepository,
+    WishlistToggleRepository,
   ],
   exports: [
     DatabaseService,
+    AdminStatsRepository,
     AuctionRepository,
+    AuctionsTxRepository,
+    AuctionRelistRepository,
+    AuctionSeedRepository,
     BidRepository,
     BotRepository,
     OrderRepository,
-    WishlistRepository,
+    SneakerRepository,
+    UserRepository,
+    WalletRepository,
+    WishlistReadRepository,
+    WishlistToggleRepository,
   ],
 })
 export class DatabaseModule {}

@@ -1,13 +1,13 @@
-import { WishlistRepository } from '../../src/database/repositories/wishlist.repository';
+import { WishlistReadRepository } from '../../src/database/repositories/wishlist-read.repository';
 import { DatabaseService } from '../../src/database/database.service';
 
-describe('WishlistRepository', () => {
-  let repo: WishlistRepository;
+describe('WishlistReadRepository', () => {
+  let repo: WishlistReadRepository;
   let mockDb: { query: jest.Mock };
 
   beforeEach(() => {
     mockDb = { query: jest.fn().mockResolvedValue([]) };
-    repo = new WishlistRepository(mockDb as unknown as DatabaseService);
+    repo = new WishlistReadRepository(mockDb as unknown as DatabaseService);
   });
 
   describe('findMyWishlist', () => {

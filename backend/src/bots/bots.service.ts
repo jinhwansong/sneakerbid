@@ -1,8 +1,11 @@
 import { randomUUID } from 'crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import { Cron, Interval } from '@nestjs/schedule';
-import { DatabaseService } from '@/database/database.service';
-import { AuctionRepository } from '@/database/repositories/auction.repository';
+import { AuctionRelistRepository } from '@/database/repositories/auction-relist.repository';
+import {
+  AuctionRepository,
+  type AuctionListRow,
+} from '@/database/repositories/auction.repository';
 import { BotRepository } from '@/database/repositories/bot.repository';
 import { AuctionsService } from '@/auctions/auctions.service';
 import { auctionCooldownKey, cooldownKey } from './cooldown.store';
@@ -17,6 +20,9 @@ import {
   RELIST_AUCTION_DURATION_SEC,
   RELIST_CHECK_INTERVAL_SEC,
   RELIST_DELAY_MIN_SEC,
+  RELIST_LOOKBACK_DAYS,
+  BOT_SELLER_AUCTION_LIMIT,
+  MERGED_AUCTIONS_FOR_BOTS,
 } from '@/common/constants/bot.constants';
 
 /** 랜덤 정수 생성 */
@@ -57,8 +63,8 @@ interface BotWithUser {
 @Injectable()
 export class BotsService {
   constructor(
-    private readonly db: DatabaseService,
     private readonly auctionRepo: AuctionRepository,
+    private readonly auctionRelistRepo: AuctionRelistRepository,
     private readonly botRepo: BotRepository,
     private readonly auctionsService: AuctionsService,
     @Inject('BOT_COOLDOWN_STORE')
@@ -111,14 +117,14 @@ export class BotsService {
     this.logPlacedBids(placed);
   }
 
-  /** 봇 낙찰 경매 10초 후 재등록 (60초마다 체크 — 프리티어 배포 시 부하 완화) */
+  /** 봇 낙찰 경매 재등록 (60초마다 — 최근 종료분 누락 없이 스캔) */
   @Interval(RELIST_CHECK_INTERVAL_SEC * 1000)
   async relistBotWonAuctions() {
     const now = new Date();
-    const minClosed = new Date(
-      now.getTime() - (RELIST_CHECK_INTERVAL_SEC + RELIST_DELAY_MIN_SEC) * 1000,
+    const closedBefore = new Date(now.getTime() - RELIST_DELAY_MIN_SEC * 1000);
+    const closedAfter = new Date(
+      now.getTime() - RELIST_LOOKBACK_DAYS * 24 * 60 * 60 * 1000,
     );
-    const maxClosed = new Date(now.getTime() - RELIST_DELAY_MIN_SEC * 1000);
 
     const botUserIds = await this.botRepo.findUserIds();
     if (botUserIds.length === 0) return;
@@ -127,8 +133,8 @@ export class BotsService {
 
     const toRelist = await this.auctionRepo.findClosedForRelist({
       botUserIds,
-      minClosed,
-      maxClosed,
+      closedAfter,
+      closedBefore,
       excludeRelistedIds: alreadyRelistedIds,
     });
 
@@ -138,26 +144,18 @@ export class BotsService {
     for (const auction of toRelist) {
       if (!auction.winnerUserId) continue;
       const id = randomUUID();
-      const endTimeStr = endTime.toISOString();
-      const inserted = await this.db.query<{ id: string }>(
-        `INSERT INTO "Auction" (id, "sneakerId", size, "startPrice", "currentPrice", "buyNowPrice", "minimumIncrement", status, "endTime", "sellerUserId", "relistedFromAuctionId", "createdAt", "updatedAt")
-         VALUES ($1, $2, $3, $4, $5, $6, $7, 'OPEN', $8, $9, $10, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-         ON CONFLICT ("relistedFromAuctionId") WHERE ("relistedFromAuctionId" IS NOT NULL) DO NOTHING
-         RETURNING id`,
-        [
-          id,
-          auction.sneakerId,
-          auction.size,
-          auction.currentPrice,
-          auction.currentPrice,
-          auction.buyNowPrice,
-          auction.minimumIncrement,
-          endTimeStr,
-          auction.winnerUserId,
-          auction.id,
-        ],
-      );
-      if (inserted.length > 0) {
+      const inserted = await this.auctionRelistRepo.insertAfterBotWin({
+        id,
+        sneakerId: auction.sneakerId,
+        size: auction.size,
+        currentPrice: auction.currentPrice,
+        buyNowPrice: auction.buyNowPrice,
+        minimumIncrement: auction.minimumIncrement,
+        endTimeIso: endTime.toISOString(),
+        sellerUserId: auction.winnerUserId,
+        relistedFromAuctionId: auction.id,
+      });
+      if (inserted) {
         const brand = auction.sneaker_brand;
         const model = auction.sneaker_modelName;
         console.log(
@@ -167,24 +165,34 @@ export class BotsService {
     }
   }
 
-  /** 경매·봇 데이터 조회 */
+  /** 경매·봇 데이터 조회 — 메인 풀 + 봇 판매자(재판매) 풀 합쳐 다른 봇이 입찰 가능하게 */
   private async fetchData(): Promise<[AuctionWithSneaker[], BotWithUser[]]> {
     const now = new Date();
 
-    const [auctionRows, botRows] = await Promise.all([
-      this.auctionRepo.findMainAuctions(now).then((rows) =>
-        rows.slice(0, 15).map((a) => ({
-          ...a,
-          sneaker: {
-            brand: a.sneaker_brand,
-            modelName: a.sneaker_modelName,
-          },
-        })),
-      ),
+    const [mainRows, botSellerRows, botRows] = await Promise.all([
+      this.auctionRepo.findMainAuctions(now),
+      this.auctionRepo.findOpenWithBotSeller(now, BOT_SELLER_AUCTION_LIMIT),
       this.botRepo.findWithUsers(),
     ]);
 
-    const auctions: AuctionWithSneaker[] = auctionRows;
+    const byId = new Map<string, AuctionListRow>();
+    for (const r of botSellerRows) {
+      byId.set(r.id, r);
+    }
+    for (const r of mainRows) {
+      if (!byId.has(r.id)) byId.set(r.id, r);
+    }
+    const merged = Array.from(byId.values())
+      .slice(0, MERGED_AUCTIONS_FOR_BOTS)
+      .map((a) => ({
+        ...a,
+        sneaker: {
+          brand: a.sneaker_brand,
+          modelName: a.sneaker_modelName,
+        },
+      }));
+
+    const auctions: AuctionWithSneaker[] = merged;
 
     const bots: BotWithUser[] = botRows.map((b) => ({
       id: b.id,
