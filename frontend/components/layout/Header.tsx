@@ -4,7 +4,20 @@ import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/util/cn';
-import { ChevronDown, User, LogOut, Shield, Menu, X } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+import {
+  ChevronDown,
+  User,
+  LogOut,
+  Shield,
+  Menu,
+  X,
+  LogIn,
+  Gavel,
+  ScrollText,
+  Trophy,
+  UserCircle,
+} from 'lucide-react';
 import { NotificationBell } from '@/components/layout/NotificationBell';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { useMe } from '@/hooks/query/useMe';
@@ -20,11 +33,14 @@ export default function Header() {
   });
   const logout = useLogout();
 
-  const navItems = [
-    { label: '경매', href: '/auction' },
-    { label: '거래내역', href: '/history' },
-    { label: '랭킹', href: '/ranking' },
-    // { label: '이벤트', href: '/events' },
+  const navItems: {
+    label: string;
+    href: string;
+    icon: LucideIcon;
+  }[] = [
+    { label: '경매', href: '/auction', icon: Gavel },
+    { label: '거래내역', href: '/history', icon: ScrollText },
+    { label: '랭킹', href: '/ranking', icon: Trophy },
   ];
 
   const profileNavItem = [
@@ -173,7 +189,7 @@ export default function Header() {
           ) : (
             <Link
               href="/login"
-              className="inline-flex items-center justify-center px-3 py-1.5 md:px-4 md:py-2 text-xs md:text-sm font-bold rounded-xl bg-text-main text-bg-main hover:brightness-110 shadow-lg shadow-black/5 dark:shadow-none transition-all"
+              className="hidden lg:inline-flex items-center justify-center px-3 py-1.5 md:px-4 md:py-2 text-xs md:text-sm font-bold rounded-xl bg-text-main text-bg-main hover:brightness-110 shadow-lg shadow-black/5 dark:shadow-none transition-all"
               aria-label="로그인"
             >
               로그인
@@ -191,27 +207,80 @@ export default function Header() {
             onClick={() => setMobileNavOpen(false)}
           />
           <div
-            className="fixed left-0 bottom-0 z-[120] w-[min(100%,18rem)] border-r border-border-main bg-bg-main shadow-xl flex flex-col lg:hidden top-14 md:top-16"
+            className="fixed left-0 bottom-0 z-[120] flex w-[min(100%,20rem)] flex-col border-r border-border-main bg-bg-main shadow-2xl lg:hidden top-14 md:top-16 rounded-r-2xl"
             role="dialog"
             aria-label="모바일 메뉴"
           >
-            <nav className="flex flex-col gap-0.5 p-3" aria-label="모바일 주요 링크">
-              {navItems.map((item) => (
-                <Link
-                  key={item.label}
-                  href={item.href}
-                  onClick={() => setMobileNavOpen(false)}
-                  className={cn(
-                    'px-3 py-3 rounded-lg text-sm font-semibold transition-colors',
-                    isActive(item.href)
-                      ? 'text-text-main bg-bg-sub'
-                      : 'text-text-sub hover:text-text-main hover:bg-bg-sub/70',
-                  )}
-                >
-                  {item.label}
-                </Link>
-              ))}
+            <div className="shrink-0 border-b border-border-main bg-bg-sub/40 px-4 py-3">
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-text-muted">
+                LaceUp
+              </p>
+              {user ? (
+                <p className="mt-1 truncate text-sm font-bold text-text-main">
+                  {user.nickname}
+                </p>
+              ) : (
+                <p className="mt-1 text-xs font-medium text-text-sub">
+                  로그인하고 경매에 참여해 보세요
+                </p>
+              )}
+            </div>
+
+            <nav
+              className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto p-3"
+              aria-label="모바일 주요 링크"
+            >
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setMobileNavOpen(false)}
+                    className={cn(
+                      'flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-bold transition-colors',
+                      isActive(item.href)
+                        ? 'bg-brand-primary/10 text-text-main ring-1 ring-brand-primary/20'
+                        : 'text-text-sub hover:bg-bg-sub hover:text-text-main',
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg',
+                        isActive(item.href)
+                          ? 'bg-brand-primary/15 text-brand-primary'
+                          : 'bg-bg-sub text-text-muted',
+                      )}
+                    >
+                      <Icon size={18} strokeWidth={2.25} aria-hidden />
+                    </span>
+                    {item.label}
+                  </Link>
+                );
+              })}
             </nav>
+
+            <div className="shrink-0 border-t border-border-main bg-bg-sub/30 p-4">
+              {user ? (
+                <Link
+                  href="/me"
+                  onClick={() => setMobileNavOpen(false)}
+                  className="flex items-center justify-center gap-2 rounded-xl border border-border-main bg-bg-main px-4 py-3 text-sm font-bold text-text-main shadow-sm transition-colors hover:bg-bg-sub"
+                >
+                  <UserCircle size={18} className="text-text-sub" aria-hidden />
+                  마이페이지
+                </Link>
+              ) : (
+                <Link
+                  href="/login"
+                  onClick={() => setMobileNavOpen(false)}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-text-main px-4 py-3.5 text-sm font-black text-bg-main shadow-lg transition-all hover:brightness-110 active:scale-[0.99]"
+                >
+                  <LogIn size={18} aria-hidden />
+                  로그인
+                </Link>
+              )}
+            </div>
           </div>
         </>
       )}
