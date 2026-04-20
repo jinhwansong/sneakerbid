@@ -1,0 +1,13 @@
+---
+description: SQL · Supabase 마이그레이션 — 스키마·안전한 변경
+globs: "**/*.sql"
+alwaysApply: false
+---
+
+# SQL · 마이그레이션
+
+- **파일**: `backend/supabase/migrations/` 아래 순번·의미 있는 이름. 기존 마이그레이션은 수정하지 않고 **새 파일**로 추가한다.
+- **호환**: `ADD COLUMN`은 가능하면 `DEFAULT`·`IF NOT EXISTS` 패턴으로 배포 중 깨짐을 줄인다. 드롭·타입 변경은 데이터 백업·다운타임 전제를 명시한다.
+- **FK·인덱스**: 참조 무결성·조회 패턴에 맞는 인덱스. 대량 테이블은 `CONCURRENTLY` 등 운영 고려(문서화).
+- **권한**: 앱 DB 유저는 최소 권한. `SUPERUSER` 전제 SQL은 피한다.
+- **검토**: Raw SQL은 항상 파라미터 바인딩; 앱 코드에서 문자열로 식별자만 조합하지 않는다.

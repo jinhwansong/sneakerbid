@@ -1,0 +1,11 @@
+---
+description: LaceUp 경매 프로젝트 공통 — 스택, 범위, 커밋 스타일
+alwaysApply: true
+---
+
+# 프로젝트 코어
+
+- **스택**: 백엔드 NestJS 11 + PostgreSQL(Supabase) + Redis / 프론트 Next.js(App Router) + React Query + Tailwind.
+- **범위**: 요청한 작업만 수정한다. 관련 없는 리팩터·포맷 일괄 변경·문서(md) 추가는 사용자가 요청한 경우에만 한다.
+- **보안·SQL·a11y·작업 후 검증**은 각각 `security.mdc`, `sql-migrations.mdc`, `accessibility.mdc`, `agent-workflow.mdc`를 따른다.
+- **커밋 메시지**: 한국어 한 줄 요약(명사형/현재형) + 필요 시 본문. 자동 커밋 절차는 `agent-workflow.mdc`.

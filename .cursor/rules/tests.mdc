@@ -1,0 +1,12 @@
+---
+description: 테스트 — Jest(백엔드) · Vitest/Playwright(프론트)
+globs: "**/*.{spec.ts,test.ts,test.tsx}"
+alwaysApply: false
+---
+
+# 테스트
+
+- **백엔드**: `backend/test` — Jest, `describe`/`it` 명확한 이름, mock은 최소 범위.
+- **프론트 단위**: `frontend/test` — Vitest + Testing Library, 사용자 관점 쿼리(`getByRole` 우선).
+- **E2E**: Playwright — 안정적인 `data-testid` 또는 role 기반 선택자.
+- 테스트 추가 시 기존 파일 네이밍·폴더 구조를 따른다. 불필요한 스냅샷 남발은 피한다.
