@@ -29,6 +29,14 @@ export interface MyOrderRow {
   sneaker_brand: string;
 }
 
+export interface OrderReviewContextRow {
+  id: string;
+  auctionId: string;
+  buyerUserId: string;
+  sellerUserId: string;
+  status: string;
+}
+
 @Injectable()
 export class OrderRepository {
   constructor(private readonly db: DatabaseService) {}
@@ -46,6 +54,17 @@ export class OrderRepository {
   async findForPay(orderId: string): Promise<OrderPayRow | null> {
     const rows = await this.db.query<OrderPayRow>(
       `SELECT o.id, o."auctionId", o."buyerUserId", o."finalPrice", o.status, a."sellerUserId"
+       FROM "Order" o JOIN "Auction" a ON o."auctionId" = a.id
+       WHERE o.id = $1`,
+      [orderId],
+    );
+    return rows[0] ?? null;
+  }
+
+  /** 리뷰 작성용 (구매자/판매자 확인) */
+  async findForReview(orderId: string): Promise<OrderReviewContextRow | null> {
+    const rows = await this.db.query<OrderReviewContextRow>(
+      `SELECT o.id, o."auctionId", o."buyerUserId", a."sellerUserId", o.status
        FROM "Order" o JOIN "Auction" a ON o."auctionId" = a.id
        WHERE o.id = $1`,
       [orderId],

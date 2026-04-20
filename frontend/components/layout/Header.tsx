@@ -1,16 +1,18 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/util/cn';
-import { ChevronDown, User, LogOut, Shield } from 'lucide-react';
+import { ChevronDown, User, LogOut, Shield, Menu, X } from 'lucide-react';
+import { NotificationBell } from '@/components/layout/NotificationBell';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { useMe } from '@/hooks/query/useMe';
 import { useLogout } from '@/hooks/query/useLogout';
 
 export default function Header() {
   const pathname = usePathname();
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
   const { data: user, isLoading } = useMe({
@@ -38,14 +40,40 @@ export default function Header() {
   };
   useClickOutside(profileRef, () => setProfileOpen(false), 'mousedown');
 
+  useEffect(() => {
+    setMobileNavOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!mobileNavOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [mobileNavOpen]);
+
   return (
     <nav
       className="sticky top-0 z-50 w-full bg-bg-main/95 dark:bg-bg-main/90 backdrop-blur-md border-b border-border-main"
       aria-label="메인 네비게이션"
     >
-      <div className="max-w-7xl mx-auto px-5 h-14 md:h-16 flex items-center justify-between">
-        <div className="flex items-center gap-6 md:gap-8">
-          <Link href="/" className="group shrink-0" aria-label="LaceUp 홈으로 이동">
+      <div className="max-w-7xl mx-auto px-5 h-14 md:h-16 flex items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2 md:gap-8">
+          <button
+            type="button"
+            className="md:hidden flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border-main bg-bg-sub/50 hover:bg-bg-sub transition-colors"
+            onClick={() => setMobileNavOpen((v) => !v)}
+            aria-label={mobileNavOpen ? '메뉴 닫기' : '메뉴 열기'}
+            aria-expanded={mobileNavOpen}
+          >
+            {mobileNavOpen ? (
+              <X size={20} className="text-text-main" />
+            ) : (
+              <Menu size={20} className="text-text-main" />
+            )}
+          </button>
+          <Link href="/" className="group shrink-0 min-w-0" aria-label="LaceUp 홈으로 이동">
             <h1 className="text-lg md:text-xl font-black tracking-tighter text-text-main group-hover:opacity-80 transition-opacity">
               Lace<span className="text-brand-primary">Up</span>
             </h1>
@@ -68,9 +96,11 @@ export default function Header() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
           {user && !isLoading ? (
-            <div className="relative" ref={profileRef}>
+            <>
+              <NotificationBell />
+              <div className="relative" ref={profileRef}>
               <button
                 type="button"
                 onClick={() => setProfileOpen((v) => !v)}
@@ -137,7 +167,8 @@ export default function Header() {
                   </button>
                 </div>
               )}
-            </div>
+              </div>
+            </>
           ) : (
             <Link
               href="/login"
@@ -149,6 +180,40 @@ export default function Header() {
           )}
         </div>
       </div>
+
+      {mobileNavOpen && (
+        <>
+          <button
+            type="button"
+            className="fixed inset-0 z-40 bg-black/50 md:hidden"
+            aria-label="메뉴 배경 닫기"
+            onClick={() => setMobileNavOpen(false)}
+          />
+          <div
+            className="fixed top-14 left-0 bottom-0 z-50 w-[min(100%,18rem)] border-r border-border-main bg-bg-main shadow-xl md:hidden flex flex-col"
+            role="dialog"
+            aria-label="모바일 메뉴"
+          >
+            <nav className="flex flex-col gap-0.5 p-3" aria-label="모바일 주요 링크">
+              {navItems.map((item) => (
+                <Link
+                  key={item.label}
+                  href={item.href}
+                  onClick={() => setMobileNavOpen(false)}
+                  className={cn(
+                    'px-3 py-3 rounded-lg text-sm font-semibold transition-colors',
+                    isActive(item.href)
+                      ? 'text-text-main bg-bg-sub'
+                      : 'text-text-sub hover:text-text-main hover:bg-bg-sub/70',
+                  )}
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </nav>
+          </div>
+        </>
+      )}
     </nav>
   );
 }

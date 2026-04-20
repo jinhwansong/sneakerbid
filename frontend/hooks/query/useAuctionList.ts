@@ -30,20 +30,24 @@ export interface UseAuctionListParams {
   brand?: string | null;
   size?: number | null;
   sort?: SortBy;
+  search?: string | null;
 }
 
 export function useAuctionList(params: UseAuctionListParams = {}) {
-  const { brand = null, size = null, sort = 'ending_soon' } = params;
+  const { brand = null, size = null, sort = 'ending_soon', search = null } =
+    params;
   const query: AuctionListQuery = {
     limit: 10,
     ...(brand != null && brand !== '' && { brand }),
     ...(size != null && { size: String(size) }),
     ...(sort && { sort }),
+    ...(search != null && search.trim() !== '' && { search: search.trim() }),
   };
   const queryKey = queryKeys.auctions.list({
     brand: brand ?? undefined,
     size: size ?? undefined,
     sort,
+    search: search?.trim() || undefined,
   });
 
   return useInfiniteQuery({

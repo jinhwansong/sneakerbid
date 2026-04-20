@@ -4,6 +4,7 @@ import { auctions } from './auctions';
 import { orders } from './orders';
 import { users } from './users';
 import { wishlist } from './wishlist';
+import { notifications } from './notifications';
 import { apiClient } from './client';
 
 export const api = {
@@ -13,6 +14,7 @@ export const api = {
   orders,
   users,
   wishlist,
+  notifications,
 
   /** 이미지 업로드 (FormData). 반환: { url: string } */
   uploadImage: (file: File) => {

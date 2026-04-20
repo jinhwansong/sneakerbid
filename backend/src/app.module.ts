@@ -29,6 +29,7 @@ import { UploadModule } from './upload/upload.module';
 import { AdminModule } from './admin/admin.module';
 import { ProductSeedModule } from './product-seed/product-seed.module';
 import { RetentionModule } from './retention/retention.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -70,6 +71,7 @@ import { RetentionModule } from './retention/retention.module';
     AdminModule,
     ProductSeedModule,
     RetentionModule,
+    NotificationsModule,
   ],
   controllers: [AppController, HealthController],
   providers: [

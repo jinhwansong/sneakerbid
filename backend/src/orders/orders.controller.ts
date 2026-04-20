@@ -1,4 +1,11 @@
-import { Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -7,6 +14,8 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { OrdersService } from './orders.service';
+import { ReviewsService } from '@/reviews/reviews.service';
+import { CreateReviewDto } from '@/reviews/dto/create-review.dto';
 import { Roles } from '@/common/decorator/roles.decorator';
 import { UserRole } from '@/common/enum/role.enum';
 import { RolesGuard } from '@/common/guard/roles.guard';
@@ -15,7 +24,10 @@ import { RequestUser, User } from '@/common/decorator/user.decorator';
 @ApiTags('Orders')
 @Controller('orders')
 export class OrdersController {
-  constructor(private readonly ordersService: OrdersService) {}
+  constructor(
+    private readonly ordersService: OrdersService,
+    private readonly reviewsService: ReviewsService,
+  ) {}
 
   @Get('me')
   @Roles(UserRole.USER, UserRole.ADMIN)
@@ -59,5 +71,23 @@ export class OrdersController {
   @ApiResponse({ status: 404, description: 'Not Found' })
   payOrder(@Param('orderId') orderId: string, @User() user: RequestUser) {
     return this.ordersService.payOrder(orderId, user);
+  }
+
+  @Post(':orderId/reviews')
+  @Roles(UserRole.USER, UserRole.ADMIN)
+  @UseGuards(RolesGuard)
+  @ApiBearerAuth('access-token')
+  @ApiOperation({
+    summary: '거래 후 리뷰 작성',
+    description: '결제 완료 주문에 대해 상대방에 대한 평점·코멘트',
+  })
+  @ApiParam({ name: 'orderId', description: '주문 ID' })
+  @ApiResponse({ status: 201, description: '작성됨' })
+  createReview(
+    @Param('orderId') orderId: string,
+    @Body() dto: CreateReviewDto,
+    @User() user: RequestUser,
+  ) {
+    return this.reviewsService.createForOrder(orderId, user, dto);
   }
 }

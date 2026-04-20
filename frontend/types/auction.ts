@@ -62,6 +62,7 @@ export interface AuctionListQuery {
   sort?: string;
   afterId?: string;
   limit?: number;
+  search?: string;
 }
 
 /** 거래 내역 조회 쿼리 파라미터 */

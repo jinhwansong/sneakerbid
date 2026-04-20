@@ -17,4 +17,14 @@ export const orders = {
   /** 주문 결제 */
   pay: (orderId: string) =>
     apiClient.post<PayOrderResponse>(`/orders/${orderId}/pay`),
+
+  /** 거래 후 리뷰 */
+  createReview: (
+    orderId: string,
+    body: { rating: number; comment?: string },
+  ) =>
+    apiClient.post<{ id: string; orderId: string; targetUserId: string; rating: number }>(
+      `/orders/${orderId}/reviews`,
+      body,
+    ),
 };

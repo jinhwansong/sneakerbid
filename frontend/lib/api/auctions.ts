@@ -30,6 +30,7 @@ export const auctions = {
     if (query?.sort) params.append('sort', query.sort);
     if (query?.afterId) params.append('afterId', query.afterId);
     if (query?.limit) params.append('limit', query.limit.toString());
+    if (query?.search) params.append('search', query.search);
     const queryString = params.toString();
     return apiClient.get<GetAuctionListResponse>(
       `/auctions${queryString ? `?${queryString}` : ''}`,

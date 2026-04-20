@@ -97,6 +97,14 @@ export class AuctionRepository {
   }
 
   /** 경매 상세 (sneaker 포함) */
+  /** 상세 조회 시 조회수 +1 */
+  async incrementViewCount(auctionId: string): Promise<void> {
+    await this.db.query(
+      `UPDATE "Auction" SET "viewCount" = COALESCE("viewCount", 0) + 1 WHERE id = $1`,
+      [auctionId],
+    );
+  }
+
   async findByIdWithSneaker(
     auctionId: string,
   ): Promise<AuctionDetailRow | null> {
@@ -166,8 +174,9 @@ export class AuctionRepository {
     afterId?: string;
     limit: number;
     now: Date;
+    search?: string;
   }): Promise<AuctionListRow[]> {
-    const { brand, size, sort, afterId, limit, now } = params;
+    const { brand, size, sort, afterId, limit, now, search } = params;
     const orderMap: Record<string, string> = {
       ending_soon: 'a."endTime" ASC, a.id ASC',
       popular: 'a."currentPrice" DESC, a.id ASC',
@@ -189,6 +198,15 @@ export class AuctionRepository {
     if (size) {
       sql += ` AND a.size = $${pi++}`;
       queryParams.push(size);
+    }
+    if (search) {
+      const term = `%${search.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_')}%`;
+      sql += ` AND (
+        s.brand ILIKE $${pi} ESCAPE '\\' OR s."modelName" ILIKE $${pi} ESCAPE '\\'
+        OR COALESCE(s.colorway, '') ILIKE $${pi} ESCAPE '\\' OR COALESCE(s.description, '') ILIKE $${pi} ESCAPE '\\'
+      )`;
+      queryParams.push(term);
+      pi++;
     }
     if (afterId) {
       if (sort === 'newest') {
@@ -282,6 +300,15 @@ export class AuctionRepository {
       [auctionId],
     );
     return rows[0] ?? null;
+  }
+
+  /** 찜 알림: 곧 마감되는 진행 중 경매 (endTime ∈ (now, until]) */
+  async findOpenEndingBefore(until: Date, now: Date): Promise<{ id: string }[]> {
+    return this.db.query<{ id: string }>(
+      `SELECT id FROM "Auction"
+       WHERE status = 'OPEN' AND "endTime" > $1 AND "endTime" <= $2`,
+      [now, until],
+    );
   }
 
   /** 만료된 경매 (종료 배치용) */

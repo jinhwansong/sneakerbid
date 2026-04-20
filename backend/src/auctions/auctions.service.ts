@@ -29,6 +29,7 @@ import { UpdateAuctionDto } from './dto/update.auction.dto';
 import { PlaceBidDto } from './dto/place.bid.dto';
 import { RequestUser } from '@/common/decorator/user.decorator';
 import { EventsService } from '@/events/events.service';
+import { NotificationsService } from '@/notifications/notifications.service';
 import { BidLogItem } from '@/common/type/bot.type';
 import { WalletService } from '@/wallet/wallet.service';
 import { WishlistService } from '@/wishlist/wishlist.service';
@@ -49,6 +50,7 @@ export class AuctionsService {
     private readonly bidRepo: BidRepository,
     private readonly auctionsTxRepo: AuctionsTxRepository,
     private readonly eventsService: EventsService,
+    private readonly notificationsService: NotificationsService,
     private readonly walletService: WalletService,
     private readonly wishlistService: WishlistService,
   ) {}
@@ -252,8 +254,13 @@ export class AuctionsService {
     nextCursor: string | null;
     hasMore: boolean;
   }> {
-    const { brand, size, sort = 'newest', afterId, limit = 20 } = query;
+    const { brand, size, sort = 'newest', afterId, limit = 20, search } =
+      query;
     const now = new Date();
+    const searchTrim =
+      typeof search === 'string' && search.trim().length > 0
+        ? search.trim().slice(0, 80)
+        : undefined;
 
     const rows = await this.auctionRepo.listWithFilters({
       brand,
@@ -262,6 +269,7 @@ export class AuctionsService {
       afterId,
       limit,
       now,
+      search: searchTrim,
     });
     const hasMore = rows.length > limit;
     const sliced = hasMore ? rows.slice(0, limit) : rows;
@@ -303,6 +311,7 @@ export class AuctionsService {
     if (!auction) {
       throw new NotFoundException('경매를 찾을 수 없습니다.');
     }
+    void this.auctionRepo.incrementViewCount(auctionId).catch(() => undefined);
     let isWishlisted = false;
     if (user) {
       const map = await this.wishlistService.getWishlistedMap(user.id, [
@@ -371,6 +380,7 @@ export class AuctionsService {
       const leadingBid = (
         auction.bids as { userId: string }[] | undefined
       )?.[0];
+      const previousLeaderId = leadingBid?.userId ?? null;
       if (leadingBid?.userId === user.id) {
         throw new BadRequestException(
           '이미 최고 입찰자입니다. 다른 사용자의 입찰을 기다려 주세요.',
@@ -423,7 +433,7 @@ export class AuctionsService {
         data: updateData,
       });
 
-      return { bid };
+      return { bid, previousLeaderId };
     });
 
     const participantCount = await this.bidRepo.countByAuctionId(auctionId);
@@ -435,6 +445,43 @@ export class AuctionsService {
       isBot: false,
       participantCount,
     });
+
+    if (
+      result.previousLeaderId &&
+      result.previousLeaderId !== user.id
+    ) {
+      void this.notificationsService
+        .notifyBidOvertaken(result.previousLeaderId, auctionId)
+        .catch((err: unknown) =>
+          this.logger.warn('notifyBidOvertaken failed', {
+            auctionId,
+            err: err instanceof Error ? err.message : String(err),
+          }),
+        );
+    }
+
+    const detailRow = await this.auctionRepo.findByIdWithSneaker(auctionId);
+    if (detailRow) {
+      const wishlistIds =
+        await this.wishlistService.findUserIdsByAuctionId(auctionId);
+      for (const uid of wishlistIds) {
+        if (uid === user.id) continue;
+        void this.notificationsService
+          .notifyWishlistBidActivity(
+            uid,
+            auctionId,
+            detailRow.sneaker_brand,
+            detailRow.sneaker_modelName,
+            dto.bidPrice,
+          )
+          .catch((err: unknown) =>
+            this.logger.warn('notifyWishlistBidActivity failed', {
+              auctionId,
+              err: err instanceof Error ? err.message : String(err),
+            }),
+          );
+      }
+    }
 
     return {
       bidId: result.bid.id,
@@ -473,6 +520,7 @@ export class AuctionsService {
       const leadingBid = (
         auction.bids as { userId: string }[] | undefined
       )?.[0];
+      const previousLeaderId = leadingBid?.userId ?? null;
       if (leadingBid?.userId === botUser.id) return null;
 
       const minBid = auction.currentPrice + auction.minimumIncrement;
@@ -510,7 +558,7 @@ export class AuctionsService {
         data: updateData,
       });
 
-      return { bid };
+      return { bid, previousLeaderId };
     });
 
     if (!result) return null;
@@ -524,6 +572,20 @@ export class AuctionsService {
       isBot: true,
       participantCount,
     });
+
+    if (
+      result.previousLeaderId &&
+      result.previousLeaderId !== botUser.id
+    ) {
+      void this.notificationsService
+        .notifyBidOvertaken(result.previousLeaderId, auctionId)
+        .catch((err: unknown) =>
+          this.logger.warn('notifyBidOvertaken (bot) failed', {
+            auctionId,
+            err: err instanceof Error ? err.message : String(err),
+          }),
+        );
+    }
 
     return {
       bidId: result.bid.id,

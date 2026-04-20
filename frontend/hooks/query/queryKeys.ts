@@ -13,6 +13,10 @@ export const queryKeys = {
   wishlist: {
     my: ['wishlist', 'my'] as const,
   },
+  notifications: {
+    list: () => ['notifications', 'list'] as const,
+    unreadCount: () => ['notifications', 'unreadCount'] as const,
+  },
   auctions: {
     main: ['auctions', 'main'] as const,
     stats: ['auctions', 'stats'] as const,

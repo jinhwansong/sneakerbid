@@ -39,6 +39,11 @@ export class WishlistService {
     return result;
   }
 
+  /** 경매를 찜한 사용자 ID (알림용) */
+  async findUserIdsByAuctionId(auctionId: string): Promise<string[]> {
+    return this.wishlistReadRepo.findUserIdsByAuctionId(auctionId);
+  }
+
   /** 여러 경매 ID에 대해 찜 여부 맵 반환 (userId, auctionIds) */
   async getWishlistedMap(
     userId: string,

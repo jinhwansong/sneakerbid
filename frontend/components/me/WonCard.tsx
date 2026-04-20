@@ -3,20 +3,44 @@
 import React, { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { CreditCard } from 'lucide-react';
+import { CreditCard, Star } from 'lucide-react';
 import { Button } from '@/components/common/Button';
 import PaymentFlowModal from '@/components/common/PaymentFlowModal';
 import { formatPrice } from '@/lib/util/format';
 import { cn } from '@/lib/util/cn';
 import { api } from '@/lib/api';
-import { useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/hooks/query/queryKeys';
 import type { OrderItem } from '@/types/orders';
 import { BLUR_PLACEHOLDER } from '@/lib/constants/image';
+import { useToastStore } from '@/store/useToastStore';
 
 export default function WonCard({ item }: { item: OrderItem }) {
   const queryClient = useQueryClient();
+  const showToast = useToastStore((s) => s.showToast);
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [rating, setRating] = useState(5);
+  const [comment, setComment] = useState('');
+  const [reviewDone, setReviewDone] = useState(false);
+
+  const reviewMutation = useMutation({
+    mutationFn: () =>
+      api.orders.createReview(item.id, {
+        rating,
+        comment: comment.trim() || undefined,
+      }),
+    onSuccess: () => {
+      setReviewDone(true);
+      setReviewOpen(false);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.orders.my });
+      showToast('리뷰가 등록되었습니다.');
+    },
+    onError: (err: unknown) => {
+      const msg = err instanceof Error ? err.message : '리뷰 등록에 실패했습니다.';
+      showToast(msg, 'error');
+    },
+  });
   const statusConfig = {
     PENDING: {
       label: '결제 대기',
@@ -81,19 +105,92 @@ export default function WonCard({ item }: { item: OrderItem }) {
             </p>
           </div>
         </Link>
-        {item.status === 'PENDING' ? (
-          <Button
-            variant="primary"
-            size="sm"
-            className="gap-1 shrink-0"
-            onClick={() => setPaymentModalOpen(true)}
-            aria-label="결제하기"
-          >
-            <CreditCard size={14} />
-            결제하기
-          </Button>
-        ) : null}
+        <div className="flex flex-col gap-2 shrink-0 items-end">
+          {item.status === 'PENDING' ? (
+            <Button
+              variant="primary"
+              size="sm"
+              className="gap-1"
+              onClick={() => setPaymentModalOpen(true)}
+              aria-label="결제하기"
+            >
+              <CreditCard size={14} />
+              결제하기
+            </Button>
+          ) : null}
+          {item.status === 'PAID' && !reviewDone ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1"
+              onClick={() => setReviewOpen(true)}
+              aria-label="거래 리뷰 작성"
+            >
+              <Star size={14} />
+              리뷰
+            </Button>
+          ) : null}
+        </div>
       </div>
+
+      {reviewOpen && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50"
+          role="dialog"
+          aria-modal
+          aria-label="리뷰 작성"
+        >
+          <div className="w-full max-w-md rounded-2xl bg-bg-main border border-border-main p-6 shadow-xl">
+            <h3 className="text-lg font-black text-text-main mb-4">거래 리뷰</h3>
+            <p className="text-xs text-text-muted mb-3">
+              상대방에 대한 평점(1~5)과 선택 코멘트를 남겨 주세요.
+            </p>
+            <div className="flex gap-1 mb-4">
+              {[1, 2, 3, 4, 5].map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => setRating(n)}
+                  className={cn(
+                    'p-1 rounded-lg transition-colors',
+                    rating >= n ? 'text-brand-primary' : 'text-text-muted',
+                  )}
+                  aria-label={`${n}점`}
+                >
+                  <Star size={28} className={rating >= n ? 'fill-current' : ''} />
+                </button>
+              ))}
+            </div>
+            <textarea
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              placeholder="선택: 거래 경험을 짧게 남겨 주세요"
+              rows={3}
+              maxLength={500}
+              className="w-full rounded-xl border border-border-main bg-bg-input px-3 py-2 text-sm text-text-main placeholder:text-text-muted mb-4 resize-none"
+            />
+            <div className="flex gap-2 justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setReviewOpen(false)}
+              >
+                취소
+              </Button>
+              <Button
+                type="button"
+                variant="primary"
+                size="sm"
+                disabled={reviewMutation.isPending}
+                onClick={() => reviewMutation.mutate()}
+              >
+                {reviewMutation.isPending ? '등록 중…' : '등록'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
     <PaymentFlowModal
       isOpen={paymentModalOpen}

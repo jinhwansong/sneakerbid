@@ -4,7 +4,7 @@ import React, { useMemo, useState, useEffect } from 'react';
 import AuctionCard from '@/components/auction/AuctionCard';
 import { Button } from '@/components/common/Button';
 import Dropdown from '@/components/common/Dropdown';
-import { SlidersHorizontal, X } from 'lucide-react';
+import { Search, SlidersHorizontal, X } from 'lucide-react';
 import { cn } from '@/lib/util/cn';
 import { BRANDS, SIZES, SORT_OPTIONS, type SortBy } from '@/constants';
 import VirtualizedList from '@/components/common/VirtualizedList';
@@ -19,6 +19,13 @@ export default function AuctionListPage() {
   const [selectedSize, setSelectedSize] = useState<number | null>(null);
   const [sortBy, setSortBy] = useState<SortBy>('popular');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [searchInput, setSearchInput] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchInput.trim()), 350);
+    return () => clearTimeout(t);
+  }, [searchInput]);
 
   const {
     data,
@@ -30,6 +37,7 @@ export default function AuctionListPage() {
     brand: selectedBrand,
     size: selectedSize,
     sort: sortBy,
+    search: debouncedSearch || null,
   });
 
   const displayItems = auctionListPagesToItems(data);
@@ -79,6 +87,22 @@ export default function AuctionListPage() {
           <p className="text-text-sub font-medium">
             실시간으로 진행 중인 모든 스니커즈 경매를 확인하세요.
           </p>
+        </div>
+
+        <div className="relative mb-8 md:mb-10 max-w-xl">
+          <Search
+            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none"
+            size={18}
+            aria-hidden
+          />
+          <input
+            type="search"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            placeholder="모델명·브랜드·설명 검색"
+            className="w-full h-11 pl-11 pr-4 rounded-xl bg-bg-input border border-border-main text-text-main placeholder:text-text-muted text-sm font-medium outline-none focus:border-brand-primary/40 transition-colors"
+            aria-label="경매 검색"
+          />
         </div>
 
         <div className="flex flex-col lg:flex-row gap-10 items-start">

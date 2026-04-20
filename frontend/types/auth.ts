@@ -22,4 +22,21 @@ export interface MeResponse {
     wonCount: number;
     soldCount: number;
   };
+  /** balance: 가용(입찰 보류 반영). heldInBids·totalBalance: 서버 확장 필드 */
+  wallet?: {
+    balance: number;
+    heldInBids: number;
+    totalBalance: number;
+  };
+}
+
+/** GET /users/me/seller-dashboard */
+export interface SellerDashboardResponse {
+  auctionCount: number;
+  closedAuctionCount: number;
+  bidCountOnMyAuctions: number;
+  revenuePaid: number;
+  paidOrderCount: number;
+  sellThroughRate: number | null;
+  viewCountSum: number;
 }

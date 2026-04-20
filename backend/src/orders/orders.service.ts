@@ -16,6 +16,7 @@ import { RequestUser } from '@/common/decorator/user.decorator';
 import { EventsService } from '@/events/events.service';
 import { AuctionsService } from '@/auctions/auctions.service';
 import { WalletService } from '@/wallet/wallet.service';
+import { NotificationsService } from '@/notifications/notifications.service';
 import { lockAuctionForUpdate } from '@/auctions/auction-lock.helper';
 import {
   CLOSE_EXPIRED_BATCH_SIZE,
@@ -111,6 +112,7 @@ export class OrdersService {
     private readonly eventsService: EventsService,
     private readonly auctionsService: AuctionsService,
     private readonly walletService: WalletService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   /**
@@ -207,6 +209,21 @@ export class OrdersService {
       finalPrice: result.finalPrice,
     });
     if (historyItem) this.eventsService.emitNewDeal(historyItem);
+
+    if (result.winnerUserId) {
+      void this.notificationsService
+        .notifyAuctionWon(
+          result.winnerUserId,
+          result.auctionId,
+          result.finalPrice,
+        )
+        .catch((err: unknown) =>
+          this.logger.warn('notifyAuctionWon failed', {
+            auctionId: result.auctionId,
+            err: normalizeError(err),
+          }),
+        );
+    }
 
     try {
       await this.clearPostCloseFinalizePayload(result.auctionId);

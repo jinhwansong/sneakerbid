@@ -100,9 +100,18 @@ function trimOrUndefined(s: unknown): string | undefined {
 function normalizeDataRetentionDays(config: Record<string, unknown>): number {
   const raw = config.DATA_RETENTION_DAYS ?? process.env.DATA_RETENTION_DAYS;
   if (raw === undefined || raw === null || raw === '') return 7;
-  const n = parseInt(String(raw).trim(), 10);
-  if (!Number.isFinite(n) || n < 0) return 7;
-  return Math.min(365, n);
+  if (typeof raw === 'number') {
+    if (!Number.isFinite(raw) || raw < 0) return 7;
+    return Math.min(365, Math.floor(raw));
+  }
+  if (typeof raw === 'string') {
+    const trimmed = raw.trim();
+    if (trimmed === '') return 7;
+    const n = parseInt(trimmed, 10);
+    if (!Number.isFinite(n) || n < 0) return 7;
+    return Math.min(365, n);
+  }
+  return 7;
 }
 
 export function validate(config: Record<string, unknown>) {

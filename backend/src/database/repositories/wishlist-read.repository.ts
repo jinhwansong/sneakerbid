@@ -20,6 +20,15 @@ export interface WishlistItemRow {
 export class WishlistReadRepository {
   constructor(private readonly db: DatabaseService) {}
 
+  /** 찜한 사용자 ID 목록 (알림용) */
+  async findUserIdsByAuctionId(auctionId: string): Promise<string[]> {
+    const rows = await this.db.query<{ userId: string }>(
+      `SELECT "userId" FROM "Wishlist" WHERE "auctionId" = $1`,
+      [auctionId],
+    );
+    return rows.map((r) => r.userId);
+  }
+
   async findWishlistedAuctionIdsIn(
     userId: string,
     auctionIds: string[],

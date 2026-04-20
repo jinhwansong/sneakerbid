@@ -162,9 +162,10 @@ export default function DetailBidControl({
             </Button>
           </div>
 
-          <p className="text-[9px] text-center text-text-muted font-bold tracking-tight">
-            입찰 시 취소 불가 및 낙찰 시{' '}
-            <span className="text-text-main underline">자동 결제</span> 동의
+          <p className="text-[9px] text-center text-text-muted font-bold tracking-tight leading-relaxed">
+            입찰가만큼 지갑에서 <span className="text-text-main">보류</span>되며,
+            실제 출금은 <span className="text-text-main">낙찰 후 주문 결제</span> 시
+            낙찰가 기준으로 정산됩니다. 유찰·추월 시 보류분은 해제됩니다.
           </p>
         </div>
       </div>

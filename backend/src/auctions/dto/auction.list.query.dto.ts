@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsIn, Min, IsUUID } from 'class-validator';
+import { IsOptional, IsString, IsIn, Min, IsUUID, MaxLength } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
@@ -52,4 +52,13 @@ export class AuctionListQueryDto {
   @Type(() => Number)
   @Min(1)
   limit?: number = 20;
+
+  @ApiPropertyOptional({
+    description: '모델명·브랜드·설명 등 키워드 검색',
+    maxLength: 80,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  search?: string;
 }

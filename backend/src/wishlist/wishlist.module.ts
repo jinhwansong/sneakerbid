@@ -1,9 +1,12 @@
 import { Module } from '@nestjs/common';
 import { WishlistService } from './wishlist.service';
 import { WishlistController } from './wishlist.controller';
+import { WishlistAlertsService } from './wishlist-alerts.service';
+import { NotificationsModule } from '@/notifications/notifications.module';
 
 @Module({
-  providers: [WishlistService],
+  imports: [NotificationsModule],
+  providers: [WishlistService, WishlistAlertsService],
   controllers: [WishlistController],
   exports: [WishlistService],
 })

@@ -16,6 +16,7 @@ const STATS_ITEMS = [
 
 const QUICK_LINKS = [
   { href: '/me/auctions', label: '내 경매', description: '등록한 경매 목록 보기' },
+  { href: '/me/seller', label: '판매 대시보드', description: '조회·입찰·매출 요약' },
   { href: '/me/bids', label: '내 입찰', description: '입찰중·낙찰·유찰 내역' },
   { href: '/me/wishlist', label: '찜 목록', description: '관심 경매 모아보기' },
 ] as const;
@@ -26,6 +27,11 @@ export default function ProfilePage() {
   if (isMeLoading) return null;
   if (profile === null) return <LoginRequiredPrompt />;
   if (!profile) return null;
+
+  const w = profile.wallet;
+  const totalBal = w?.totalBalance ?? profile.balance;
+  const availBal = w?.balance ?? profile.balance;
+  const held = w?.heldInBids ?? 0;
 
   return (
     <main className="min-h-[calc(100vh-64px)] bg-bg-main">
@@ -81,9 +87,18 @@ export default function ProfilePage() {
           <div className="px-6 md:px-10 py-5 bg-bg-sub/50 border-t border-border-main">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium text-text-muted">보유 잔액</p>
+                <p className="text-xs font-medium text-text-muted">지갑 총액</p>
                 <p className="text-xl md:text-2xl font-black text-text-main tabular-nums">
-                  {formatPrice(profile.balance)}원
+                  {formatPrice(totalBal)}원
+                </p>
+                <p className="mt-1 text-[11px] text-text-muted font-medium">
+                  가용 {formatPrice(availBal)}원
+                  {held > 0 ? (
+                    <>
+                      {' '}
+                      · 입찰 보류 {formatPrice(held)}원
+                    </>
+                  ) : null}
                 </p>
               </div>
               <Button

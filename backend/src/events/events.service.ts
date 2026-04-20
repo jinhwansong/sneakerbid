@@ -13,6 +13,7 @@ import {
   HEARTBEAT_INTERVAL_MS,
   REDIS_CHANNEL_SSE_AUCTION,
   REDIS_CHANNEL_SSE_HISTORY,
+  REDIS_CHANNEL_SSE_NOTIFICATIONS,
 } from '@/common/constants/events.constants';
 import { RedisService } from '@/redis/redis.service';
 
@@ -27,6 +28,10 @@ export class EventsService implements OnModuleInit {
   /** 거래내역 구독자 (새 체결 시 브로드캐스트) */
   private readonly historySubject = new Subject<MessageEvent>();
 
+  /** userId → 알림 SSE Subject */
+  private readonly notificationSubjects = new Map<string, Subject<MessageEvent>>();
+  private readonly notificationRefCounts = new Map<string, number>();
+
   private readonly logger = new Logger(EventsService.name);
 
   constructor(private readonly redis: RedisService) {}
@@ -34,7 +39,11 @@ export class EventsService implements OnModuleInit {
   async onModuleInit(): Promise<void> {
     const sub: Redis = this.redis.getSubscriber();
     try {
-      await sub.subscribe(REDIS_CHANNEL_SSE_AUCTION, REDIS_CHANNEL_SSE_HISTORY);
+      await sub.subscribe(
+        REDIS_CHANNEL_SSE_AUCTION,
+        REDIS_CHANNEL_SSE_HISTORY,
+        REDIS_CHANNEL_SSE_NOTIFICATIONS,
+      );
     } catch (err) {
       this.logger.error('Redis subscribe failed', err);
       throw err;
@@ -61,6 +70,14 @@ export class EventsService implements OnModuleInit {
               payload: data.payload,
             } as { type: string; payload?: unknown },
           } as MessageEvent);
+        } else if (
+          channel === REDIS_CHANNEL_SSE_NOTIFICATIONS &&
+          typeof data.userId === 'string'
+        ) {
+          this.emitToNotificationLocal(data.userId, {
+            type: 'notification',
+            payload: data.payload,
+          });
         }
       } catch {
         // 잘못된 메시지 무시
@@ -94,6 +111,26 @@ export class EventsService implements OnModuleInit {
       map(() => ({ data: { type: 'ping' } }) as MessageEvent),
     );
     return merge(this.historySubject.asObservable(), heartbeat);
+  }
+
+  /** 로그인 사용자 알림 스트림 (Redis로 멀티 인스턴스 동기화) */
+  streamNotifications(userId: string): Observable<MessageEvent> {
+    return new Observable((subscriber) => {
+      const subject = this.getOrCreateNotificationSubject(userId);
+      this.incrementNotificationRefCount(userId);
+
+      const heartbeat = interval(HEARTBEAT_INTERVAL_MS).pipe(
+        map(() => ({ data: { type: 'ping' } }) as MessageEvent),
+      );
+      const sub = merge(subject.asObservable(), heartbeat).subscribe(
+        subscriber,
+      );
+
+      return () => {
+        sub.unsubscribe();
+        this.decrementNotificationRefCountAndCleanup(userId);
+      };
+    });
   }
 
   /** 새 체결 이벤트 브로드캐스트 (경매 종료 시 호출) — Redis로 발행, 모든 인스턴스가 구독 */
@@ -198,6 +235,44 @@ export class EventsService implements OnModuleInit {
       }
     } else {
       this.auctionSubjectRefCounts.set(auctionId, next);
+    }
+  }
+
+  private emitToNotificationLocal(userId: string, data: object): void {
+    const subject = this.notificationSubjects.get(userId);
+    if (subject) {
+      subject.next({ data } as MessageEvent);
+    }
+  }
+
+  private getOrCreateNotificationSubject(
+    userId: string,
+  ): Subject<MessageEvent> {
+    let subject = this.notificationSubjects.get(userId);
+    if (!subject) {
+      subject = new Subject<MessageEvent>();
+      this.notificationSubjects.set(userId, subject);
+    }
+    return subject;
+  }
+
+  private incrementNotificationRefCount(userId: string): void {
+    const count = this.notificationRefCounts.get(userId) ?? 0;
+    this.notificationRefCounts.set(userId, count + 1);
+  }
+
+  private decrementNotificationRefCountAndCleanup(userId: string): void {
+    const count = this.notificationRefCounts.get(userId) ?? 0;
+    const next = Math.max(0, count - 1);
+    if (next === 0) {
+      this.notificationRefCounts.delete(userId);
+      const subject = this.notificationSubjects.get(userId);
+      if (subject) {
+        subject.complete();
+        this.notificationSubjects.delete(userId);
+      }
+    } else {
+      this.notificationRefCounts.set(userId, next);
     }
   }
 }
