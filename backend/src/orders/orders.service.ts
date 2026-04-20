@@ -354,7 +354,7 @@ export class OrdersService {
     return !!closed;
   }
 
-  /** 매시 정각 PENDING 주문 타임아웃 → 유찰 처리 (3일 초과 시) */
+  /** 매시 정각 PENDING 주문 타임아웃 → 유찰 처리 (PENDING_ORDER_TIMEOUT_DAYS 초과 시) */
   @Cron('0 * * * *', { timeZone: 'Asia/Seoul' })
   async cancelExpiredPendingOrders() {
     const deadline = new Date();
