@@ -43,6 +43,19 @@ export interface TradeHistoryRow {
   modelName: string;
 }
 
+/**
+ * 목록·JOIN용 Auction 컬럼만 명시 (`a.*` 대신).
+ * `postCloseFinalizePayload`(JSONB)·버전/연장 메타 등 목록/상세 응답에 불필요한 컬럼 제외 → DB egress·메모리 절감.
+ */
+const SQL_AUCTION_LIST_COLS = `
+  a.id, a."sneakerId", a.size, a."startPrice", a."currentPrice", a."buyNowPrice",
+  a."minimumIncrement", a.status, a."endTime", a."winnerUserId", a."closedAt", a."sellerUserId"
+`.trim();
+
+const SQL_AUCTION_LIST_WITH_SNEAKER =
+  `${SQL_AUCTION_LIST_COLS}, s.id as "sneaker_id", s."modelName" as "sneaker_modelName", s.brand as "sneaker_brand", s."imageUrl" as "sneaker_imageUrl",
+         (SELECT COUNT(*) FROM "Bid" WHERE "auctionId" = a.id)::int as bid_count`.trim();
+
 @Injectable()
 export class AuctionRepository {
   constructor(private readonly db: DatabaseService) {}
@@ -76,8 +89,7 @@ export class AuctionRepository {
   /** 메인 경매 목록 (진행 중, 20건) */
   async findMainAuctions(now: Date): Promise<AuctionListRow[]> {
     return this.db.query<AuctionListRow>(
-      `SELECT a.*, s.id as "sneaker_id", s."modelName" as "sneaker_modelName", s.brand as "sneaker_brand", s."imageUrl" as "sneaker_imageUrl",
-         (SELECT COUNT(*) FROM "Bid" WHERE "auctionId" = a.id)::int as bid_count
+      `SELECT ${SQL_AUCTION_LIST_WITH_SNEAKER}
        FROM "Auction" a JOIN "Sneaker" s ON a."sneakerId" = s.id
        WHERE a.status = 'OPEN' AND a."endTime" > $1 ORDER BY a."endTime" ASC LIMIT 20`,
       [now],
@@ -89,7 +101,7 @@ export class AuctionRepository {
     auctionId: string,
   ): Promise<AuctionDetailRow | null> {
     const rows = await this.db.query<AuctionDetailRow>(
-      `SELECT a.*, s.id as "sneaker_id", s."modelName" as "sneaker_modelName", s.brand as "sneaker_brand", s."imageUrl" as "sneaker_imageUrl",
+      `SELECT ${SQL_AUCTION_LIST_COLS}, s.id as "sneaker_id", s."modelName" as "sneaker_modelName", s.brand as "sneaker_brand", s."imageUrl" as "sneaker_imageUrl",
          s.colorway as "sneaker_colorway", s.description as "sneaker_description", s."styleCode" as "sneaker_styleCode",
          s."releaseYear" as "sneaker_releaseYear", s.condition as "sneaker_condition", s.origin as "sneaker_origin", s."boxIncluded" as "sneaker_boxIncluded",
          (SELECT COUNT(*) FROM "Bid" WHERE "auctionId" = a.id)::int as bid_count
@@ -106,8 +118,7 @@ export class AuctionRepository {
     statusFilter: 'all' | 'ongoing' | 'closed',
     now: Date,
   ): Promise<AuctionListRow[]> {
-    let sql = `SELECT a.*, s.id as "sneaker_id", s."modelName" as "sneaker_modelName", s.brand as "sneaker_brand", s."imageUrl" as "sneaker_imageUrl",
-       (SELECT COUNT(*) FROM "Bid" WHERE "auctionId" = a.id)::int as bid_count
+    let sql = `SELECT ${SQL_AUCTION_LIST_WITH_SNEAKER}
        FROM "Auction" a JOIN "Sneaker" s ON a."sneakerId" = s.id
        WHERE a."sellerUserId" = $1`;
     const params: unknown[] = [sellerUserId];
@@ -129,8 +140,7 @@ export class AuctionRepository {
     now: Date,
   ): Promise<AuctionListRow[]> {
     if (auctionIds.length === 0) return [];
-    let sql = `SELECT a.*, s.id as "sneaker_id", s."modelName" as "sneaker_modelName", s.brand as "sneaker_brand", s."imageUrl" as "sneaker_imageUrl",
-       (SELECT COUNT(*) FROM "Bid" WHERE "auctionId" = a.id)::int as bid_count
+    let sql = `SELECT ${SQL_AUCTION_LIST_WITH_SNEAKER}
        FROM "Auction" a JOIN "Sneaker" s ON a."sneakerId" = s.id
        WHERE a.id = ANY($1::text[])`;
     const params: unknown[] = [auctionIds];
@@ -167,8 +177,7 @@ export class AuctionRepository {
     };
     const orderClause = orderMap[sort] ?? orderMap.newest;
 
-    let sql = `SELECT a.*, s.id as "sneaker_id", s."modelName" as "sneaker_modelName", s.brand as "sneaker_brand", s."imageUrl" as "sneaker_imageUrl",
-       (SELECT COUNT(*) FROM "Bid" WHERE "auctionId" = a.id)::int as bid_count
+    let sql = `SELECT ${SQL_AUCTION_LIST_WITH_SNEAKER}
        FROM "Auction" a JOIN "Sneaker" s ON a."sneakerId" = s.id
        WHERE a.status = $1 AND a."endTime" > $2`;
     const queryParams: unknown[] = ['OPEN', now];
@@ -310,7 +319,7 @@ export class AuctionRepository {
         ? [botUserIds, closedAfter, closedBefore, excludeRelistedIds]
         : [botUserIds, closedAfter, closedBefore];
     return this.db.query(
-      `SELECT a.*, s.brand as "sneaker_brand", s."modelName" as "sneaker_modelName"
+      `SELECT ${SQL_AUCTION_LIST_WITH_SNEAKER}
        FROM "Auction" a JOIN "Sneaker" s ON a."sneakerId" = s.id
        WHERE a.status = 'CLOSED' AND a."winnerUserId" = ANY($1::text[])
          AND a."closedAt" >= $2 AND a."closedAt" <= $3 ${excludeClause}`,
@@ -324,8 +333,7 @@ export class AuctionRepository {
     limit: number,
   ): Promise<AuctionListRow[]> {
     return this.db.query<AuctionListRow>(
-      `SELECT a.*, s.id as "sneaker_id", s."modelName" as "sneaker_modelName", s.brand as "sneaker_brand", s."imageUrl" as "sneaker_imageUrl",
-         (SELECT COUNT(*) FROM "Bid" WHERE "auctionId" = a.id)::int as bid_count
+      `SELECT ${SQL_AUCTION_LIST_WITH_SNEAKER}
        FROM "Auction" a
        JOIN "Sneaker" s ON a."sneakerId" = s.id
        JOIN "User" u ON a."sellerUserId" = u.id

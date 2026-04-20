@@ -34,6 +34,8 @@ const config = {
   JWT_PUBLIC_KEY: process.env.JWT_PUBLIC_KEY,
   REDIS_URL: process.env.REDIS_URL,
   AUTH_COOKIE_SAME_SITE: process.env.AUTH_COOKIE_SAME_SITE,
+  KICKS_API_KEY: process.env.KICKS_API_KEY,
+  DATA_RETENTION_DAYS: process.env.DATA_RETENTION_DAYS,
 };
 
 try {

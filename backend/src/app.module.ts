@@ -28,6 +28,7 @@ import { WishlistModule } from './wishlist/wishlist.module';
 import { UploadModule } from './upload/upload.module';
 import { AdminModule } from './admin/admin.module';
 import { ProductSeedModule } from './product-seed/product-seed.module';
+import { RetentionModule } from './retention/retention.module';
 
 @Module({
   imports: [
@@ -68,6 +69,7 @@ import { ProductSeedModule } from './product-seed/product-seed.module';
     UploadModule,
     AdminModule,
     ProductSeedModule,
+    RetentionModule,
   ],
   controllers: [AppController, HealthController],
   providers: [

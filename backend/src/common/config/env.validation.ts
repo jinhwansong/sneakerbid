@@ -83,6 +83,12 @@ class EnvironmentVariables {
   @IsOptional()
   @IsString()
   KICKS_API_KEY?: string;
+
+  /** 종료 경매·관련 행 보존 기간(일). 0이면 보존 배치 비활성화. 기본 7 */
+  @IsNumber()
+  @Min(0)
+  @Max(365)
+  DATA_RETENTION_DAYS!: number;
 }
 
 function trimOrUndefined(s: unknown): string | undefined {
@@ -91,13 +97,25 @@ function trimOrUndefined(s: unknown): string | undefined {
   return t.length > 0 ? t : undefined;
 }
 
+function normalizeDataRetentionDays(config: Record<string, unknown>): number {
+  const raw = config.DATA_RETENTION_DAYS ?? process.env.DATA_RETENTION_DAYS;
+  if (raw === undefined || raw === null || raw === '') return 7;
+  const n = parseInt(String(raw).trim(), 10);
+  if (!Number.isFinite(n) || n < 0) return 7;
+  return Math.min(365, n);
+}
+
 export function validate(config: Record<string, unknown>) {
   // CORS_ORIGIN이 없으면 FRONTEND_URL 사용 (env 키 불일치 대응). 빈 문자열/공백만 있는 값은 제외
   const corsOrigin =
     trimOrUndefined(config.CORS_ORIGIN) ??
     trimOrUndefined(config.FRONTEND_URL) ??
     trimOrUndefined(process.env.FRONTEND_URL);
-  config = { ...config, CORS_ORIGIN: corsOrigin };
+  config = {
+    ...config,
+    CORS_ORIGIN: corsOrigin,
+    DATA_RETENTION_DAYS: normalizeDataRetentionDays(config),
+  };
   const validatedConfig = plainToInstance(EnvironmentVariables, config, {
     enableImplicitConversion: true,
   });

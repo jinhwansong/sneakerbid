@@ -77,7 +77,8 @@
 
 ### 인프라
 - [x] Supabase (DB, Storage), Upstash Redis
-- [x] KicksDB 상품 시드 Cron *(매일 00:00, 09:00, 12:00, 14:00, 18:00 — 20개씩)*
+- [x] KicksDB 상품 시드 Cron *(매일 00:00, 09:00, 12:00, 14:00, 18:00 — 10개씩)*
+- [x] DB 보존 배치 *(매일 03:15 KST — `closedAt` 기준 N일 지난 종료 경매·관련 Order/지갑/입찰 삭제, 미참조 Sneaker 정리. `DATA_RETENTION_DAYS`, 기본 7일, 0=비활성)*
 
 ---
 

@@ -16,7 +16,8 @@ import {
 import type { KicksDBProduct } from '@/kicksdb/kicksdb.types';
 
 const SEED_QUERIES = ['nike', 'jordan', 'dunk', 'adidas', 'yeezy'] as const;
-const PRODUCTS_PER_CRON = 20;
+/** KicksDB에서 가져올 상품 수 (Cron당). 일 5회 × 10 = 최대 ~50건/일 시도 */
+const PRODUCTS_PER_CRON = 10;
 const DEFAULT_AUCTION_DURATION_HOURS = 2;
 
 /** KicksDB brand → 우리 브랜드 매핑 */
@@ -53,7 +54,7 @@ export class ProductSeedService {
     private readonly kicksdb: KicksDBService,
   ) {}
 
-  /** 매일 00:00, 09:00, 12:00, 14:00, 18:00 KST — KicksDB에서 20개 상품 추가 */
+  /** 매일 00:00, 09:00, 12:00, 14:00, 18:00 KST — KicksDB에서 상품 추가 (PRODUCTS_PER_CRON) */
   @Cron('0 0,9,12,14,18 * * *', { timeZone: 'Asia/Seoul' })
   async seedFromKicksDB() {
     if (!this.kicksdb.isEnabled) {

@@ -43,6 +43,7 @@ npm run start:dev
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `GOOGLE_CALLBACK_URL` | OAuth 시 | 콜백 URL은 배포된 API 도메인 기준 |
 | `KAKAO_CLIENT_ID` / `KAKAO_CLIENT_SECRET` / `KAKAO_CALLBACK_URL` | OAuth 시 | 동일 |
 | `KICKS_API_KEY` | 선택 | KicksDB API 키. 없으면 상품 시드 Cron 스킵 (매일 00:00, 09:00, 12:00, 14:00, 18:00 KST) |
+| `DATA_RETENTION_DAYS` | 선택 | 종료 경매·관련 행 보존 기간(일). **0**이면 보존 배치 비활성화. 미설정 시 **7** (매일 03:15 KST, `closedAt` 기준) |
 
 검증 스크립트:
 

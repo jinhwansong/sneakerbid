@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import type { PoolClient } from 'pg';
 import { Pool } from 'pg';
 import { createTxClient, type TxClient } from './transaction-client';
 import type { UserByIdResult } from '@/common/database/db.types';
@@ -63,6 +64,24 @@ export class DatabaseService implements OnModuleDestroy {
     try {
       const r = await client.query(sql, values ?? []);
       return r.rows as T[];
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * 유지보수용: pg PoolClient로 raw SQL 트랜잭션 (TxClient에 없는 DELETE 등).
+   */
+  async transactionRaw<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const result = await fn(client);
+      await client.query('COMMIT');
+      return result;
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
     } finally {
       client.release();
     }
