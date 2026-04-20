@@ -41,7 +41,8 @@ export default function Header() {
   useClickOutside(profileRef, () => setProfileOpen(false), 'mousedown');
 
   useEffect(() => {
-    setMobileNavOpen(false);
+    const id = window.setTimeout(() => setMobileNavOpen(false), 0);
+    return () => window.clearTimeout(id);
   }, [pathname]);
 
   useEffect(() => {
@@ -55,14 +56,14 @@ export default function Header() {
 
   return (
     <nav
-      className="sticky top-0 z-50 w-full bg-bg-main/95 dark:bg-bg-main/90 backdrop-blur-md border-b border-border-main"
+      className="sticky top-0 z-[100] w-full bg-bg-main/95 dark:bg-bg-main/90 backdrop-blur-md border-b border-border-main"
       aria-label="메인 네비게이션"
     >
       <div className="max-w-7xl mx-auto px-5 h-14 md:h-16 flex items-center justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-2 md:gap-8">
+        <div className="flex min-w-0 flex-1 items-center gap-2 lg:gap-8">
           <button
             type="button"
-            className="md:hidden flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border-main bg-bg-sub/50 hover:bg-bg-sub transition-colors"
+            className="lg:hidden flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border-main bg-bg-sub/50 hover:bg-bg-sub transition-colors z-10"
             onClick={() => setMobileNavOpen((v) => !v)}
             aria-label={mobileNavOpen ? '메뉴 닫기' : '메뉴 열기'}
             aria-expanded={mobileNavOpen}
@@ -78,13 +79,13 @@ export default function Header() {
               Lace<span className="text-brand-primary">Up</span>
             </h1>
           </Link>
-          <div className="hidden md:flex gap-1">
+          <div className="hidden min-w-0 lg:flex lg:flex-1 lg:justify-center xl:justify-start gap-1 overflow-x-auto scrollbar-hide">
             {navItems.map((item) => (
               <Link
                 key={item.label}
                 href={item.href}
                 className={cn(
-                  'px-3 py-2 rounded-lg text-sm font-semibold transition-colors',
+                  'shrink-0 px-3 py-2 rounded-lg text-sm font-semibold transition-colors',
                   isActive(item.href)
                     ? 'text-text-main bg-bg-sub'
                     : 'text-text-sub hover:text-text-main hover:bg-bg-sub/70',
@@ -185,12 +186,12 @@ export default function Header() {
         <>
           <button
             type="button"
-            className="fixed inset-0 z-40 bg-black/50 md:hidden"
+            className="fixed inset-0 z-[110] bg-black/50 lg:hidden"
             aria-label="메뉴 배경 닫기"
             onClick={() => setMobileNavOpen(false)}
           />
           <div
-            className="fixed top-14 left-0 bottom-0 z-50 w-[min(100%,18rem)] border-r border-border-main bg-bg-main shadow-xl md:hidden flex flex-col"
+            className="fixed left-0 bottom-0 z-[120] w-[min(100%,18rem)] border-r border-border-main bg-bg-main shadow-xl flex flex-col lg:hidden top-14 md:top-16"
             role="dialog"
             aria-label="모바일 메뉴"
           >
