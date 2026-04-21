@@ -68,7 +68,7 @@ export class AuctionsController {
   @ApiQuery({
     name: 'period',
     required: false,
-    description: '1m | 3m | 6m | all',
+    description: '1d | 3d | 5d | all',
   })
   @ApiQuery({
     name: 'search',

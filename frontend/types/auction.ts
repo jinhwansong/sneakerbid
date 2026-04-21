@@ -67,7 +67,7 @@ export interface AuctionListQuery {
 
 /** 거래 내역 조회 쿼리 파라미터 */
 export interface AuctionHistoryQuery {
-  period?: '1m' | '3m' | '6m' | 'all';
+  period?: '1d' | '3d' | '5d' | 'all';
   search?: string;
   limit?: number;
 }

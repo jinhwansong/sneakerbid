@@ -2,7 +2,7 @@ import { IsOptional, IsInt, Min, IsIn, IsString } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
-export const AUCTION_HISTORY_PERIODS = ['1m', '3m', '6m', 'all'] as const;
+export const AUCTION_HISTORY_PERIODS = ['1d', '3d', '5d', 'all'] as const;
 export type AuctionHistoryPeriod = (typeof AUCTION_HISTORY_PERIODS)[number];
 
 export class AuctionHistoryQueryDto {
@@ -17,7 +17,7 @@ export class AuctionHistoryQueryDto {
   limit?: number;
 
   @ApiPropertyOptional({
-    description: '기간 필터 (1m: 1개월, 3m: 3개월, 6m: 6개월, all: 전체)',
+    description: '기간 필터 (1d: 최근 1일, 3d: 3일, 5d: 5일, all: 전체)',
     enum: AUCTION_HISTORY_PERIODS,
   })
   @IsOptional()

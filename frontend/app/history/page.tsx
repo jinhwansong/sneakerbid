@@ -15,7 +15,7 @@ import { queryKeys } from '@/hooks/query/queryKeys';
 import HistorySkeleton from '@/components/skeleton/HistorySkeleton';
 
 export default function HistoryPage() {
-  const [period, setPeriod] = useState<'1m' | '3m' | '6m' | 'all'>('all');
+  const [period, setPeriod] = useState<'1d' | '3d' | '5d' | 'all'>('all');
   const [search, setSearch] = useState('');
 
   const queryClient = useQueryClient();
@@ -34,7 +34,7 @@ export default function HistoryPage() {
   });
 
   const handlePeriodChange = (value: string) => {
-    setPeriod(value as '1m' | '3m' | '6m' | 'all');
+    setPeriod(value as '1d' | '3d' | '5d' | 'all');
   };
 
   

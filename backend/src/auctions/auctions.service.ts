@@ -254,8 +254,7 @@ export class AuctionsService {
     nextCursor: string | null;
     hasMore: boolean;
   }> {
-    const { brand, size, sort = 'newest', afterId, limit = 20, search } =
-      query;
+    const { brand, size, sort = 'newest', afterId, limit = 20, search } = query;
     const now = new Date();
     const searchTrim =
       typeof search === 'string' && search.trim().length > 0
@@ -446,10 +445,7 @@ export class AuctionsService {
       participantCount,
     });
 
-    if (
-      result.previousLeaderId &&
-      result.previousLeaderId !== user.id
-    ) {
+    if (result.previousLeaderId && result.previousLeaderId !== user.id) {
       void this.notificationsService
         .notifyBidOvertaken(result.previousLeaderId, auctionId)
         .catch((err: unknown) =>
@@ -573,10 +569,7 @@ export class AuctionsService {
       participantCount,
     });
 
-    if (
-      result.previousLeaderId &&
-      result.previousLeaderId !== botUser.id
-    ) {
+    if (result.previousLeaderId && result.previousLeaderId !== botUser.id) {
       void this.notificationsService
         .notifyBidOvertaken(result.previousLeaderId, auctionId)
         .catch((err: unknown) =>
@@ -849,19 +842,19 @@ export class AuctionsService {
     });
   }
 
-  /** 거래 내역 기간 시작 날짜 반환 */
+  /** 거래 내역 기간 시작 시각 (해당 시각 이후 종료분만 조회) */
   private getHistoryPeriodStart(period?: AuctionHistoryPeriod): Date | null {
     if (!period || period === 'all') return null;
     const now = new Date();
     switch (period) {
-      case '1m':
-        now.setMonth(now.getMonth() - 1);
+      case '1d':
+        now.setTime(now.getTime() - 1 * 24 * 60 * 60 * 1000);
         break;
-      case '3m':
-        now.setMonth(now.getMonth() - 3);
+      case '3d':
+        now.setTime(now.getTime() - 3 * 24 * 60 * 60 * 1000);
         break;
-      case '6m':
-        now.setMonth(now.getMonth() - 6);
+      case '5d':
+        now.setTime(now.getTime() - 5 * 24 * 60 * 60 * 1000);
         break;
       default:
         return null;

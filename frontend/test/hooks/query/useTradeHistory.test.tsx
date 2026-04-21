@@ -52,13 +52,13 @@ describe('useTradeHistory', () => {
       items: [],
     });
 
-    renderHook(() => useTradeHistory({ period: '1m', search: 'Nike' }), {
+    renderHook(() => useTradeHistory({ period: '1d', search: 'Nike' }), {
       wrapper: createWrapper(),
     });
 
     await waitFor(() => {
       expect(api.auctions.getHistory).toHaveBeenCalledWith({
-        period: '1m',
+        period: '1d',
         search: 'Nike',
       });
     });

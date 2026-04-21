@@ -87,7 +87,7 @@ describe('Auctions (e2e)', () => {
 
     it('accepts period query', () => {
       return request(app.getHttpServer() as Server)
-        .get('/auctions/history?period=1m')
+        .get('/auctions/history?period=1d')
         .expect(200)
         .expect((res) => {
           const body = res.body as HistoryBody;

@@ -27,9 +27,9 @@ export type SortBy = (typeof SORT_OPTIONS)[number]['value'];
 
 export const PERIOD_OPTIONS = [
   { label: '전체 기간', value: 'all' },
-  { label: '최근 1개월', value: '1m' },
-  { label: '최근 3개월', value: '3m' },
-  { label: '최근 6개월', value: '6m' },
+  { label: '최근 1일', value: '1d' },
+  { label: '최근 3일', value: '3d' },
+  { label: '최근 5일', value: '5d' },
 ];
 
 export const AUCTION_FILTER_TABS = ['전체', '인기', '종료임박', '신규'];
