@@ -30,6 +30,7 @@ import { AdminModule } from './admin/admin.module';
 import { ProductSeedModule } from './product-seed/product-seed.module';
 import { RetentionModule } from './retention/retention.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { SchedulingControlModule } from './scheduling/scheduling-control.module';
 
 @Module({
   imports: [
@@ -63,6 +64,7 @@ import { NotificationsModule } from './notifications/notifications.module';
     AuctionsModule,
     EventsModule,
     ScheduleModule.forRoot(),
+    SchedulingControlModule,
     BotsModule,
     OrdersModule,
     WalletModule,

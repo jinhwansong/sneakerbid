@@ -89,6 +89,11 @@ class EnvironmentVariables {
   @Min(0)
   @Max(365)
   DATA_RETENTION_DAYS!: number;
+
+  /** true면 @Cron / @Interval 전부 부팅 직후 중지 (로컬 등). 미설정·false면 정상 */
+  @IsOptional()
+  @IsIn(['true', 'false'])
+  DISABLE_SCHEDULING?: string;
 }
 
 function trimOrUndefined(s: unknown): string | undefined {

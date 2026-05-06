@@ -36,6 +36,7 @@ const config = {
   AUTH_COOKIE_SAME_SITE: process.env.AUTH_COOKIE_SAME_SITE,
   KICKS_API_KEY: process.env.KICKS_API_KEY,
   DATA_RETENTION_DAYS: process.env.DATA_RETENTION_DAYS,
+  DISABLE_SCHEDULING: process.env.DISABLE_SCHEDULING,
 };
 
 try {

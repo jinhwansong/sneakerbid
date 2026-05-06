@@ -44,6 +44,7 @@ npm run start:dev
 | `KAKAO_CLIENT_ID` / `KAKAO_CLIENT_SECRET` / `KAKAO_CALLBACK_URL` | OAuth 시 | 동일 |
 | `KICKS_API_KEY` | 선택 | KicksDB API 키. 없으면 상품 시드 Cron 스킵 (매일 00:00, 09:00, 12:00, 14:00, 18:00 KST) |
 | `DATA_RETENTION_DAYS` | 선택 | 종료 경매·관련 행 보존 기간(일). **0**이면 보존 배치 비활성화. 미설정 시 **7** (매일 03:15 KST, `closedAt` 기준) |
+| `DISABLE_SCHEDULING` | 선택 | **`true`**이면 부팅 후 등록된 **모든 Cron·Interval** 중지 (로컬 CPU/DB 부담 완화). 미설정·`false`면 정상 동작 |
 
 검증 스크립트:
 
